@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/screens/image_capture_screen.dart';
 import 'onboarding_flow.dart';
 
 void main() {
@@ -7,50 +8,64 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Skin Analysis',
       debugShowCheckedModeBanner: false,
-      home: const PhoneFrame(),
-      
+      theme: ThemeData(primarySwatch: Colors.pink, fontFamily: 'Roboto'),
+      home: const ImageCaptureScreen(),
     );
   }
 }
 
-class PhoneFrame extends StatelessWidget {
-  const PhoneFrame({super.key});
+// class MyApp extends StatelessWidget {
+//   const MyApp({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
-    final w = MediaQuery.of(context).size.width;
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       home: const PhoneFrame(),
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Container(
-          width: w * 0.92,          // responsive phone width
-          height: h * 0.97,         // responsive phone height
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(35),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: const OnboardingScreen(),
-        ),
-      ),
-    );
-  }
-}
+//     );
+//   }
+// }
+
+// class PhoneFrame extends StatelessWidget {
+//   const PhoneFrame({super.key});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final h = MediaQuery.of(context).size.height;
+//     final w = MediaQuery.of(context).size.width;
+
+//     return Scaffold(
+//       backgroundColor: Colors.black,
+//       body: Center(
+//         child: Container(
+//           width: w * 0.92,          // responsive phone width
+//           height: h * 0.97,         // responsive phone height
+//           decoration: BoxDecoration(
+//             color: Colors.white,
+//             borderRadius: BorderRadius.circular(35),
+//             boxShadow: [
+//               BoxShadow(
+//                 color: Colors.black.withOpacity(0.4),
+//                 blurRadius: 20,
+//                 offset: const Offset(0, 10),
+//               ),
+//             ],
+//           ),
+//           clipBehavior: Clip.antiAlias,
+//           child: const OnboardingScreen(),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -91,7 +106,7 @@ class OnboardingScreen extends StatelessWidget {
 
         // TEXT
         Positioned(
-          top: h * 0.55,     // responsive
+          top: h * 0.55, // responsive
           left: 0,
           right: 0,
           child: Column(
@@ -137,7 +152,7 @@ class OnboardingScreen extends StatelessWidget {
 
         // BUTTON
         Positioned(
-          bottom: h * 0.1,     // responsive
+          bottom: h * 0.1, // responsive
           left: 0,
           right: 0,
           child: Center(
@@ -154,10 +169,7 @@ class OnboardingScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0x80ECA383),
                   borderRadius: BorderRadius.circular(36),
-                  border: Border.all(
-                    color: const Color(0xFFA6553F),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0xFFA6553F), width: 2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.25),
