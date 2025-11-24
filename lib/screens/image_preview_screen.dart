@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'skin_analysis_screen.dart';
@@ -17,39 +18,60 @@ class ImagePreviewScreen extends StatefulWidget {
   State<ImagePreviewScreen> createState() => _ImagePreviewScreenState();
 }
 
-class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
+class _ImagePreviewScreenState extends State<ImagePreviewScreen>
+    with SingleTickerProviderStateMixin {
   bool _isAnalyzing = false;
-  bool _showOverlay = true;
-  int _currentAttempt = 0;
-  int _maxAttempts = 3;
+  int _currentMessageIndex = 0;
+  Timer? _messageTimer;
+  AnimationController? _scanLineController;
+  Animation<double>? _scanLineAnimation;
+
+  final List<String> _loadingMessages = [
+    "YOU'VE BEEN FOUND GUILTY OF\nBEING TOO ATTRACTIVE.",
+    "ATTRACTIVENESS ISN'T FIXED; THE\nINDEX JUST TRACKS THE JOURNEY.",
+    "THE INDEX UNCOVERS HIDDEN\nAESTHETIC STRENGTHS THAT MOST\nPEOPLE OVERLOOK.",
+    "ANALYZING YOUR UNIQUE\nFACIAL FEATURES...",
+    "CALCULATING SKIN HEALTH\nINDICATORS...",
+    "PROCESSING BEAUTY\nALGORITHMS...",
+  ];
 
   @override
   void initState() {
     super.initState();
-    // Auto-hide overlay after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _showOverlay = false);
-      }
-    });
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+
+    _scanLineAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _scanLineController!, curve: Curves.linear),
+    );
+  }
+
+  @override
+  void dispose() {
+    _messageTimer?.cancel();
+    _scanLineController?.dispose();
+    super.dispose();
   }
 
   Future<void> _sendForAnalysis() async {
     setState(() {
       _isAnalyzing = true;
-      _currentAttempt = 0;
+      _currentMessageIndex = 0;
     });
+
+    _startMessageCycling();
 
     try {
       final apiService = ApiService();
-
-      // Listen to attempts (simulated with periodic updates)
-      _simulateProgress();
 
       final analysisData = await apiService.analyzeSkinWithImageBytes(
         widget.imageBytes,
         widget.fileName,
       );
+
+      _messageTimer?.cancel();
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -63,6 +85,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
         );
       }
     } catch (e) {
+      _messageTimer?.cancel();
       if (mounted) {
         setState(() => _isAnalyzing = false);
         _showErrorDialog(e.toString());
@@ -70,23 +93,13 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
     }
   }
 
-  void _simulateProgress() {
-    // Simulate progress updates
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && _isAnalyzing) {
-        setState(() => _currentAttempt = 1);
-      }
-    });
-
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _isAnalyzing) {
-        setState(() => _currentAttempt = 2);
-      }
-    });
-
-    Future.delayed(const Duration(seconds: 8), () {
-      if (mounted && _isAnalyzing) {
-        setState(() => _currentAttempt = 3);
+  void _startMessageCycling() {
+    _messageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentMessageIndex =
+              (_currentMessageIndex + 1) % _loadingMessages.length;
+        });
       }
     });
   }
@@ -158,15 +171,15 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to capture screen
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
             child: const Text('Cancel'),
           ),
           ElevatedButton.icon(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              _sendForAnalysis(); // Retry
+              Navigator.pop(context);
+              _sendForAnalysis();
             },
             icon: const Icon(Icons.refresh),
             label: const Text('Retry'),
@@ -183,212 +196,82 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFF5E6E8),
       body: SafeArea(
         child: _isAnalyzing
-            ? Center(
-                child: Container(
-                  padding: const EdgeInsets.all(30),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Animated circular progress
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 100,
-                            height: 100,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 6,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFFE8B4BA),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8B4BA).withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.auto_awesome,
-                              color: Color(0xFFE8B4BA),
-                              size: 40,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      const Text(
-                        'Analyzing your skin...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Text(
-                        _getAnalysisMessage(),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Progress indicator
-                      if (_currentAttempt > 0) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            _currentAttempt <= _maxAttempts
-                                ? 'Attempt $_currentAttempt of $_maxAttempts'
-                                : 'Processing...',
-                            style: const TextStyle(
-                              color: Colors.white60,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 30),
-
-                      // Processing steps
-                      _buildProcessingStep(
-                        Icons.face_retouching_natural,
-                        'Detecting facial features',
-                        _currentAttempt >= 1,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildProcessingStep(
-                        Icons.analytics,
-                        'Analyzing skin condition',
-                        _currentAttempt >= 2,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildProcessingStep(
-                        Icons.assessment,
-                        'Generating results',
-                        _currentAttempt >= 3,
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : Stack(
+            ? _buildAnalyzingScreen()
+            : Column(
                 children: [
-                  // Image Display
-                  Center(
-                    child: Image.memory(widget.imageBytes, fit: BoxFit.contain),
+                  const SizedBox(height: 10), // Small top padding
+                  // Image Area
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(30),
+                          bottomRight: Radius.circular(30),
+                        ),
+                        child: Image.memory(
+                          widget.imageBytes,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
                   ),
 
-                  // Face Detection Overlay
-                  if (_showOverlay)
-                    Center(
-                      child: Container(
-                        width: 300,
-                        height: 400,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 3),
-                          borderRadius: BorderRadius.circular(20),
+                  // Pink Bottom Area
+                  Transform.translate(
+                    offset: const Offset(0, -30),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8B4BA),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                          topRight: Radius.circular(30),
                         ),
-                        child: Stack(
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildCorner(true, true),
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: _buildCorner(true, false),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              child: _buildCorner(false, true),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: _buildCorner(false, false),
-                            ),
-                            Positioned(
-                              top: 200,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                height: 2,
-                                color: Colors.pink[200],
+                            const Text(
+                              'Well done! You\'re good to go',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
                               ),
+                              textAlign: TextAlign.center,
                             ),
+
+                            const SizedBox(height: 25),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildActionButton(
+                                  'Retake',
+                                  Colors.white,
+                                  const Color(0xFFD4999F),
+                                  () => Navigator.pop(context),
+                                ),
+                                const SizedBox(width: 20),
+                                _buildActionButton(
+                                  'Send',
+                                  const Color(0xFFD4999F),
+                                  Colors.white,
+                                  _sendForAnalysis,
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
                           ],
                         ),
                       ),
-                    ),
-
-                  // Success message
-                  Positioned(
-                    bottom: 150,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: const Text(
-                          'Well done ! You\'re good to go',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Action Buttons
-                  Positioned(
-                    bottom: 60,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildActionButton(
-                          'Retake',
-                          const Color(0xFFE8B4BA),
-                          () => Navigator.pop(context),
-                        ),
-                        const SizedBox(width: 20),
-                        _buildActionButton(
-                          'Send',
-                          const Color(0xFFE8B4BA),
-                          _sendForAnalysis,
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -397,92 +280,245 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
     );
   }
 
-  String _getAnalysisMessage() {
-    if (_currentAttempt == 0) {
-      return 'This may take a few moments';
-    } else if (_currentAttempt == 1) {
-      return 'Processing your image...';
-    } else if (_currentAttempt == 2) {
-      return 'Almost there...';
-    } else {
-      return 'Finalizing results...';
-    }
-  }
+  Widget _buildAnalyzingScreen() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final frameWidth = screenWidth * 0.7;
+    final frameHeight = screenHeight * 0.55;
 
-  Widget _buildProcessingStep(IconData icon, String text, bool isActive) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          icon,
-          color: isActive ? const Color(0xFFE8B4BA) : Colors.white30,
-          size: 20,
-        ),
-        const SizedBox(width: 10),
-        Text(
-          text,
-          style: TextStyle(
-            color: isActive ? Colors.white : Colors.white30,
-            fontSize: 13,
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.memory(widget.imageBytes, fit: BoxFit.cover),
           ),
-        ),
-        const SizedBox(width: 8),
-        if (isActive)
-          const SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE8B4BA)),
+
+          Positioned.fill(
+            child: Container(color: Colors.black.withOpacity(0.4)),
+          ),
+
+          Center(
+            child: SizedBox(
+              width: frameWidth,
+              height: frameHeight,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white, width: 2.5),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+
+                  _buildCornerBracket(
+                    Alignment.topLeft,
+                    frameWidth,
+                    frameHeight,
+                  ),
+                  _buildCornerBracket(
+                    Alignment.topRight,
+                    frameWidth,
+                    frameHeight,
+                  ),
+                  _buildCornerBracket(
+                    Alignment.bottomLeft,
+                    frameWidth,
+                    frameHeight,
+                  ),
+                  _buildCornerBracket(
+                    Alignment.bottomRight,
+                    frameWidth,
+                    frameHeight,
+                  ),
+
+                  AnimatedBuilder(
+                    animation: _scanLineAnimation!,
+                    builder: (context, child) {
+                      return Positioned(
+                        top: _scanLineAnimation!.value * frameHeight,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 2,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.pink[300]!.withOpacity(0.8),
+                                Colors.pink[200]!,
+                                Colors.pink[300]!.withOpacity(0.8),
+                                Colors.transparent,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.pink[200]!.withOpacity(0.6),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-      ],
+
+          Positioned(
+            bottom: 120,
+            left: 30,
+            right: 30,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 600),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.2),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                key: ValueKey<int>(_currentMessageIndex),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _loadingMessages[_currentMessageIndex],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                    letterSpacing: 0.8,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+
+          Positioned(
+            bottom: 75,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_loadingMessages.length, (index) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: _currentMessageIndex == index ? 20 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _currentMessageIndex == index
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 35,
+                height: 35,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCorner(bool isTop, bool isLeft) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        border: Border(
-          top: isTop
-              ? const BorderSide(color: Colors.white, width: 4)
-              : BorderSide.none,
-          bottom: !isTop
-              ? const BorderSide(color: Colors.white, width: 4)
-              : BorderSide.none,
-          left: isLeft
-              ? const BorderSide(color: Colors.white, width: 4)
-              : BorderSide.none,
-          right: !isLeft
-              ? const BorderSide(color: Colors.white, width: 4)
-              : BorderSide.none,
+  Widget _buildCornerBracket(
+    Alignment alignment,
+    double frameWidth,
+    double frameHeight,
+  ) {
+    final isTop =
+        alignment == Alignment.topLeft || alignment == Alignment.topRight;
+    final isLeft =
+        alignment == Alignment.topLeft || alignment == Alignment.bottomLeft;
+
+    return Positioned(
+      top: isTop ? -1.5 : null,
+      bottom: !isTop ? -1.5 : null,
+      left: isLeft ? -1.5 : null,
+      right: !isLeft ? -1.5 : null,
+      child: Container(
+        width: 35,
+        height: 35,
+        decoration: BoxDecoration(
+          border: Border(
+            top: isTop
+                ? const BorderSide(color: Colors.white, width: 5)
+                : BorderSide.none,
+            bottom: !isTop
+                ? const BorderSide(color: Colors.white, width: 5)
+                : BorderSide.none,
+            left: isLeft
+                ? const BorderSide(color: Colors.white, width: 5)
+                : BorderSide.none,
+            right: !isLeft
+                ? const BorderSide(color: Colors.white, width: 5)
+                : BorderSide.none,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildActionButton(String label, Color color, VoidCallback onTap) {
+  Widget _buildActionButton(
+    String label,
+    Color bgColor,
+    Color textColor,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 45, vertical: 14),
         decoration: BoxDecoration(
-          color: color,
+          color: bgColor,
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: textColor,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),

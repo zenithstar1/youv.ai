@@ -19,7 +19,6 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
 
   Future<void> _takePhoto() async {
     if (kIsWeb) {
-      // Use custom web camera widget
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -37,7 +36,6 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         ),
       );
     } else {
-      // Use native camera for mobile
       setState(() => _isLoading = true);
       try {
         final XFile? photo = await _picker.pickImage(
@@ -235,31 +233,6 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      // Status Bar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            TimeOfDay.now().format(context),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Row(
-                            children: const [
-                              Icon(Icons.signal_cellular_4_bar, size: 18),
-                              SizedBox(width: 5),
-                              Icon(Icons.wifi, size: 18),
-                              SizedBox(width: 5),
-                              Icon(Icons.battery_full, size: 18),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
                       // Instructions Button
                       GestureDetector(
                         onTap: _showInstructionsDialog,
@@ -320,7 +293,9 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                       // Take a photo button
                       _buildActionButton(
                         icon: Icons.camera_alt,
-                        label: 'Take a photo',
+                        label: kIsWeb
+                            ? 'Take a photo (Camera)'
+                            : 'Take a photo',
                         onTap: _takePhoto,
                       ),
 
@@ -400,12 +375,15 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
           children: [
             Icon(icon, color: Colors.white, size: 28),
             const SizedBox(width: 15),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],

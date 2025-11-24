@@ -20,21 +20,18 @@ class SkinAnalysisScreen extends StatefulWidget {
 class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   late int selectedColorIndex;
 
-  // Fitzpatrick Scale Colors (Type 1 to Type 6)
   final List<Color> fitzpatrickColors = [
-    const Color(0xFFFFF5F0), // Type 1: Very Fair (Pale white)
-    const Color(0xFFFFE4D6), // Type 2: Fair (White to light beige)
-    const Color(0xFFE8B896), // Type 3: Medium (Beige)
-    const Color(0xFFD4A574), // Type 4: Olive (Light brown)
-    const Color(0xFFAE7E5C), // Type 5: Brown (Dark brown)
-    const Color(0xFF6B4423), // Type 6: Dark Brown (Very dark brown to black)
+    const Color(0xFFFFF5F0),
+    const Color(0xFFFFE4D6),
+    const Color(0xFFE8B896),
+    const Color(0xFFD4A574),
+    const Color(0xFFAE7E5C),
+    const Color(0xFF6B4423),
   ];
 
   @override
   void initState() {
     super.initState();
-    // Set selected index based on fitzpatrick_type from API (1-6)
-    // Convert to 0-based index
     selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1) - 1;
   }
 
@@ -149,86 +146,47 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5E6E8),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Column(
-              children: [
-                // Status Bar
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 40 : 20,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        TimeOfDay.now().format(context),
-                        style: TextStyle(
-                          fontSize: isDesktop ? 16 : 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.signal_cellular_4_bar,
-                            size: isDesktop ? 18 : 16,
-                          ),
-                          SizedBox(width: isDesktop ? 8 : 5),
-                          Icon(Icons.wifi, size: isDesktop ? 18 : 16),
-                          SizedBox(width: isDesktop ? 8 : 5),
-                          Icon(Icons.battery_full, size: isDesktop ? 18 : 16),
-                        ],
-                      ),
-                    ],
-                  ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10), // Top padding instead of status bar
+            // Score Banner
+            Container(
+              margin: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 40 : 20,
+                vertical: 8,
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 30 : 20,
+                vertical: isDesktop ? 12 : 10,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4999F),
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Text(
+                'Attractiveness Index Score: ${overallScore.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isDesktop ? 15 : 13,
+                  fontWeight: FontWeight.w600,
                 ),
+                textAlign: TextAlign.center,
+              ),
+            ),
 
-                // Score Banner
-                Container(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 40 : 20,
-                    vertical: 8,
-                  ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 30 : 20,
-                    vertical: isDesktop ? 12 : 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD4999F),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Text(
-                    'Attractiveness Index Score: ${overallScore.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isDesktop ? 15 : 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                // Flexible content area
-                Expanded(
-                  child: isDesktop
-                      ? _buildDesktopLayout()
-                      : _buildMobileLayout(),
-                ),
-              ],
-            );
-          },
+            // Content area
+            Expanded(
+              child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Mobile Layout (Portrait)
   Widget _buildMobileLayout() {
     return Column(
       children: [
-        // Image with Analysis Points
         Expanded(
           child: Stack(
             children: [
@@ -282,7 +240,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           ),
         ),
 
-        // Bottom Section (Overlapping the image)
         Transform.translate(
           offset: const Offset(0, -30),
           child: Container(
@@ -299,7 +256,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header Text
                   const Text(
                     'The closer you are to 100, the healthier your skin is.',
                     style: TextStyle(
@@ -312,7 +268,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                   const SizedBox(height: 18),
 
-                  // Score Cards - Centered with equal margins
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -348,7 +303,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Info Pills - Using dynamic data from API
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -368,7 +322,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Fitzpatrick Color Palette (6 colors)
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -384,7 +337,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                   const SizedBox(height: 8),
 
-                  // Fitzpatrick type indicator
                   Text(
                     'Fitzpatrick Type ${selectedColorIndex + 1}',
                     style: const TextStyle(
@@ -402,7 +354,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
-  // Desktop Layout (Landscape)
   Widget _buildDesktopLayout() {
     return SingleChildScrollView(
       child: Center(
@@ -412,7 +363,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left side - Image
               Expanded(
                 flex: 5,
                 child: Container(
@@ -459,7 +409,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
               ),
 
-              // Right side - Analysis
               Expanded(
                 flex: 5,
                 child: Container(
@@ -485,7 +434,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                         const SizedBox(height: 30),
 
-                        // Score Cards in Grid
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -520,7 +468,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                         const SizedBox(height: 30),
 
-                        // Info Pills - Using dynamic data
                         Wrap(
                           spacing: 12,
                           runSpacing: 12,
@@ -542,7 +489,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                         const SizedBox(height: 30),
 
-                        // Fitzpatrick Color Palette (6 colors)
                         Wrap(
                           spacing: 12,
                           runSpacing: 12,
@@ -559,7 +505,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                         const SizedBox(height: 15),
 
-                        // Fitzpatrick type indicator
                         Text(
                           'Fitzpatrick Type ${selectedColorIndex + 1}',
                           style: const TextStyle(
