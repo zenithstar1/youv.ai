@@ -129,12 +129,147 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     ];
   }
 
+  // Enhanced calculation with weighted factors
   double _calculateOverallScore() {
     if (widget.analysisData == null) return 0;
-    return (widget.analysisData!.acneScore +
-            widget.analysisData!.hydrationScore +
-            widget.analysisData!.pigmentationScore) /
-        3;
+
+    // Calculate detailed sub-scores
+    final acneDetailScore = _calculateAcneDetailScore();
+    final hydrationDetailScore = _calculateHydrationDetailScore();
+    final pigmentationDetailScore = _calculatePigmentationDetailScore();
+    final agingScore = _calculateAgingScore(
+      (widget.analysisData!.skinAge + widget.analysisData!.eyeAge) / 2,
+    );
+
+    // Main factor weights (total = 100%)
+    const double acneWeight = 0.35; // 35%
+    const double hydrationWeight = 0.30; // 30%
+    const double pigmentationWeight = 0.25; // 25%
+    const double agingWeight = 0.10; // 10%
+
+    // Calculate weighted total
+    final totalScore =
+        (acneDetailScore * acneWeight) +
+        (hydrationDetailScore * hydrationWeight) +
+        (pigmentationDetailScore * pigmentationWeight) +
+        (agingScore * agingWeight);
+
+    print('=== Attractiveness Score Breakdown ===');
+    print(
+      'Acne Detail Score: ${acneDetailScore.toStringAsFixed(2)} (weight: 35%)',
+    );
+    print(
+      'Hydration Detail Score: ${hydrationDetailScore.toStringAsFixed(2)} (weight: 30%)',
+    );
+    print(
+      'Pigmentation Detail Score: ${pigmentationDetailScore.toStringAsFixed(2)} (weight: 25%)',
+    );
+    print('Aging Score: ${agingScore.toStringAsFixed(2)} (weight: 10%)');
+    print('Final Attractiveness Score: ${totalScore.toStringAsFixed(2)}%');
+    print('=====================================');
+
+    return totalScore.clamp(0.0, 100.0);
+  }
+
+  // Acne detail score with sub-factor weights
+  double _calculateAcneDetailScore() {
+    final factors = widget.analysisData!.acneFactors;
+
+    // Convert factor values (0-1 range, where lower is better) to scores (0-100)
+    final activeAcneScore = (1 - factors.activeAcne) * 100;
+    final comedolesScore = (1 - factors.comedones) * 100;
+    final congestionScore = (1 - factors.congestion) * 100;
+    final cysticScore = (1 - factors.cysticAcne) * 100;
+    final inflammationScore = (1 - factors.inflammation) * 100;
+    final oilinessScore = (1 - factors.oiliness) * 100;
+    final scarringScore = (1 - factors.scarring) * 100;
+
+    // Sub-factor weights
+    const weights = {
+      'activeAcne': 0.25,
+      'cysticAcne': 0.20,
+      'inflammation': 0.15,
+      'scarring': 0.15,
+      'comedones': 0.10,
+      'congestion': 0.10,
+      'oiliness': 0.05,
+    };
+
+    return (activeAcneScore * weights['activeAcne']!) +
+        (comedolesScore * weights['comedones']!) +
+        (congestionScore * weights['congestion']!) +
+        (cysticScore * weights['cysticAcne']!) +
+        (inflammationScore * weights['inflammation']!) +
+        (oilinessScore * weights['oiliness']!) +
+        (scarringScore * weights['scarring']!);
+  }
+
+  // Hydration detail score with sub-factor weights
+  double _calculateHydrationDetailScore() {
+    final factors = widget.analysisData!.hydrationFactors;
+
+    final fineLinesScore = (1 - factors.fineLines) * 100;
+    final flakinessScore = (1 - factors.flakiness) * 100;
+    final oilBalanceScore = (1 - factors.oilBalance) * 100;
+    final radianceScore = (1 - factors.radiance) * 100;
+    final textureScore = (1 - factors.texture) * 100;
+
+    const weights = {
+      'radiance': 0.30,
+      'texture': 0.25,
+      'fineLines': 0.20,
+      'oilBalance': 0.15,
+      'flakiness': 0.10,
+    };
+
+    return (fineLinesScore * weights['fineLines']!) +
+        (flakinessScore * weights['flakiness']!) +
+        (oilBalanceScore * weights['oilBalance']!) +
+        (radianceScore * weights['radiance']!) +
+        (textureScore * weights['texture']!);
+  }
+
+  // Pigmentation detail score with sub-factor weights
+  double _calculatePigmentationDetailScore() {
+    final factors = widget.analysisData!.pigmentationFactors;
+
+    final darkSpotsScore = (1 - factors.darkSpots) * 100;
+    final hyperpigmentationScore = (1 - factors.hyperpigmentation) * 100;
+    final melaninScore = (1 - factors.melaninUnevenness) * 100;
+    final evennessScore = (1 - factors.overallEvenness) * 100;
+    final rednessScore = (1 - factors.redness) * 100;
+    final underEyeScore = (1 - factors.underEyePigmentation) * 100;
+    final uvDamageScore = (1 - factors.uvDamage) * 100;
+
+    const weights = {
+      'overallEvenness': 0.25,
+      'hyperpigmentation': 0.20,
+      'darkSpots': 0.15,
+      'melaninUnevenness': 0.15,
+      'uvDamage': 0.10,
+      'underEyePigmentation': 0.10,
+      'redness': 0.05,
+    };
+
+    return (darkSpotsScore * weights['darkSpots']!) +
+        (hyperpigmentationScore * weights['hyperpigmentation']!) +
+        (melaninScore * weights['melaninUnevenness']!) +
+        (evennessScore * weights['overallEvenness']!) +
+        (rednessScore * weights['redness']!) +
+        (underEyeScore * weights['underEyePigmentation']!) +
+        (uvDamageScore * weights['uvDamage']!);
+  }
+
+  double _calculateAgingScore(double avgAge) {
+    if (avgAge >= 20 && avgAge <= 25) {
+      return 100.0;
+    } else if (avgAge > 25) {
+      final penalty = (avgAge - 25) * 2;
+      return (100 - penalty).clamp(0.0, 100.0);
+    } else {
+      final penalty = (20 - avgAge) * 1;
+      return (100 - penalty).clamp(0.0, 100.0);
+    }
   }
 
   @override
@@ -144,383 +279,544 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     final isDesktop = size.width > 600;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6E8),
+      backgroundColor: const Color(0xFFE8B4BA),
       body: SafeArea(
-        child: Column(
+        bottom: false,
+        child: isDesktop
+            ? _buildDesktopLayout()
+            : _buildMobileLayout(overallScore),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(double overallScore) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final screenHeight = constraints.maxHeight;
+
+        return Stack(
           children: [
-            const SizedBox(height: 10), // Top padding instead of status bar
-            // Score Banner
-            Container(
-              margin: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 40 : 20,
-                vertical: 8,
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 30 : 20,
-                vertical: isDesktop ? 12 : 10,
-              ),
+            // Pink background that fills everything
+            Positioned.fill(child: Container(color: const Color(0xFFE8B4BA))),
+
+            // Main content
+            Column(
+              children: [
+                // Top section with light pink background
+                Container(
+                  color: const Color(0xFFF5E6E8),
+                  child: Column(
+                    children: [
+                      // Score Banner
+                      Container(
+                        width: screenWidth,
+                        margin: const EdgeInsets.fromLTRB(20, 15, 20, 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4999F),
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Text(
+                          'Attractiveness Index Score: ${overallScore.toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+
+                      // Image with Analysis Points
+                      Container(
+                        height: screenHeight * 0.45, // Reduced to 45%
+                        width: screenWidth,
+                        padding: const EdgeInsets.fromLTRB(15, 5, 15, 0),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(30),
+                                bottomRight: Radius.circular(30),
+                              ),
+                              child: widget.imageBytes != null
+                                  ? Image.memory(
+                                      widget.imageBytes!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    )
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(30),
+                                          bottomRight: Radius.circular(30),
+                                        ),
+                                      ),
+                                      child: const Icon(Icons.person, size: 80),
+                                    ),
+                            ),
+                            Positioned(
+                              left: 15,
+                              top: 20,
+                              child: AnalysisPoint(
+                                label: 'Pigmentation',
+                                value: widget.analysisData!.pigmentationScore
+                                    .toStringAsFixed(0),
+                                color: Colors.white.withOpacity(0.95),
+                              ),
+                            ),
+                            Positioned(
+                              right: 15,
+                              top: 60,
+                              child: AnalysisPoint(
+                                label: 'Hydration',
+                                value: widget.analysisData!.hydrationScore
+                                    .toStringAsFixed(0),
+                                color: const Color(
+                                  0xFF9B7653,
+                                ).withOpacity(0.95),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Bottom Section - Now takes more space
+                Expanded(
+                  child: Transform.translate(
+                    offset: const Offset(0, -30),
+                    child: Container(
+                      width: screenWidth,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8B4BA),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                          topRight: Radius.circular(30),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: EdgeInsets.fromLTRB(
+                                screenWidth * 0.04,
+                                35,
+                                screenWidth * 0.04,
+                                0,
+                              ),
+                              child: Column(
+                                children: [
+                                  // Header Text
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: screenWidth * 0.02,
+                                    ),
+                                    child: const Text(
+                                      'The closer you are to 100, the healthier your skin is.',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black87,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 18),
+
+                                  // Score Cards
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: screenWidth * 0.01,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: ScoreCard(
+                                            score: widget
+                                                .analysisData!
+                                                .acneScore
+                                                .toStringAsFixed(0),
+                                            label: 'Acne',
+                                            factors: _getAcneFactors(),
+                                          ),
+                                        ),
+                                        SizedBox(width: screenWidth * 0.03),
+                                        Expanded(
+                                          child: ScoreCard(
+                                            score: widget
+                                                .analysisData!
+                                                .hydrationScore
+                                                .toStringAsFixed(0),
+                                            label: 'Hydration',
+                                            factors: _getHydrationFactors(),
+                                          ),
+                                        ),
+                                        SizedBox(width: screenWidth * 0.03),
+                                        Expanded(
+                                          child: ScoreCard(
+                                            score: widget
+                                                .analysisData!
+                                                .pigmentationScore
+                                                .toStringAsFixed(0),
+                                            label: 'Pigmentation',
+                                            factors: _getPigmentationFactors(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  // Info Pills
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: screenWidth * 0.02,
+                                    ),
+                                    child: Wrap(
+                                      spacing: screenWidth * 0.025,
+                                      runSpacing: 10,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        _buildLargeInfoPill(
+                                          'Skin Age : ${widget.analysisData!.skinAge}',
+                                        ),
+                                        _buildLargeInfoPill(
+                                          'Eye Age : ${widget.analysisData!.eyeAge}',
+                                        ),
+                                        _buildLargeInfoPill(
+                                          'Skin Type: ${widget.analysisData!.skinType}',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 22),
+
+                                  // Fitzpatrick Color Palette
+                                  Wrap(
+                                    spacing: screenWidth * 0.03,
+                                    runSpacing: 12,
+                                    alignment: WrapAlignment.center,
+                                    children: List.generate(6, (index) {
+                                      return _buildLargeColorCircle(
+                                        fitzpatrickColors[index],
+                                        selectedColorIndex == index,
+                                        () => setState(
+                                          () => selectedColorIndex = index,
+                                        ),
+                                      );
+                                    }),
+                                  ),
+
+                                  const SizedBox(height: 10),
+
+                                  // Fitzpatrick type indicator
+                                  Text(
+                                    'Fitzpatrick Type ${selectedColorIndex + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                    height: 30,
+                                  ), // Extra padding at bottom
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Larger Info Pill Widget
+  Widget _buildLargeInfoPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  // Larger Color Circle Widget
+  Widget _buildLargeColorCircle(
+    Color color,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    final isLightColor = color.computeLuminance() > 0.5;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected
+                ? Colors.black
+                : (isLightColor ? Colors.grey[400]! : Colors.white),
+            width: isSelected ? 3 : 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                color: isLightColor ? Colors.black : Colors.white,
+                size: 24,
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    final overallScore = _calculateOverallScore();
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            color: const Color(0xFFF5E6E8),
+            width: double.infinity,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(40, 15, 40, 5),
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFD4999F),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Text(
                 'Attractiveness Index Score: ${overallScore.toStringAsFixed(1)}%',
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
-                  fontSize: isDesktop ? 15 : 13,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
+          ),
 
-            // Content area
-            Expanded(
-              child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return Column(
-      children: [
-        Expanded(
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                  child: widget.imageBytes != null
-                      ? Image.memory(
-                          widget.imageBytes!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(30),
-                              bottomRight: Radius.circular(30),
+          Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      height: 600,
+                      margin: const EdgeInsets.all(10),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: widget.imageBytes != null
+                                ? Image.memory(
+                                    widget.imageBytes!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  )
+                                : Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(Icons.person, size: 120),
+                                  ),
+                          ),
+                          Positioned(
+                            left: 30,
+                            top: 50,
+                            child: AnalysisPoint(
+                              label: 'Pigmentation',
+                              value: widget.analysisData!.pigmentationScore
+                                  .toStringAsFixed(0),
+                              color: Colors.white.withOpacity(0.95),
                             ),
                           ),
-                          child: const Icon(Icons.person, size: 80),
-                        ),
-                ),
-              ),
-              Positioned(
-                left: 30,
-                top: 30,
-                child: AnalysisPoint(
-                  label: 'Pigmentation',
-                  value: widget.analysisData!.pigmentationScore.toStringAsFixed(
-                    0,
-                  ),
-                  color: Colors.white.withOpacity(0.95),
-                ),
-              ),
-              Positioned(
-                right: 30,
-                top: 80,
-                child: AnalysisPoint(
-                  label: 'Hydration',
-                  value: widget.analysisData!.hydrationScore.toStringAsFixed(0),
-                  color: const Color(0xFF9B7653).withOpacity(0.95),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        Transform.translate(
-          offset: const Offset(0, -30),
-          child: Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE8B4BA),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(30),
-                topRight: Radius.circular(30),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 40, 20, 25),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'The closer you are to 100, the healthier your skin is.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        child: ScoreCard(
-                          score: widget.analysisData!.acneScore.toStringAsFixed(
-                            0,
+                          Positioned(
+                            right: 30,
+                            top: 150,
+                            child: AnalysisPoint(
+                              label: 'Hydration',
+                              value: widget.analysisData!.hydrationScore
+                                  .toStringAsFixed(0),
+                              color: const Color(0xFF9B7653).withOpacity(0.95),
+                            ),
                           ),
-                          label: 'Acne',
-                          factors: _getAcneFactors(),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: ScoreCard(
-                          score: widget.analysisData!.hydrationScore
-                              .toStringAsFixed(0),
-                          label: 'Hydration',
-                          factors: _getHydrationFactors(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: ScoreCard(
-                          score: widget.analysisData!.pigmentationScore
-                              .toStringAsFixed(0),
-                          label: 'Pigmentation',
-                          factors: _getPigmentationFactors(),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
 
-                  const SizedBox(height: 20),
-
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      InfoPill(
-                        text: 'Skin Age : ${widget.analysisData!.skinAge}',
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      height: 600,
+                      margin: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8B4BA),
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                      InfoPill(
-                        text: 'Eye Age : ${widget.analysisData!.eyeAge}',
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(30),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'The closer you are to 100, the healthier your skin is.',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+
+                            const SizedBox(height: 30),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: ScoreCard(
+                                    score: widget.analysisData!.acneScore
+                                        .toStringAsFixed(0),
+                                    label: 'Acne',
+                                    factors: _getAcneFactors(),
+                                  ),
+                                ),
+                                const SizedBox(width: 15),
+                                Flexible(
+                                  child: ScoreCard(
+                                    score: widget.analysisData!.hydrationScore
+                                        .toStringAsFixed(0),
+                                    label: 'Hydration',
+                                    factors: _getHydrationFactors(),
+                                  ),
+                                ),
+                                const SizedBox(width: 15),
+                                Flexible(
+                                  child: ScoreCard(
+                                    score: widget
+                                        .analysisData!
+                                        .pigmentationScore
+                                        .toStringAsFixed(0),
+                                    label: 'Pigmentation',
+                                    factors: _getPigmentationFactors(),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 30),
+
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                InfoPill(
+                                  text:
+                                      'Skin Age : ${widget.analysisData!.skinAge}',
+                                ),
+                                InfoPill(
+                                  text:
+                                      'Eye Age : ${widget.analysisData!.eyeAge}',
+                                ),
+                                InfoPill(
+                                  text:
+                                      'Skin Type: ${widget.analysisData!.skinType}',
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 30),
+
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              alignment: WrapAlignment.center,
+                              children: List.generate(6, (index) {
+                                return ColorCircle(
+                                  color: fitzpatrickColors[index],
+                                  isSelected: selectedColorIndex == index,
+                                  onTap: () => setState(
+                                    () => selectedColorIndex = index,
+                                  ),
+                                );
+                              }),
+                            ),
+
+                            const SizedBox(height: 15),
+
+                            Text(
+                              'Fitzpatrick Type ${selectedColorIndex + 1}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      InfoPill(
-                        text: 'Skin Type: ${widget.analysisData!.skinType}',
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: List.generate(6, (index) {
-                      return ColorCircle(
-                        color: fitzpatrickColors[index],
-                        isSelected: selectedColorIndex == index,
-                        onTap: () => setState(() => selectedColorIndex = index),
-                      );
-                    }),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    'Fitzpatrick Type ${selectedColorIndex + 1}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black54,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return SingleChildScrollView(
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 5,
-                child: Container(
-                  height: 600,
-                  margin: const EdgeInsets.all(10),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: widget.imageBytes != null
-                            ? Image.memory(
-                                widget.imageBytes!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                              )
-                            : Container(
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.person, size: 120),
-                              ),
-                      ),
-                      Positioned(
-                        left: 30,
-                        top: 50,
-                        child: AnalysisPoint(
-                          label: 'Pigmentation',
-                          value: widget.analysisData!.pigmentationScore
-                              .toStringAsFixed(0),
-                          color: Colors.white.withOpacity(0.95),
-                        ),
-                      ),
-                      Positioned(
-                        right: 30,
-                        top: 150,
-                        child: AnalysisPoint(
-                          label: 'Hydration',
-                          value: widget.analysisData!.hydrationScore
-                              .toStringAsFixed(0),
-                          color: const Color(0xFF9B7653).withOpacity(0.95),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              Expanded(
-                flex: 5,
-                child: Container(
-                  height: 600,
-                  margin: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8B4BA),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(30),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'The closer you are to 100, the healthier your skin is.',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: ScoreCard(
-                                score: widget.analysisData!.acneScore
-                                    .toStringAsFixed(0),
-                                label: 'Acne',
-                                factors: _getAcneFactors(),
-                              ),
-                            ),
-                            const SizedBox(width: 15),
-                            Flexible(
-                              child: ScoreCard(
-                                score: widget.analysisData!.hydrationScore
-                                    .toStringAsFixed(0),
-                                label: 'Hydration',
-                                factors: _getHydrationFactors(),
-                              ),
-                            ),
-                            const SizedBox(width: 15),
-                            Flexible(
-                              child: ScoreCard(
-                                score: widget.analysisData!.pigmentationScore
-                                    .toStringAsFixed(0),
-                                label: 'Pigmentation',
-                                factors: _getPigmentationFactors(),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            InfoPill(
-                              text:
-                                  'Skin Age : ${widget.analysisData!.skinAge}',
-                            ),
-                            InfoPill(
-                              text: 'Eye Age : ${widget.analysisData!.eyeAge}',
-                            ),
-                            InfoPill(
-                              text:
-                                  'Skin Type: ${widget.analysisData!.skinType}',
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          alignment: WrapAlignment.center,
-                          children: List.generate(6, (index) {
-                            return ColorCircle(
-                              color: fitzpatrickColors[index],
-                              isSelected: selectedColorIndex == index,
-                              onTap: () =>
-                                  setState(() => selectedColorIndex = index),
-                            );
-                          }),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        Text(
-                          'Fitzpatrick Type ${selectedColorIndex + 1}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
