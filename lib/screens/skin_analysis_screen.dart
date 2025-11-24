@@ -18,7 +18,25 @@ class SkinAnalysisScreen extends StatefulWidget {
 }
 
 class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
-  int selectedColorIndex = 0;
+  late int selectedColorIndex;
+
+  // Fitzpatrick Scale Colors (Type 1 to Type 6)
+  final List<Color> fitzpatrickColors = [
+    const Color(0xFFFFF5F0), // Type 1: Very Fair (Pale white)
+    const Color(0xFFFFE4D6), // Type 2: Fair (White to light beige)
+    const Color(0xFFE8B896), // Type 3: Medium (Beige)
+    const Color(0xFFD4A574), // Type 4: Olive (Light brown)
+    const Color(0xFFAE7E5C), // Type 5: Brown (Dark brown)
+    const Color(0xFF6B4423), // Type 6: Dark Brown (Very dark brown to black)
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Set selected index based on fitzpatrick_type from API (1-6)
+    // Convert to 0-based index
+    selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1) - 1;
+  }
 
   List<FactorItem> _getAcneFactors() {
     if (widget.analysisData == null) return [];
@@ -330,48 +348,50 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Info Pills
+                  // Info Pills - Using dynamic data from API
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     alignment: WrapAlignment.center,
-                    children: const [
-                      InfoPill(text: 'Skin Age : 32'),
-                      InfoPill(text: 'Eye Age : 34'),
-                      InfoPill(text: 'Skin Type: Normal'),
+                    children: [
+                      InfoPill(
+                        text: 'Skin Age : ${widget.analysisData!.skinAge}',
+                      ),
+                      InfoPill(
+                        text: 'Eye Age : ${widget.analysisData!.eyeAge}',
+                      ),
+                      InfoPill(
+                        text: 'Skin Type: ${widget.analysisData!.skinType}',
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // Color Palette
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ColorCircle(
-                        color: const Color(0xFFF5E6D3),
-                        isSelected: selectedColorIndex == 0,
-                        onTap: () => setState(() => selectedColorIndex = 0),
-                      ),
-                      const SizedBox(width: 10),
-                      ColorCircle(
-                        color: const Color(0xFFDDB892),
-                        isSelected: selectedColorIndex == 1,
-                        onTap: () => setState(() => selectedColorIndex = 1),
-                      ),
-                      const SizedBox(width: 10),
-                      ColorCircle(
-                        color: const Color(0xFFA67C52),
-                        isSelected: selectedColorIndex == 2,
-                        onTap: () => setState(() => selectedColorIndex = 2),
-                      ),
-                      const SizedBox(width: 10),
-                      ColorCircle(
-                        color: const Color(0xFF8B6F47),
-                        isSelected: selectedColorIndex == 3,
-                        onTap: () => setState(() => selectedColorIndex = 3),
-                      ),
-                    ],
+                  // Fitzpatrick Color Palette (6 colors)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: List.generate(6, (index) {
+                      return ColorCircle(
+                        color: fitzpatrickColors[index],
+                        isSelected: selectedColorIndex == index,
+                        onTap: () => setState(() => selectedColorIndex = index),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Fitzpatrick type indicator
+                  Text(
+                    'Fitzpatrick Type ${selectedColorIndex + 1}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black54,
+                    ),
                   ),
                 ],
               ),
@@ -449,10 +469,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     color: const Color(0xFFE8B4BA),
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  child: Padding(
+                  child: SingleChildScrollView(
                     padding: const EdgeInsets.all(30),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         const Text(
                           'The closer you are to 100, the healthier your skin is.',
@@ -463,6 +482,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
+
+                        const SizedBox(height: 30),
 
                         // Score Cards in Grid
                         Row(
@@ -497,50 +518,55 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           ],
                         ),
 
-                        // Info Pills
+                        const SizedBox(height: 30),
+
+                        // Info Pills - Using dynamic data
                         Wrap(
                           spacing: 12,
                           runSpacing: 12,
                           alignment: WrapAlignment.center,
-                          children: const [
-                            InfoPill(text: 'Skin Age : 32'),
-                            InfoPill(text: 'Eye Age : 34'),
-                            InfoPill(text: 'Skin Type: Normal'),
+                          children: [
+                            InfoPill(
+                              text:
+                                  'Skin Age : ${widget.analysisData!.skinAge}',
+                            ),
+                            InfoPill(
+                              text: 'Eye Age : ${widget.analysisData!.eyeAge}',
+                            ),
+                            InfoPill(
+                              text:
+                                  'Skin Type: ${widget.analysisData!.skinType}',
+                            ),
                           ],
                         ),
 
-                        // Color Palette
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ColorCircle(
-                              color: const Color(0xFFF5E6D3),
-                              isSelected: selectedColorIndex == 0,
+                        const SizedBox(height: 30),
+
+                        // Fitzpatrick Color Palette (6 colors)
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: List.generate(6, (index) {
+                            return ColorCircle(
+                              color: fitzpatrickColors[index],
+                              isSelected: selectedColorIndex == index,
                               onTap: () =>
-                                  setState(() => selectedColorIndex = 0),
-                            ),
-                            const SizedBox(width: 15),
-                            ColorCircle(
-                              color: const Color(0xFFDDB892),
-                              isSelected: selectedColorIndex == 1,
-                              onTap: () =>
-                                  setState(() => selectedColorIndex = 1),
-                            ),
-                            const SizedBox(width: 15),
-                            ColorCircle(
-                              color: const Color(0xFFA67C52),
-                              isSelected: selectedColorIndex == 2,
-                              onTap: () =>
-                                  setState(() => selectedColorIndex = 2),
-                            ),
-                            const SizedBox(width: 15),
-                            ColorCircle(
-                              color: const Color(0xFF8B6F47),
-                              isSelected: selectedColorIndex == 3,
-                              onTap: () =>
-                                  setState(() => selectedColorIndex = 3),
-                            ),
-                          ],
+                                  setState(() => selectedColorIndex = index),
+                            );
+                          }),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        // Fitzpatrick type indicator
+                        Text(
+                          'Fitzpatrick Type ${selectedColorIndex + 1}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black54,
+                          ),
                         ),
                       ],
                     ),

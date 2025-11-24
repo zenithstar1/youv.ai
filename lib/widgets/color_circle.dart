@@ -19,28 +19,37 @@ class ColorCircle extends StatefulWidget {
 class _ColorCircleState extends State<ColorCircle> {
   @override
   Widget build(BuildContext context) {
+    // Determine if the color is light or dark
+    final isLightColor = widget.color.computeLuminance() > 0.5;
+
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        width: 45,
-        height: 45,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: widget.color,
           shape: BoxShape.circle,
           border: Border.all(
-            color: widget.isSelected ? Colors.black : Colors.white,
-            width: widget.isSelected ? 3 : 2,
+            color: widget.isSelected
+                ? Colors.black
+                : (isLightColor ? Colors.grey[400]! : Colors.white),
+            width: widget.isSelected ? 2.5 : 2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 5,
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: widget.isSelected
-            ? const Icon(Icons.check, color: Colors.black, size: 20)
+            ? Icon(
+                Icons.check,
+                color: isLightColor ? Colors.black : Colors.white,
+                size: 20,
+              )
             : null,
       ),
     );

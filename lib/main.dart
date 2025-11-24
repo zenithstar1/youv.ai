@@ -7,65 +7,64 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Skin Analysis',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.pink, fontFamily: 'Roboto'),
-      home: const ImageCaptureScreen(),
-    );
-  }
-}
-
 // class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
+//   const MyApp({Key? key}) : super(key: key);
 
 //   @override
 //   Widget build(BuildContext context) {
 //     return MaterialApp(
+//       title: 'Skin Analysis',
 //       debugShowCheckedModeBanner: false,
-//       home: const PhoneFrame(),
-
+//       theme: ThemeData(primarySwatch: Colors.pink, fontFamily: 'Roboto'),
+//       home: const ImageCaptureScreen(),
 //     );
 //   }
 // }
 
-// class PhoneFrame extends StatelessWidget {
-//   const PhoneFrame({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-//   @override
-//   Widget build(BuildContext context) {
-//     final h = MediaQuery.of(context).size.height;
-//     final w = MediaQuery.of(context).size.width;
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: const PhoneFrame(),
+    );
+  }
+}
 
-//     return Scaffold(
-//       backgroundColor: Colors.black,
-//       body: Center(
-//         child: Container(
-//           width: w * 0.92,          // responsive phone width
-//           height: h * 0.97,         // responsive phone height
-//           decoration: BoxDecoration(
-//             color: Colors.white,
-//             borderRadius: BorderRadius.circular(35),
-//             boxShadow: [
-//               BoxShadow(
-//                 color: Colors.black.withOpacity(0.4),
-//                 blurRadius: 20,
-//                 offset: const Offset(0, 10),
-//               ),
-//             ],
-//           ),
-//           clipBehavior: Clip.antiAlias,
-//           child: const OnboardingScreen(),
-//         ),
-//       ),
-//     );
-//   }
-// }
+class PhoneFrame extends StatelessWidget {
+  const PhoneFrame({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    final w = MediaQuery.of(context).size.width;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Container(
+          width: w * 0.92, // responsive phone width
+          height: h * 0.97, // responsive phone height
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(35),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: const OnboardingScreen(),
+        ),
+      ),
+    );
+  }
+}
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});

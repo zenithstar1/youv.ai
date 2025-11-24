@@ -1,41 +1,73 @@
 class SkinAnalysisModel {
-  final AcneFactors acneFactors;
   final double acneScore;
-  final HydrationFactors hydrationFactors;
   final double hydrationScore;
-  final PigmentationFactors pigmentationFactors;
   final double pigmentationScore;
+  final int skinAge;
+  final int eyeAge;
+  final int fitzpatrickType;
+  final AcneFactors acneFactors;
+  final HydrationFactors hydrationFactors;
+  final PigmentationFactors pigmentationFactors;
 
   SkinAnalysisModel({
-    required this.acneFactors,
     required this.acneScore,
-    required this.hydrationFactors,
     required this.hydrationScore,
-    required this.pigmentationFactors,
     required this.pigmentationScore,
+    required this.skinAge,
+    required this.eyeAge,
+    required this.fitzpatrickType,
+    required this.acneFactors,
+    required this.hydrationFactors,
+    required this.pigmentationFactors,
   });
 
   factory SkinAnalysisModel.fromJson(Map<String, dynamic> json) {
     return SkinAnalysisModel(
-      acneFactors: AcneFactors.fromJson(json['acne_factors']),
       acneScore: (json['acne_score'] as num).toDouble(),
-      hydrationFactors: HydrationFactors.fromJson(json['hydration_factors']),
       hydrationScore: (json['hydration_score'] as num).toDouble(),
+      pigmentationScore: (json['pigmentation_score'] as num).toDouble(),
+      skinAge: json['skin_age'] as int,
+      eyeAge: json['eye_age'] as int,
+      fitzpatrickType: json['fitzpatrick_type'] as int,
+      acneFactors: AcneFactors.fromJson(json['acne_factors']),
+      hydrationFactors: HydrationFactors.fromJson(json['hydration_factors']),
       pigmentationFactors: PigmentationFactors.fromJson(
         json['pigmentation_factors'],
       ),
-      pigmentationScore: (json['pigmentation_score'] as num).toDouble(),
     );
+  }
+
+  // Get skin type based on Fitzpatrick scale
+  String get skinType {
+    switch (fitzpatrickType) {
+      case 1:
+        return 'Very Fair';
+      case 2:
+        return 'Fair';
+      case 3:
+        return 'Medium';
+      case 4:
+        return 'Olive';
+      case 5:
+        return 'Brown';
+      case 6:
+        return 'Dark Brown';
+      default:
+        return 'Normal';
+    }
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'acne_factors': acneFactors.toJson(),
       'acne_score': acneScore,
-      'hydration_factors': hydrationFactors.toJson(),
       'hydration_score': hydrationScore,
-      'pigmentation_factors': pigmentationFactors.toJson(),
       'pigmentation_score': pigmentationScore,
+      'skin_age': skinAge,
+      'eye_age': eyeAge,
+      'fitzpatrick_type': fitzpatrickType,
+      'acne_factors': acneFactors.toJson(),
+      'hydration_factors': hydrationFactors.toJson(),
+      'pigmentation_factors': pigmentationFactors.toJson(),
     };
   }
 }

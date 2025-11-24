@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/screens/image_capture_screen.dart';
 import 'login_screens.dart';
 
 class OnboardingFlow extends StatefulWidget {
@@ -97,38 +98,40 @@ class SecondScreen extends StatelessWidget implements HasBottomCard {
 
   @override
   Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final size = MediaQuery.of(context).size;
-      final h = size.height;
+    return Builder(
+      builder: (context) {
+        final size = MediaQuery.of(context).size;
+        final h = size.height;
 
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.10,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/face_grid.png",
-              height: h * 0.42,
-              fit: BoxFit.contain,
+        return Stack(
+          children: [
+            Positioned(
+              top: h * 0.10,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                "assets/images/face_grid.png",
+                height: h * 0.42,
+                fit: BoxFit.contain,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Attractiveness Index",
-              "Reveal your Aesthetic score with AI",
-              "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
-              pageIndex,
+            Positioned(
+              bottom: h * 0.06,
+              left: 0,
+              right: 0,
+              child: buildBottomCard(
+                context,
+                h,
+                "Attractiveness Index",
+                "Reveal your Aesthetic score with AI",
+                "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
+                pageIndex,
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -142,37 +145,39 @@ class ThirdScreen extends StatelessWidget implements HasBottomCard {
 
   @override
   Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final h = MediaQuery.of(context).size.height;
+    return Builder(
+      builder: (context) {
+        final h = MediaQuery.of(context).size.height;
 
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.10,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/consultation.png",
-              height: h * 0.48,
-              fit: BoxFit.cover,
+        return Stack(
+          children: [
+            Positioned(
+              top: h * 0.10,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                "assets/images/consultation.png",
+                height: h * 0.48,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Expert Consultation",
-              "Access premium aesthetic services",
-              "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
-              pageIndex,
+            Positioned(
+              bottom: h * 0.06,
+              left: 0,
+              right: 0,
+              child: buildBottomCard(
+                context,
+                h,
+                "Expert Consultation",
+                "Access premium aesthetic services",
+                "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
+                pageIndex,
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -186,37 +191,39 @@ class FourthScreen extends StatelessWidget implements HasBottomCard {
 
   @override
   Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final h = MediaQuery.of(context).size.height;
+    return Builder(
+      builder: (context) {
+        final h = MediaQuery.of(context).size.height;
 
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.08,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/phone.png",
-              height: h * 0.50,
-              fit: BoxFit.cover,
+        return Stack(
+          children: [
+            Positioned(
+              top: h * 0.08,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                "assets/images/phone.png",
+                height: h * 0.50,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Personalized Report",
-              "Receive your full analysis on WhatsApp",
-              "Get a complete, easy-to-read report delivered instantly for your convenience.",
-              pageIndex,
+            Positioned(
+              bottom: h * 0.06,
+              left: 0,
+              right: 0,
+              child: buildBottomCard(
+                context,
+                h,
+                "Personalized Report",
+                "Receive your full analysis on WhatsApp",
+                "Get a complete, easy-to-read report delivered instantly for your convenience.",
+                pageIndex,
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -240,11 +247,7 @@ Widget buildBottomCard(
         topRight: Radius.circular(40),
       ),
       gradient: const LinearGradient(
-        colors: [
-          Color(0xFFD79096),
-          Color(0xFFEEC8CC),
-          Color(0x1FFFFFFF),
-        ],
+        colors: [Color(0xFFD79096), Color(0xFFEEC8CC), Color(0x1FFFFFFF)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ),
@@ -252,23 +255,34 @@ Widget buildBottomCard(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(title,
-            style: GoogleFonts.lora(
-                fontSize: 24, color: Colors.black, height: 1.1)),
+        Text(
+          title,
+          style: GoogleFonts.lora(
+            fontSize: 24,
+            color: Colors.black,
+            height: 1.1,
+          ),
+        ),
         const SizedBox(height: 15),
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             children: [
-              Text(subtitle,
-                  style: GoogleFonts.lora(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center),
+              Text(
+                subtitle,
+                style: GoogleFonts.lora(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 10),
-              Text(description,
-                  style: GoogleFonts.lora(fontSize: 14, height: 1.35),
-                  textAlign: TextAlign.center),
+              Text(
+                description,
+                style: GoogleFonts.lora(fontSize: 14, height: 1.35),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -332,9 +346,10 @@ class ResponsiveButtons extends StatelessWidget {
             child: Text(
               label,
               style: GoogleFonts.lora(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF510808)),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF510808),
+              ),
             ),
           ),
         ),
@@ -345,21 +360,27 @@ class ResponsiveButtons extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Opacity(opacity: 0, child: buildButton("SKIP")),
-        buildButton("CONTINUE", onTap: () {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              transitionDuration: Duration(milliseconds: 200),
-              pageBuilder: (_, __, ___) => LoginScreen(),
-              transitionsBuilder: (_, animation, __, child) {
-                final tween = Tween(
-                        begin: Offset(1.0, 0.0), end: Offset.zero)
-                    .chain(CurveTween(curve: Curves.easeInOut));
-                return SlideTransition(
-                    position: animation.drive(tween), child: child);
-              },
-            ),
-          );
-        }),
+        buildButton(
+          "CONTINUE",
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                transitionDuration: Duration(milliseconds: 200),
+                pageBuilder: (_, __, ___) => ImageCaptureScreen(),
+                transitionsBuilder: (_, animation, __, child) {
+                  final tween = Tween(
+                    begin: Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).chain(CurveTween(curve: Curves.easeInOut));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+              ),
+            );
+          },
+        ),
       ],
     );
   }
