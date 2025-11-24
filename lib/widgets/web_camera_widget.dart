@@ -1,6 +1,4 @@
 import 'dart:typed_data';
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
@@ -22,12 +20,23 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
   bool _isLoading = true;
   String? _error;
   late String _viewType;
+  bool _isIOS = false;
 
   @override
   void initState() {
     super.initState();
     _viewType = 'camera-video-${DateTime.now().millisecondsSinceEpoch}';
+    _detectIOS();
     _initializeCamera();
+  }
+
+  void _detectIOS() {
+    final userAgent = html.window.navigator.userAgent.toLowerCase();
+    _isIOS =
+        userAgent.contains('iphone') ||
+        userAgent.contains('ipad') ||
+        userAgent.contains('ipod');
+    print('Is iOS device: $_isIOS');
   }
 
   Future<void> _initializeCamera() async {
@@ -40,33 +49,43 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
       if (mediaDevices == null) {
         setState(() {
           _error =
-              'Camera not supported in this browser.\n\nPlease use Chrome, Firefox, or Edge.';
+              'Camera not supported in this browser.\n\nPlease use Safari, Chrome, or Firefox.';
           _isLoading = false;
         });
         return;
       }
 
-      final constraints = {
-        'video': {
-          'facingMode': 'user',
-          'width': {'ideal': 1280},
-          'height': {'ideal': 720},
-        },
-        'audio': false,
-      };
+      // iOS-specific constraints
+      final constraints = _isIOS
+          ? {
+              'video': {
+                'facingMode': 'user',
+                'width': {'ideal': 640}, // Lower resolution for iOS
+                'height': {'ideal': 480},
+              },
+              'audio': false,
+            }
+          : {
+              'video': {
+                'facingMode': 'user',
+                'width': {'ideal': 1280},
+                'height': {'ideal': 720},
+              },
+              'audio': false,
+            };
 
-      print('Requesting camera access...');
+      print('Requesting camera access with constraints: $constraints');
 
-      _stream = await mediaDevices
-          .getUserMedia(constraints)
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw Exception(
-                'Camera access timeout. Please grant camera permissions.',
-              );
-            },
-          );
+      try {
+        _stream = await mediaDevices.getUserMedia(constraints);
+      } catch (e) {
+        // If constraints fail, try simpler constraints
+        print('Failed with specific constraints, trying basic constraints...');
+        _stream = await mediaDevices.getUserMedia({
+          'video': {'facingMode': 'user'},
+          'audio': false,
+        });
+      }
 
       print('Camera stream obtained: ${_stream != null}');
 
@@ -74,9 +93,12 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         throw Exception('Failed to get camera stream');
       }
 
+      // Create video element with iOS-specific attributes
       _videoElement = html.VideoElement()
         ..autoplay = true
         ..muted = true
+        ..setAttribute('playsinline', 'true') // Critical for iOS
+        ..setAttribute('webkit-playsinline', 'true') // Legacy iOS support
         ..srcObject = _stream
         ..style.width = '100%'
         ..style.height = '100%'
@@ -85,23 +107,28 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
 
       print('Video element created');
 
-      await _videoElement!.onLoadedMetadata.first.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw Exception('Video metadata loading timeout');
-        },
-      );
+      // For iOS, we need to explicitly call play()
+      try {
+        await _videoElement!.play();
+        print('Video play() called successfully');
+      } catch (e) {
+        print('Video play() error (may be normal): $e');
+      }
 
-      print('Video metadata loaded');
+      // Register view factory
+      try {
+        ui_web.platformViewRegistry.registerViewFactory(
+          _viewType,
+          (int viewId) => _videoElement!,
+        );
+        print('View factory registered');
+      } catch (e) {
+        print('View factory registration error: $e');
+        // On some browsers, this might already be registered
+      }
 
-      ui_web.platformViewRegistry.registerViewFactory(
-        _viewType,
-        (int viewId) => _videoElement!,
-      );
-
-      print('View factory registered');
-
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Wait for video to be ready
+      await Future.delayed(const Duration(milliseconds: 1000));
 
       if (mounted) {
         setState(() {
@@ -113,21 +140,36 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     } catch (e) {
       print('Camera initialization error: $e');
 
-      String errorMessage = 'Failed to access camera: ';
+      String errorMessage = 'Failed to access camera:\n\n';
 
       if (e.toString().contains('NotAllowedError') ||
           e.toString().contains('Permission denied')) {
-        errorMessage +=
-            '\n\nCamera permission denied.\nPlease allow camera access and refresh.';
+        errorMessage += 'Camera permission denied.\n\n';
+        if (_isIOS) {
+          errorMessage += 'On iOS:\n';
+          errorMessage += '1. Go to Settings > Safari > Camera\n';
+          errorMessage += '2. Select "Allow"\n';
+          errorMessage += '3. Refresh this page';
+        } else {
+          errorMessage += 'Please allow camera access and refresh.';
+        }
       } else if (e.toString().contains('NotFoundError')) {
-        errorMessage += '\n\nNo camera found.\nPlease connect a camera.';
+        errorMessage +=
+            'No camera found.\nPlease ensure your device has a working camera.';
       } else if (e.toString().contains('NotReadableError')) {
         errorMessage +=
-            '\n\nCamera is already in use.\nPlease close other apps using the camera.';
-      } else if (e.toString().contains('timeout')) {
-        errorMessage += '\n\n$e';
+            'Camera is already in use.\nPlease close other apps using the camera.';
+      } else if (e.toString().contains('OverconstrainedError')) {
+        errorMessage +=
+            'Camera constraints not supported.\nTrying to use basic settings...';
+        // Try again with simpler constraints
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          _initializeCamera();
+        }
+        return;
       } else {
-        errorMessage += '\n\n${e.toString()}';
+        errorMessage += e.toString();
       }
 
       if (mounted) {
@@ -147,21 +189,27 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
 
     try {
       print('Capturing image...');
+
+      // Wait a moment to ensure video is rendering
+      await Future.delayed(const Duration(milliseconds: 100));
+
       print(
         'Video dimensions: ${_videoElement!.videoWidth} x ${_videoElement!.videoHeight}',
       );
 
-      final canvas = html.CanvasElement(
-        width: _videoElement!.videoWidth,
-        height: _videoElement!.videoHeight,
-      );
+      // Get actual video dimensions
+      final width = _videoElement!.videoWidth;
+      final height = _videoElement!.videoHeight;
 
-      if (canvas.width == 0 || canvas.height == 0) {
-        throw Exception('Invalid video dimensions');
+      if (width == 0 || height == 0) {
+        throw Exception('Video not ready. Please try again.');
       }
+
+      final canvas = html.CanvasElement(width: width, height: height);
 
       final context = canvas.context2D;
 
+      // Mirror the image
       context.translate(canvas.width!, 0);
       context.scale(-1, 1);
       context.drawImageScaled(
@@ -172,11 +220,18 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         canvas.height!,
       );
 
+      // Convert to data URL
       final dataUrl = canvas.toDataUrl('image/jpeg', 0.95);
-      print('Data URL created');
+      print('Data URL created, length: ${dataUrl.length}');
 
+      // Remove data URL prefix
       final base64 = dataUrl.split(',')[1];
-      final bytes = base64Decode(base64);
+
+      // Convert base64 to Uint8List
+      final bytes = Uint8List.fromList(
+        Uri.parse('data:image/jpeg;base64,$base64').data!.contentAsBytes(),
+      );
+
       final fileName = 'camera_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       print('Image captured: ${bytes.length} bytes');
@@ -187,9 +242,13 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     } catch (e) {
       print('Capture error: $e');
       if (mounted) {
-        setState(() {
-          _error = 'Failed to capture image: ${e.toString()}';
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to capture image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
@@ -203,6 +262,10 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         track.stop();
       }
       _stream = null;
+    }
+    if (_videoElement != null) {
+      _videoElement!.pause();
+      _videoElement!.srcObject = null;
     }
     if (mounted) {
       setState(() {
@@ -234,7 +297,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                   const SizedBox(height: 20),
                   Text(
                     _error!,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 30),
@@ -300,9 +363,11 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Please allow camera access if prompted',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                Text(
+                  _isIOS
+                      ? 'Please allow camera access in Safari settings'
+                      : 'Please allow camera access if prompted',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 30),
@@ -324,10 +389,10 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera preview - Full screen
+          // Camera preview
           Positioned.fill(child: HtmlElementView(viewType: _viewType)),
 
-          // Oval face guide overlay with pointer events disabled
+          // Oval face guide overlay
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(painter: FaceOvalPainter()),
@@ -475,31 +540,38 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            TipItem(
+          children: [
+            const TipItem(
               icon: Icons.face,
               text: 'Center your face in the oval guide',
             ),
-            SizedBox(height: 12),
-            TipItem(
+            const SizedBox(height: 12),
+            const TipItem(
               icon: Icons.light_mode,
               text: 'Use good lighting (face the light)',
             ),
-            SizedBox(height: 12),
-            TipItem(
+            const SizedBox(height: 12),
+            const TipItem(
               icon: Icons.remove_red_eye,
               text: 'Look directly at the camera',
             ),
-            SizedBox(height: 12),
-            TipItem(
+            const SizedBox(height: 12),
+            const TipItem(
               icon: Icons.sentiment_neutral,
               text: 'Keep a neutral expression',
             ),
-            SizedBox(height: 12),
-            TipItem(
+            const SizedBox(height: 12),
+            const TipItem(
               icon: Icons.clean_hands,
               text: 'Remove glasses for better analysis',
             ),
+            if (_isIOS) ...[
+              const SizedBox(height: 12),
+              const TipItem(
+                icon: Icons.settings,
+                text: 'Enable camera in Settings > Safari',
+              ),
+            ],
           ],
         ),
         actions: [
@@ -516,44 +588,38 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
   }
 }
 
-// Custom painter for the oval face guide with TRANSPARENT background
+// Face oval painter (same as before)
 class FaceOvalPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Semi-transparent dark overlay paint
-    final overlayPaint = Paint()
+    final paint = Paint()
       ..color = Colors.black.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
-    // Calculate oval dimensions
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+
     final centerX = size.width / 2;
     final centerY = size.height / 2;
     final ovalWidth = size.width * 0.75;
     final ovalHeight = size.height * 0.55;
 
-    // Create oval rect
     final ovalRect = Rect.fromCenter(
       center: Offset(centerX, centerY),
       width: ovalWidth,
       height: ovalHeight,
     );
 
-    // Create paths
-    final fullScreenPath = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-
     final ovalPath = Path()..addOval(ovalRect);
 
-    // Draw overlay with oval cutout (transparent in the middle)
-    final cutoutPath = Path.combine(
-      PathOperation.difference,
-      fullScreenPath,
-      ovalPath,
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
+        ovalPath,
+      ),
+      paint,
     );
 
-    canvas.drawPath(cutoutPath, overlayPaint);
-
-    // Draw oval border
     final borderPaint = Paint()
       ..color = Colors.white.withOpacity(0.8)
       ..style = PaintingStyle.stroke
@@ -561,7 +627,6 @@ class FaceOvalPainter extends CustomPainter {
 
     canvas.drawOval(ovalRect, borderPaint);
 
-    // Draw corner guides
     final cornerPaint = Paint()
       ..color = const Color(0xFFFFFFFF)
       ..style = PaintingStyle.stroke
@@ -570,7 +635,6 @@ class FaceOvalPainter extends CustomPainter {
 
     final cornerLength = 25.0;
 
-    // Top-left corner
     canvas.drawLine(
       Offset(ovalRect.left - 10, ovalRect.top + cornerLength),
       Offset(ovalRect.left - 10, ovalRect.top - 10),
@@ -581,8 +645,6 @@ class FaceOvalPainter extends CustomPainter {
       Offset(ovalRect.left + cornerLength, ovalRect.top - 10),
       cornerPaint,
     );
-
-    // Top-right corner
     canvas.drawLine(
       Offset(ovalRect.right - cornerLength, ovalRect.top - 10),
       Offset(ovalRect.right + 10, ovalRect.top - 10),
@@ -593,8 +655,6 @@ class FaceOvalPainter extends CustomPainter {
       Offset(ovalRect.right + 10, ovalRect.top + cornerLength),
       cornerPaint,
     );
-
-    // Bottom-left corner
     canvas.drawLine(
       Offset(ovalRect.left - 10, ovalRect.bottom - cornerLength),
       Offset(ovalRect.left - 10, ovalRect.bottom + 10),
@@ -605,8 +665,6 @@ class FaceOvalPainter extends CustomPainter {
       Offset(ovalRect.left + cornerLength, ovalRect.bottom + 10),
       cornerPaint,
     );
-
-    // Bottom-right corner
     canvas.drawLine(
       Offset(ovalRect.right - cornerLength, ovalRect.bottom + 10),
       Offset(ovalRect.right + 10, ovalRect.bottom + 10),
@@ -618,7 +676,6 @@ class FaceOvalPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Draw center dot for alignment
     final centerPaint = Paint()
       ..color = Colors.white.withOpacity(0.6)
       ..style = PaintingStyle.fill;
@@ -630,7 +687,6 @@ class FaceOvalPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Tip item widget for dialog
 class TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
