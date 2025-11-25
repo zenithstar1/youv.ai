@@ -55,34 +55,42 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         return;
       }
 
-      // iOS-specific constraints
+      // Enhanced constraints for better quality and exposure
       final constraints = _isIOS
           ? {
               'video': {
                 'facingMode': 'user',
-                'width': {'ideal': 640}, // Lower resolution for iOS
-                'height': {'ideal': 480},
+                'width': {'ideal': 1280},
+                'height': {'ideal': 720},
+                'aspectRatio': 1.777777778,
+                'frameRate': {'ideal': 30},
               },
               'audio': false,
             }
           : {
               'video': {
                 'facingMode': 'user',
-                'width': {'ideal': 1280},
-                'height': {'ideal': 720},
+                'width': {'ideal': 1920, 'min': 640},
+                'height': {'ideal': 1080, 'min': 480},
+                'aspectRatio': 1.777777778,
+                'frameRate': {'ideal': 30, 'min': 24},
               },
               'audio': false,
             };
 
-      print('Requesting camera access with constraints: $constraints');
+      print('Requesting camera access with enhanced constraints...');
 
       try {
         _stream = await mediaDevices.getUserMedia(constraints);
       } catch (e) {
-        // If constraints fail, try simpler constraints
-        print('Failed with specific constraints, trying basic constraints...');
+        print('Failed with enhanced constraints, trying basic...');
+        // Fallback to simpler constraints
         _stream = await mediaDevices.getUserMedia({
-          'video': {'facingMode': 'user'},
+          'video': {
+            'facingMode': 'user',
+            'width': {'ideal': 1280},
+            'height': {'ideal': 720},
+          },
           'audio': false,
         });
       }
@@ -93,21 +101,34 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         throw Exception('Failed to get camera stream');
       }
 
-      // Create video element with iOS-specific attributes
+      // Create video element with enhanced settings
       _videoElement = html.VideoElement()
         ..autoplay = true
         ..muted = true
-        ..setAttribute('playsinline', 'true') // Critical for iOS
-        ..setAttribute('webkit-playsinline', 'true') // Legacy iOS support
+        ..setAttribute('playsinline', 'true')
+        ..setAttribute('webkit-playsinline', 'true')
         ..srcObject = _stream
         ..style.width = '100%'
         ..style.height = '100%'
         ..style.objectFit = 'cover'
-        ..style.transform = 'scaleX(-1)';
+        ..style.transform = 'scaleX(-1)'
+        ..style.filter =
+            'brightness(1.1) contrast(1.05)' // Slight enhancement
+        ..style.backgroundColor = '#000000';
 
-      print('Video element created');
+      print('Video element created with enhanced settings');
 
-      // For iOS, we need to explicitly call play()
+      // Wait for metadata to load
+      await _videoElement!.onLoadedMetadata.first.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Video metadata loading timeout');
+        },
+      );
+
+      print('Video metadata loaded');
+
+      // Explicitly start video playback
       try {
         await _videoElement!.play();
         print('Video play() called successfully');
@@ -124,18 +145,17 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         print('View factory registered');
       } catch (e) {
         print('View factory registration error: $e');
-        // On some browsers, this might already be registered
       }
 
-      // Wait for video to be ready
-      await Future.delayed(const Duration(milliseconds: 1000));
+      // Give camera extra time to adjust exposure and white balance
+      await Future.delayed(const Duration(milliseconds: 1500));
 
       if (mounted) {
         setState(() {
           _isCameraActive = true;
           _isLoading = false;
         });
-        print('Camera active!');
+        print('Camera active with enhanced settings!');
       }
     } catch (e) {
       print('Camera initialization error: $e');
@@ -161,8 +181,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
             'Camera is already in use.\nPlease close other apps using the camera.';
       } else if (e.toString().contains('OverconstrainedError')) {
         errorMessage +=
-            'Camera constraints not supported.\nTrying to use basic settings...';
-        // Try again with simpler constraints
+            'Camera settings not supported.\nRetrying with basic settings...';
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) {
           _initializeCamera();
@@ -190,24 +209,26 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     try {
       print('Capturing image...');
 
-      // Wait a moment to ensure video is rendering
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Give camera a moment to ensure best exposure
+      await Future.delayed(const Duration(milliseconds: 200));
 
       print(
         'Video dimensions: ${_videoElement!.videoWidth} x ${_videoElement!.videoHeight}',
       );
 
-      // Get actual video dimensions
       final width = _videoElement!.videoWidth;
       final height = _videoElement!.videoHeight;
 
       if (width == 0 || height == 0) {
-        throw Exception('Video not ready. Please try again.');
+        throw Exception('Video not ready. Please wait a moment and try again.');
       }
 
       final canvas = html.CanvasElement(width: width, height: height);
 
       final context = canvas.context2D;
+
+      // Apply slight brightness/contrast enhancement during capture
+      context.filter = 'brightness(1.05) contrast(1.03)';
 
       // Mirror the image
       context.translate(canvas.width!, 0);
@@ -220,14 +241,12 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
         canvas.height!,
       );
 
-      // Convert to data URL
+      // Convert to high-quality JPEG
       final dataUrl = canvas.toDataUrl('image/jpeg', 0.95);
       print('Data URL created, length: ${dataUrl.length}');
 
-      // Remove data URL prefix
       final base64 = dataUrl.split(',')[1];
 
-      // Convert base64 to Uint8List
       final bytes = Uint8List.fromList(
         Uri.parse('data:image/jpeg;base64,$base64').data!.contentAsBytes(),
       );
@@ -244,7 +263,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to capture image: ${e.toString()}'),
+            content: Text('Failed to capture: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -366,7 +385,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                 Text(
                   _isIOS
                       ? 'Please allow camera access in Safari settings'
-                      : 'Please allow camera access if prompted',
+                      : 'Camera is warming up for best quality',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
@@ -389,8 +408,13 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera preview
-          Positioned.fill(child: HtmlElementView(viewType: _viewType)),
+          // Camera preview with enhanced visibility
+          Positioned.fill(
+            child: Container(
+              color: Colors.black,
+              child: HtmlElementView(viewType: _viewType),
+            ),
+          ),
 
           // Oval face guide overlay
           Positioned.fill(
@@ -415,10 +439,10 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                   ),
                 ),
                 child: Column(
-                  children: const [
-                    Icon(Icons.face, color: Colors.white, size: 28),
-                    SizedBox(height: 8),
-                    Text(
+                  children: [
+                    const Icon(Icons.face, color: Colors.white, size: 28),
+                    const SizedBox(height: 8),
+                    const Text(
                       'Align your face within the oval',
                       style: TextStyle(
                         color: Colors.white,
@@ -427,11 +451,18 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Make sure your face is well lit',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.wb_sunny, color: Colors.white70, size: 14),
+                        SizedBox(width: 5),
+                        Text(
+                          'Ensure good lighting for best results',
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -486,6 +517,13 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.3),
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ],
                         ),
                         child: Container(
                           margin: const EdgeInsets.all(5),
@@ -542,13 +580,18 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const TipItem(
-              icon: Icons.face,
-              text: 'Center your face in the oval guide',
+              icon: Icons.wb_sunny,
+              text: 'Face a window or bright light source',
             ),
             const SizedBox(height: 12),
             const TipItem(
-              icon: Icons.light_mode,
-              text: 'Use good lighting (face the light)',
+              icon: Icons.lightbulb,
+              text: 'Turn on room lights for better visibility',
+            ),
+            const SizedBox(height: 12),
+            const TipItem(
+              icon: Icons.face,
+              text: 'Center your face in the oval guide',
             ),
             const SizedBox(height: 12),
             const TipItem(
@@ -588,7 +631,6 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
   }
 }
 
-// Face oval painter (same as before)
 class FaceOvalPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
