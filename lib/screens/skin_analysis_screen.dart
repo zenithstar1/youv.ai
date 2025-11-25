@@ -129,62 +129,156 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     ];
   }
 
-  // Enhanced calculation with weighted factors
+  List<FactorItem> _getPoresFactors() {
+    if (widget.analysisData == null) return [];
+    return [
+      FactorItem(
+        name: 'Visibility',
+        value: widget.analysisData!.poresFactors.visibility,
+      ),
+      FactorItem(name: 'Size', value: widget.analysisData!.poresFactors.size),
+      FactorItem(
+        name: 'Enlarged Pores',
+        value: widget.analysisData!.poresFactors.enlargedPores,
+      ),
+      FactorItem(
+        name: 'Clogged Pores',
+        value: widget.analysisData!.poresFactors.cloggedPores,
+      ),
+      FactorItem(
+        name: 'T-Zone Prominence',
+        value: widget.analysisData!.poresFactors.tZoneProminence,
+      ),
+      FactorItem(
+        name: 'Cheek Prominence',
+        value: widget.analysisData!.poresFactors.cheekProminence,
+      ),
+      FactorItem(
+        name: 'Texture Roughness',
+        value: widget.analysisData!.poresFactors.textureRoughness,
+      ),
+    ];
+  }
+
+  List<FactorItem> _getWrinklesFactors() {
+    if (widget.analysisData == null) return [];
+    return [
+      FactorItem(
+        name: 'Overall Severity',
+        value: widget.analysisData!.wrinklesFactors.overallSeverity,
+      ),
+      FactorItem(
+        name: 'Depth',
+        value: widget.analysisData!.wrinklesFactors.depth,
+      ),
+      FactorItem(
+        name: 'Forehead Lines',
+        value: widget.analysisData!.wrinklesFactors.foreheadLines,
+      ),
+      FactorItem(
+        name: 'Crows Feet',
+        value: widget.analysisData!.wrinklesFactors.crowsFeet,
+      ),
+      FactorItem(
+        name: 'Frown Lines',
+        value: widget.analysisData!.wrinklesFactors.frownLines,
+      ),
+      FactorItem(
+        name: 'Nasolabial Folds',
+        value: widget.analysisData!.wrinklesFactors.nasolabialFolds,
+      ),
+      FactorItem(
+        name: 'Under Eye Wrinkles',
+        value: widget.analysisData!.wrinklesFactors.underEyeWrinkles,
+      ),
+      FactorItem(
+        name: 'Lip Lines',
+        value: widget.analysisData!.wrinklesFactors.lipLines,
+      ),
+      FactorItem(
+        name: 'Marionette Lines',
+        value: widget.analysisData!.wrinklesFactors.marionelleLines,
+      ),
+      FactorItem(
+        name: 'Neck Lines',
+        value: widget.analysisData!.wrinklesFactors.neckLines,
+      ),
+      FactorItem(
+        name: 'Static Wrinkles',
+        value: widget.analysisData!.wrinklesFactors.staticWrinkles,
+      ),
+      FactorItem(
+        name: 'Dynamic Wrinkles',
+        value: widget.analysisData!.wrinklesFactors.dynamicWrinkles,
+      ),
+    ];
+  }
+
+  // Enhanced calculation with 5 factors
   double _calculateOverallScore() {
     if (widget.analysisData == null) return 0;
 
-    // Calculate detailed sub-scores
     final acneDetailScore = _calculateAcneDetailScore();
     final hydrationDetailScore = _calculateHydrationDetailScore();
     final pigmentationDetailScore = _calculatePigmentationDetailScore();
+    final poresDetailScore = _calculatePoresDetailScore();
+    final wrinklesDetailScore = _calculateWrinklesDetailScore();
     final agingScore = _calculateAgingScore(
       (widget.analysisData!.skinAge + widget.analysisData!.eyeAge) / 2,
     );
 
-    // Main factor weights (total = 100%)
-    const double acneWeight = 0.35; // 35%
-    const double hydrationWeight = 0.30; // 30%
-    const double pigmentationWeight = 0.25; // 25%
-    const double agingWeight = 0.10; // 10%
+    // Updated weights (total = 100%)
+    const double acneWeight = 0.25; // 25%
+    const double hydrationWeight = 0.20; // 20%
+    const double pigmentationWeight = 0.20; // 20%
+    const double poresWeight = 0.15; // 15%
+    const double wrinklesWeight = 0.15; // 15%
+    const double agingWeight = 0.05; // 5%
 
-    // Calculate weighted total
     final totalScore =
         (acneDetailScore * acneWeight) +
         (hydrationDetailScore * hydrationWeight) +
         (pigmentationDetailScore * pigmentationWeight) +
+        (poresDetailScore * poresWeight) +
+        (wrinklesDetailScore * wrinklesWeight) +
         (agingScore * agingWeight);
 
     print('=== Attractiveness Score Breakdown ===');
     print(
-      'Acne Detail Score: ${acneDetailScore.toStringAsFixed(2)} (weight: 35%)',
+      'Acne: ${acneDetailScore.toStringAsFixed(2)} × 25% = ${(acneDetailScore * acneWeight).toStringAsFixed(2)}',
     );
     print(
-      'Hydration Detail Score: ${hydrationDetailScore.toStringAsFixed(2)} (weight: 30%)',
+      'Hydration: ${hydrationDetailScore.toStringAsFixed(2)} × 20% = ${(hydrationDetailScore * hydrationWeight).toStringAsFixed(2)}',
     );
     print(
-      'Pigmentation Detail Score: ${pigmentationDetailScore.toStringAsFixed(2)} (weight: 25%)',
+      'Pigmentation: ${pigmentationDetailScore.toStringAsFixed(2)} × 20% = ${(pigmentationDetailScore * pigmentationWeight).toStringAsFixed(2)}',
     );
-    print('Aging Score: ${agingScore.toStringAsFixed(2)} (weight: 10%)');
-    print('Final Attractiveness Score: ${totalScore.toStringAsFixed(2)}%');
+    print(
+      'Pores: ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
+    );
+    print(
+      'Wrinkles: ${wrinklesDetailScore.toStringAsFixed(2)} × 15% = ${(wrinklesDetailScore * wrinklesWeight).toStringAsFixed(2)}',
+    );
+    print(
+      'Aging: ${agingScore.toStringAsFixed(2)} × 5% = ${(agingScore * agingWeight).toStringAsFixed(2)}',
+    );
+    print('Final Score: ${totalScore.toStringAsFixed(2)}%');
     print('=====================================');
 
     return totalScore.clamp(0.0, 100.0);
   }
 
-  // Acne detail score with sub-factor weights
   double _calculateAcneDetailScore() {
     final factors = widget.analysisData!.acneFactors;
 
-    // Convert factor values (0-1 range, where lower is better) to scores (0-100)
     final activeAcneScore = (1 - factors.activeAcne) * 100;
-    final comedolesScore = (1 - factors.comedones) * 100;
+    final comedonesScore = (1 - factors.comedones) * 100;
     final congestionScore = (1 - factors.congestion) * 100;
     final cysticScore = (1 - factors.cysticAcne) * 100;
     final inflammationScore = (1 - factors.inflammation) * 100;
     final oilinessScore = (1 - factors.oiliness) * 100;
     final scarringScore = (1 - factors.scarring) * 100;
 
-    // Sub-factor weights
     const weights = {
       'activeAcne': 0.25,
       'cysticAcne': 0.20,
@@ -196,7 +290,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     };
 
     return (activeAcneScore * weights['activeAcne']!) +
-        (comedolesScore * weights['comedones']!) +
+        (comedonesScore * weights['comedones']!) +
         (congestionScore * weights['congestion']!) +
         (cysticScore * weights['cysticAcne']!) +
         (inflammationScore * weights['inflammation']!) +
@@ -204,7 +298,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         (scarringScore * weights['scarring']!);
   }
 
-  // Hydration detail score with sub-factor weights
   double _calculateHydrationDetailScore() {
     final factors = widget.analysisData!.hydrationFactors;
 
@@ -229,7 +322,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         (textureScore * weights['texture']!);
   }
 
-  // Pigmentation detail score with sub-factor weights
   double _calculatePigmentationDetailScore() {
     final factors = widget.analysisData!.pigmentationFactors;
 
@@ -258,6 +350,81 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         (rednessScore * weights['redness']!) +
         (underEyeScore * weights['underEyePigmentation']!) +
         (uvDamageScore * weights['uvDamage']!);
+  }
+
+  double _calculatePoresDetailScore() {
+    final factors = widget.analysisData!.poresFactors;
+
+    final visibilityScore = (1 - factors.visibility) * 100;
+    final sizeScore = (1 - factors.size) * 100;
+    final enlargedScore = (1 - factors.enlargedPores) * 100;
+    final cloggedScore = (1 - factors.cloggedPores) * 100;
+    final tZoneScore = (1 - factors.tZoneProminence) * 100;
+    final cheekScore = (1 - factors.cheekProminence) * 100;
+    final textureScore = (1 - factors.textureRoughness) * 100;
+
+    const weights = {
+      'visibility': 0.25,
+      'size': 0.20,
+      'enlargedPores': 0.20,
+      'cloggedPores': 0.15,
+      'textureRoughness': 0.10,
+      'tZoneProminence': 0.05,
+      'cheekProminence': 0.05,
+    };
+
+    return (visibilityScore * weights['visibility']!) +
+        (sizeScore * weights['size']!) +
+        (enlargedScore * weights['enlargedPores']!) +
+        (cloggedScore * weights['cloggedPores']!) +
+        (tZoneScore * weights['tZoneProminence']!) +
+        (cheekScore * weights['cheekProminence']!) +
+        (textureScore * weights['textureRoughness']!);
+  }
+
+  double _calculateWrinklesDetailScore() {
+    final factors = widget.analysisData!.wrinklesFactors;
+
+    final overallScore = (1 - factors.overallSeverity) * 100;
+    final depthScore = (1 - factors.depth) * 100;
+    final foreheadScore = (1 - factors.foreheadLines) * 100;
+    final crowsFeetScore = (1 - factors.crowsFeet) * 100;
+    final frownScore = (1 - factors.frownLines) * 100;
+    final nasolabialScore = (1 - factors.nasolabialFolds) * 100;
+    final underEyeScore = (1 - factors.underEyeWrinkles) * 100;
+    final lipScore = (1 - factors.lipLines) * 100;
+    final marionetteScore = (1 - factors.marionelleLines) * 100;
+    final neckScore = (1 - factors.neckLines) * 100;
+    final staticScore = (1 - factors.staticWrinkles) * 100;
+    final dynamicScore = (1 - factors.dynamicWrinkles) * 100;
+
+    const weights = {
+      'overallSeverity': 0.20,
+      'depth': 0.15,
+      'nasolabialFolds': 0.12,
+      'crowsFeet': 0.10,
+      'foreheadLines': 0.10,
+      'frownLines': 0.08,
+      'underEyeWrinkles': 0.08,
+      'lipLines': 0.05,
+      'marionetteLines': 0.04,
+      'staticWrinkles': 0.04,
+      'dynamicWrinkles': 0.02,
+      'neckLines': 0.02,
+    };
+
+    return (overallScore * weights['overallSeverity']!) +
+        (depthScore * weights['depth']!) +
+        (foreheadScore * weights['foreheadLines']!) +
+        (crowsFeetScore * weights['crowsFeet']!) +
+        (frownScore * weights['frownLines']!) +
+        (nasolabialScore * weights['nasolabialFolds']!) +
+        (underEyeScore * weights['underEyeWrinkles']!) +
+        (lipScore * weights['lipLines']!) +
+        (marionetteScore * weights['marionetteLines']!) +
+        (neckScore * weights['neckLines']!) +
+        (staticScore * weights['staticWrinkles']!) +
+        (dynamicScore * weights['dynamicWrinkles']!);
   }
 
   double _calculateAgingScore(double avgAge) {
@@ -297,18 +464,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
         return Stack(
           children: [
-            // Pink background that fills everything
             Positioned.fill(child: Container(color: const Color(0xFFE8B4BA))),
-
-            // Main content
             Column(
               children: [
-                // Top section with light pink background
                 Container(
                   color: const Color(0xFFF5E6E8),
                   child: Column(
                     children: [
-                      // Score Banner
                       Container(
                         width: screenWidth,
                         margin: const EdgeInsets.fromLTRB(20, 15, 20, 5),
@@ -330,10 +492,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-
-                      // Image with Analysis Points
                       Container(
-                        height: screenHeight * 0.45, // Reduced to 45%
+                        height: screenHeight * 0.42,
                         width: screenWidth,
                         padding: const EdgeInsets.fromLTRB(15, 5, 15, 0),
                         child: Stack(
@@ -389,8 +549,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     ],
                   ),
                 ),
-
-                // Bottom Section - Now takes more space
                 Expanded(
                   child: Transform.translate(
                     offset: const Offset(0, -30),
@@ -403,142 +561,151 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           topRight: Radius.circular(30),
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              padding: EdgeInsets.fromLTRB(
-                                screenWidth * 0.04,
-                                35,
-                                screenWidth * 0.04,
-                                0,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          screenWidth * 0.04,
+                          35,
+                          screenWidth * 0.04,
+                          0,
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.02,
                               ),
-                              child: Column(
+                              child: const Text(
+                                'The closer you are to 100, the healthier your skin is.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // First Row - 3 Cards
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.01,
+                              ),
+                              child: Row(
                                 children: [
-                                  // Header Text
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: screenWidth * 0.02,
-                                    ),
-                                    child: const Text(
-                                      'The closer you are to 100, the healthier your skin is.',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.black87,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget.analysisData!.acneScore
+                                          .toStringAsFixed(0),
+                                      label: 'Acne',
+                                      factors: _getAcneFactors(),
                                     ),
                                   ),
-
-                                  const SizedBox(height: 18),
-
-                                  // Score Cards
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: screenWidth * 0.01,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: ScoreCard(
-                                            score: widget
-                                                .analysisData!
-                                                .acneScore
-                                                .toStringAsFixed(0),
-                                            label: 'Acne',
-                                            factors: _getAcneFactors(),
-                                          ),
-                                        ),
-                                        SizedBox(width: screenWidth * 0.03),
-                                        Expanded(
-                                          child: ScoreCard(
-                                            score: widget
-                                                .analysisData!
-                                                .hydrationScore
-                                                .toStringAsFixed(0),
-                                            label: 'Hydration',
-                                            factors: _getHydrationFactors(),
-                                          ),
-                                        ),
-                                        SizedBox(width: screenWidth * 0.03),
-                                        Expanded(
-                                          child: ScoreCard(
-                                            score: widget
-                                                .analysisData!
-                                                .pigmentationScore
-                                                .toStringAsFixed(0),
-                                            label: 'Pigmentation',
-                                            factors: _getPigmentationFactors(),
-                                          ),
-                                        ),
-                                      ],
+                                  SizedBox(width: screenWidth * 0.025),
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget.analysisData!.hydrationScore
+                                          .toStringAsFixed(0),
+                                      label: 'Hydration',
+                                      factors: _getHydrationFactors(),
                                     ),
                                   ),
-
-                                  const SizedBox(height: 20),
-
-                                  // Info Pills
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: screenWidth * 0.02,
-                                    ),
-                                    child: Wrap(
-                                      spacing: screenWidth * 0.025,
-                                      runSpacing: 10,
-                                      alignment: WrapAlignment.center,
-                                      children: [
-                                        _buildLargeInfoPill(
-                                          'Skin Age : ${widget.analysisData!.skinAge}',
-                                        ),
-                                        _buildLargeInfoPill(
-                                          'Eye Age : ${widget.analysisData!.eyeAge}',
-                                        ),
-                                        _buildLargeInfoPill(
-                                          'Skin Type: ${widget.analysisData!.skinType}',
-                                        ),
-                                      ],
+                                  SizedBox(width: screenWidth * 0.025),
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget
+                                          .analysisData!
+                                          .pigmentationScore
+                                          .toStringAsFixed(0),
+                                      label: 'Pigmentation',
+                                      factors: _getPigmentationFactors(),
                                     ),
                                   ),
-
-                                  const SizedBox(height: 22),
-
-                                  // Fitzpatrick Color Palette
-                                  Wrap(
-                                    spacing: screenWidth * 0.03,
-                                    runSpacing: 12,
-                                    alignment: WrapAlignment.center,
-                                    children: List.generate(6, (index) {
-                                      return _buildLargeColorCircle(
-                                        fitzpatrickColors[index],
-                                        selectedColorIndex == index,
-                                        () => setState(
-                                          () => selectedColorIndex = index,
-                                        ),
-                                      );
-                                    }),
-                                  ),
-
-                                  const SizedBox(height: 10),
-
-                                  // Fitzpatrick type indicator
-                                  Text(
-                                    'Fitzpatrick Type ${selectedColorIndex + 1}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-
-                                  const SizedBox(
-                                    height: 30,
-                                  ), // Extra padding at bottom
                                 ],
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+
+                            // Second Row - 2 Cards (Centered)
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.15,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget.analysisData!.poresScore
+                                          .toStringAsFixed(0),
+                                      label: 'Pores',
+                                      factors: _getPoresFactors(),
+                                    ),
+                                  ),
+                                  SizedBox(width: screenWidth * 0.04),
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget.analysisData!.wrinklesScore
+                                          .toStringAsFixed(0),
+                                      label: 'Wrinkles',
+                                      factors: _getWrinklesFactors(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Info Pills
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.02,
+                              ),
+                              child: Wrap(
+                                spacing: screenWidth * 0.025,
+                                runSpacing: 10,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  _buildLargeInfoPill(
+                                    'Skin Age : ${widget.analysisData!.skinAge}',
+                                  ),
+                                  _buildLargeInfoPill(
+                                    'Eye Age : ${widget.analysisData!.eyeAge}',
+                                  ),
+                                  _buildLargeInfoPill(
+                                    'Skin Type: ${widget.analysisData!.skinType}',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Color Palette
+                            Wrap(
+                              spacing: screenWidth * 0.03,
+                              runSpacing: 12,
+                              alignment: WrapAlignment.center,
+                              children: List.generate(6, (index) {
+                                return _buildLargeColorCircle(
+                                  fitzpatrickColors[index],
+                                  selectedColorIndex == index,
+                                  () => setState(
+                                    () => selectedColorIndex = index,
+                                  ),
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Fitzpatrick Type ${selectedColorIndex + 1}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(height: 30),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -551,7 +718,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
-  // Larger Info Pill Widget
   Widget _buildLargeInfoPill(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -577,7 +743,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
-  // Larger Color Circle Widget
   Widget _buildLargeColorCircle(
     Color color,
     bool isSelected,
@@ -645,7 +810,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               ),
             ),
           ),
-
           Center(
             child: Container(
               constraints: const BoxConstraints(maxWidth: 1200),
@@ -698,7 +862,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                       ),
                     ),
                   ),
-
                   Expanded(
                     flex: 5,
                     child: Container(
@@ -721,13 +884,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                               ),
                               textAlign: TextAlign.center,
                             ),
+                            const SizedBox(height: 25),
 
-                            const SizedBox(height: 30),
-
+                            // First Row - 3 cards
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Flexible(
+                                Expanded(
                                   child: ScoreCard(
                                     score: widget.analysisData!.acneScore
                                         .toStringAsFixed(0),
@@ -735,8 +897,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                     factors: _getAcneFactors(),
                                   ),
                                 ),
-                                const SizedBox(width: 15),
-                                Flexible(
+                                const SizedBox(width: 12),
+                                Expanded(
                                   child: ScoreCard(
                                     score: widget.analysisData!.hydrationScore
                                         .toStringAsFixed(0),
@@ -744,8 +906,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                     factors: _getHydrationFactors(),
                                   ),
                                 ),
-                                const SizedBox(width: 15),
-                                Flexible(
+                                const SizedBox(width: 12),
+                                Expanded(
                                   child: ScoreCard(
                                     score: widget
                                         .analysisData!
@@ -757,8 +919,36 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 15),
 
-                            const SizedBox(height: 30),
+                            // Second Row - 2 cards centered
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 60,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget.analysisData!.poresScore
+                                          .toStringAsFixed(0),
+                                      label: 'Pores',
+                                      factors: _getPoresFactors(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 15),
+                                  Expanded(
+                                    child: ScoreCard(
+                                      score: widget.analysisData!.wrinklesScore
+                                          .toStringAsFixed(0),
+                                      label: 'Wrinkles',
+                                      factors: _getWrinklesFactors(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 25),
 
                             Wrap(
                               spacing: 12,
@@ -779,9 +969,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                 ),
                               ],
                             ),
-
-                            const SizedBox(height: 30),
-
+                            const SizedBox(height: 25),
                             Wrap(
                               spacing: 12,
                               runSpacing: 12,
@@ -796,9 +984,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                 );
                               }),
                             ),
-
                             const SizedBox(height: 15),
-
                             Text(
                               'Fitzpatrick Type ${selectedColorIndex + 1}',
                               style: const TextStyle(
