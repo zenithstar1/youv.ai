@@ -634,8 +634,10 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
 class FaceOvalPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    // REDUCED opacity from 0.5 to 0.25 (75% less dark)
     final paint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
+      ..color = Colors.black
+          .withOpacity(0.25) // CHANGED from 0.5
       ..style = PaintingStyle.fill;
 
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
@@ -663,20 +665,22 @@ class FaceOvalPainter extends CustomPainter {
     );
 
     final borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.8)
+      ..color = Colors.white
+          .withOpacity(0.9) // Increased visibility
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0;
 
     canvas.drawOval(ovalRect, borderPaint);
 
     final cornerPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
+      ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
 
     final cornerLength = 25.0;
 
+    // Corner brackets
     canvas.drawLine(
       Offset(ovalRect.left - 10, ovalRect.top + cornerLength),
       Offset(ovalRect.left - 10, ovalRect.top - 10),
