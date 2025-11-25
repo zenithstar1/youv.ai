@@ -73376,7 +73376,7 @@ return null},
 $S:0}
 A.FY.prototype={
 aH(a,b){var s,r,q,p,o,n,m,l,k,j,i,h,g=$.ag(),f=A.bg()
-f.r=A.aq(B.c.ak(127.5),B.i.q()>>>16&255,B.i.q()>>>8&255,B.i.q()&255).gu(0)
+f.r=A.aq(64,B.i.q()>>>16&255,B.i.q()>>>8&255,B.i.q()&255).gu(0)
 f.b=B.bd
 s=b.a
 r=b.b
@@ -73393,7 +73393,7 @@ g=A.e6(g)
 g.bA(new A.kW(new A.F(0,0,q,p)))
 a.ny(A.aAF(B.Ix,g,l),f)
 k=A.bg()
-k.r=A.aq(204,B.h.q()>>>16&255,B.h.q()>>>8&255,B.h.q()&255).gu(0)
+k.r=A.aq(B.c.ak(229.5),B.h.q()>>>16&255,B.h.q()>>>8&255,B.h.q()&255).gu(0)
 k.b=B.aP
 k.c=3
 a.Nk(m,k)
