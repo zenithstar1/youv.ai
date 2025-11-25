@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class FactorItem {
   final String name;
-  final double value;
+  final double value; // 0.0 to 1.0 (problem severity from API)
 
   FactorItem({required this.name, required this.value});
 }
@@ -95,27 +95,35 @@ class ScoreCard extends StatelessWidget {
     );
   }
 
+  // Health score color (0-100, higher is better)
   Color _getScoreColor(double score) {
-    if (score >= 80) return Colors.green[600]!;
-    if (score >= 60) return Colors.lightGreen[600]!;
-    if (score >= 40) return Colors.orange[600]!;
-    if (score >= 20) return Colors.deepOrange[600]!;
-    return Colors.red[600]!;
+    if (score >= 80) return Colors.green[600]!; // Excellent
+    if (score >= 60) return Colors.lightGreen[600]!; // Good
+    if (score >= 40) return Colors.orange[600]!; // Fair
+    if (score >= 20) return Colors.deepOrange[600]!; // Poor
+    return Colors.red[600]!; // Very Poor
   }
 
-  Color _getFactorColor(double value) {
-    if (value <= 0.2) return Colors.green[600]!;
-    if (value <= 0.4) return Colors.lightGreen[600]!;
-    if (value <= 0.6) return Colors.orange[600]!;
-    if (value <= 0.8) return Colors.deepOrange[600]!;
-    return Colors.red[600]!;
+  // Convert problem severity (0-1) to health score (0-100)
+  // INVERTED: Low problem = High health
+  double _getHealthScore(double problemValue) {
+    return (1 - problemValue) * 100;
   }
 
-  Color _getFactorBgColor(double value) {
-    if (value <= 0.2) return Colors.green[50]!;
-    if (value <= 0.4) return Colors.lightGreen[50]!;
-    if (value <= 0.6) return Colors.orange[50]!;
-    if (value <= 0.8) return Colors.deepOrange[50]!;
+  // Health score color based on inverted problem value
+  Color _getHealthColor(double healthScore) {
+    if (healthScore >= 80) return Colors.green[600]!; // Excellent health
+    if (healthScore >= 60) return Colors.lightGreen[600]!; // Good health
+    if (healthScore >= 40) return Colors.orange[600]!; // Fair health
+    if (healthScore >= 20) return Colors.deepOrange[600]!; // Poor health
+    return Colors.red[600]!; // Very poor health
+  }
+
+  Color _getHealthBgColor(double healthScore) {
+    if (healthScore >= 80) return Colors.green[50]!;
+    if (healthScore >= 60) return Colors.lightGreen[50]!;
+    if (healthScore >= 40) return Colors.orange[50]!;
+    if (healthScore >= 20) return Colors.deepOrange[50]!;
     return Colors.red[50]!;
   }
 
@@ -129,7 +137,7 @@ class ScoreCard extends StatelessWidget {
         child: Container(
           constraints: BoxConstraints(
             maxWidth: 400,
-            maxHeight: screenHeight * 0.85, // Max 85% of screen height
+            maxHeight: screenHeight * 0.85,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -137,9 +145,9 @@ class ScoreCard extends StatelessWidget {
               // Fixed Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.only(
+                  borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
                   ),
@@ -194,7 +202,7 @@ class ScoreCard extends StatelessWidget {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Lower percentages = Less severe = Better skin health',
+                              'Higher percentages = Better skin health = Closer to 100%',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.blue[900],
@@ -215,9 +223,10 @@ class ScoreCard extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                   child: Column(
                     children: factors.map((factor) {
-                      final percentage = (factor.value * 100).toStringAsFixed(
-                        0,
-                      );
+                      // CONVERT problem severity to health score
+                      final healthScore = _getHealthScore(factor.value);
+                      final healthPercentage = healthScore.toStringAsFixed(0);
+
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Column(
@@ -242,13 +251,13 @@ class ScoreCard extends StatelessWidget {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _getFactorBgColor(factor.value),
+                                    color: _getHealthBgColor(healthScore),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    '$percentage%',
+                                    '$healthPercentage%',
                                     style: TextStyle(
-                                      color: _getFactorColor(factor.value),
+                                      color: _getHealthColor(healthScore),
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -260,11 +269,13 @@ class ScoreCard extends StatelessWidget {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                value: factor.value,
+                                value:
+                                    healthScore /
+                                    100, // Show health score progress
                                 minHeight: 6,
                                 backgroundColor: Colors.grey[200],
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  _getFactorColor(factor.value),
+                                  _getHealthColor(healthScore),
                                 ),
                               ),
                             ),
