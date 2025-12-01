@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import '../models/skin_analysis_model.dart';
+import 'package:skin_analysis_app/Models/skin_analysis_model.dart';
 
 class ApiService {
   static const String baseUrl = 'https://anujakkulkarni-hydration.hf.space';

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../models/skin_analysis_model.dart';
+import 'package:skin_analysis_app/Models/skin_analysis_model.dart';
 import '../widgets/analysis_point.dart';
 import '../widgets/score_card.dart';
 import '../widgets/info_pill.dart';
