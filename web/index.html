@@ -8,8 +8,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
   <!-- Camera Permissions -->
-<meta http-equiv="Permissions-Policy" content="camera=(), microphone=()">
-<meta name="referrer" content="no-referrer">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=()">
+  <meta name="referrer" content="no-referrer">
   
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,8 +17,11 @@
   <meta name="apple-mobile-web-app-title" content="Skin Analysis">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   
+  <!-- Razorpay Checkout Script -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  
   <title>Skin Analysis</title>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest. json">
   <link rel="icon" type="image/png" href="favicon.png"/>
   
   <style>
@@ -70,5 +73,112 @@
   </div>
   
   <script src="flutter_bootstrap.js" async></script>
+  
+  <!-- Razorpay Payment Handler Script -->
+  <script>
+    function openRazorpayCheckout(orderId, key, amount, name, email, number) {
+      console.log('Opening Razorpay Checkout.. .');
+      console.log('Parameters:', { orderId, key, amount, name, email, number });
+      
+      var options = {
+        key: key,
+        amount: amount,
+        currency: "INR",
+        name: "Skin Analysis",  
+        description: "Unlock Full Skin Analysis Report",
+        handler: function (response) {
+          // Payment Success Handler
+          console.log("Payment successful:", response);
+          console.log("Payment ID:", response.razorpay_payment_id);
+          
+          // Send success to Flutter
+          if (window.flutterPaymentSuccess) {
+            window.flutterPaymentSuccess(response.razorpay_payment_id);
+          }
+          
+          // Also try postMessage for Flutter web
+          try {
+            window.postMessage({
+              type: 'payment_success',
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature || ''
+            }, '*');
+          } catch (error) {
+            console.error('Error sending payment success message:', error);
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            // Payment Cancelled/Dismissed Handler
+            console.log("Payment cancelled by user");
+            
+            if (window.flutterPaymentError) {
+              window.flutterPaymentError("payment_cancelled");
+            }
+            
+            try {
+              window.postMessage({
+                type: 'payment_error',
+                error: 'payment_cancelled'
+              }, '*');
+            } catch (error) {
+              console.error('Error sending payment cancel message:', error);
+            }
+          }
+        },
+        prefill: {
+          name: name || '',
+          email: email || '',
+          contact: number || '',
+        },
+        theme: {
+          color: "#D4999F", // Pink theme matching your app
+        },
+        notes: {
+          product: "skin_analysis_report",
+          version: "1.0"
+        }
+      };
+      
+      try {
+        var rzp = new Razorpay(options);
+        
+        // Handle payment failure
+        rzp.on('payment. failed', function (response) {
+          console.error("Payment failed:", response. error);
+          
+          if (window.flutterPaymentError) {
+            window.flutterPaymentError(response.error. code || "payment_failed");
+          }
+          
+          try {
+            window.postMessage({
+              type: 'payment_error',
+              error: response.error.code || 'payment_failed',
+              description: response.error.description || 'Payment failed'
+            }, '*');
+          } catch (error) {
+            console.error('Error sending payment failure message:', error);
+          }
+        });
+        
+        rzp.open();
+        console.log('Razorpay checkout opened successfully');
+        
+      } catch (error) {
+        console.error('Error opening Razorpay:', error);
+        
+        if (window.flutterPaymentError) {
+          window.flutterPaymentError("razorpay_init_error");
+        }
+      }
+    }
+    
+    // Initialize Flutter payment callbacks
+    window.flutterPaymentSuccess = null;
+    window.flutterPaymentError = null;
+    
+    console.log('Razorpay payment system initialized');
+  </script>
 </body>
 </html>

@@ -1,10 +1,18 @@
+import 'dart:convert';
+import 'dart:html' as html;
+import 'dart:js' as js;
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_analysis_app/Api/Apiservice.dart';
+import 'package:skin_analysis_app/screens/LoginPage.dart';
 import '../models/skin_analysis_model.dart';
 import '../widgets/analysis_point.dart';
-import '../widgets/score_card.dart';
+import '../widgets/score_card.dart' hide FactorItem;
 import '../widgets/info_pill.dart';
 import '../widgets/color_circle.dart';
+import 'package:http/http.dart' as http;
 
 class SkinAnalysisScreen extends StatefulWidget {
   final SkinAnalysisModel? analysisData;
@@ -20,6 +28,20 @@ class SkinAnalysisScreen extends StatefulWidget {
 class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   late int selectedColorIndex;
 
+  // Payment & Coupon variables
+  bool _hasPaid = false;
+  String paymentStatus = "";
+  TextEditingController _couponController = TextEditingController();
+  bool _couponApplied = false;
+  bool _couponChecking = false;
+  String _couponError = "";
+  String _appliedCoupon = "";
+  // Remove:  bool _reportSent = false;
+  // Keep only:
+  bool _sendingReport = false;
+  String _reportMessage = '';
+  bool _reportSent = false;
+
   final List<Color> fitzpatrickColors = [
     const Color(0xFFFFF5F0),
     const Color(0xFFFFE4D6),
@@ -29,10 +51,469 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     const Color(0xFF6B4423),
   ];
 
+  Future<void> _sendDetailedReport() async {
+    final prefs = await SharedPreferences.getInstance();
+    final analysisId = prefs.getString('analysis_id');
+
+    if (analysisId == null || analysisId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No analysis found.  Please analyze your skin first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _sendingReport = true;
+      _reportMessage = '';
+    });
+
+    try {
+      final result = await ApiService.sendDetailedReport(analysisId);
+
+      setState(() {
+        _sendingReport = false;
+        _reportSent = result['success'] == true;
+        _reportMessage = result['message'] ?? '';
+      });
+
+      if (result['success'] == true) {
+        // Show success with detailed message
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green[700], size: 28),
+                const SizedBox(width: 12),
+                const Text('Report Sent! '),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result['message'] ?? 'PDF sent successfully',
+                  style: const TextStyle(fontSize: 15),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Check your email for the detailed PDF report.',
+                          style: TextStyle(
+                            color: Colors.blue[900],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to send report'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _sendingReport = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error:  ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _downloadPdfReport() async {
+    final prefs = await SharedPreferences.getInstance();
+    final analysisId = prefs.getString('analysis_id');
+
+    if (analysisId == null || analysisId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No analysis found. Please analyze your skin first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Downloading PDF report...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final pdfBytes = await ApiService.downloadReportPdf(analysisId);
+
+      if (pdfBytes != null && pdfBytes.isNotEmpty) {
+        // For web:  Create download link
+        if (kIsWeb) {
+          final blob = html.Blob([pdfBytes]);
+          final url = html.Url.createObjectUrlFromBlob(blob);
+          final anchor = html.document.createElement('a') as html.AnchorElement
+            ..href = url
+            ..style.display = 'none'
+            ..download = 'skin_analysis_report_$analysisId.pdf';
+          html.document.body?.children.add(anchor);
+          anchor.click();
+          html.document.body?.children.remove(anchor);
+          html.Url.revokeObjectUrl(url);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF downloaded successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to download PDF'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error downloading PDF: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1) - 1;
+    checkSubscriptionStatus();
+
+    if (kIsWeb) {
+      js.context['flutterPaymentSuccess'] = (String paymentId) {
+        setState(() {
+          paymentStatus = "Payment Successful:  $paymentId";
+          _hasPaid = true;
+        });
+        _handlePaymentSuccess(paymentId);
+      };
+      js.context['flutterPaymentError'] = (String paymentId) {
+        setState(() {
+          paymentStatus = "Payment Failed: $paymentId";
+        });
+        _handlePaymentError(paymentId);
+      };
+    }
+  }
+
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
+
+  void checkSubscriptionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isSubscribed = prefs.getBool('isSubscribe') ?? false;
+    setState(() {
+      _hasPaid = isSubscribed;
+    });
+  }
+
+  void _handlePaymentSuccess(String paymentId) async {
+    final paymentData = {
+      "payment_id": paymentId,
+      "amount": 499.00,
+      "currency": "INR",
+      "status": "completed",
+      "payment_method": "razorpay",
+      "description": "Unlock Full Report",
+      "metadata": {"order_id": paymentId, "customer_id": ""},
+      "transaction_reference": paymentId,
+      "processed_at": DateTime.now().toIso8601String(),
+    };
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+      prefs.setBool('isSubscribe', true);
+      final uri = Uri.parse(
+        'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store',
+      );
+      await http.post(
+        uri,
+        body: jsonEncode(paymentData),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+    } catch (e) {
+      print("Error storing payment data: $e");
+    }
+
+    setState(() {
+      _hasPaid = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Payment successful! Details unlocked."),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    // Automatically send detailed report after successful payment
+    _sendDetailedReport();
+  }
+
+  void _handlePaymentError(paymentId) async {
+    final paymentData = {
+      "payment_id": paymentId ?? "",
+      "amount": 499.00,
+      "currency": "INR",
+      "status": "Failed",
+      "payment_method": "razorpay",
+      "description": "Unlock Full Report",
+      "metadata": {"order_id": paymentId ?? "", "customer_id": ""},
+      "transaction_reference": paymentId ?? "",
+      "processed_at": DateTime.now().toIso8601String(),
+    };
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+      final uri = Uri.parse(
+        'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store',
+      );
+      await http.post(
+        uri,
+        body: jsonEncode(paymentData),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+    } catch (e) {
+      print("Error storing payment data: $e");
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Payment failed or cancelled. Please try again."),
+      ),
+    );
+  }
+
+  void _startPayment() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
+
+    if (!isLoggedIn) {
+      // Navigate to login page
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+
+      // If login was successful, check subscription and send report
+      if (result == true) {
+        final updatedPrefs = await SharedPreferences.getInstance();
+        final isSubscribed = updatedPrefs.getBool('isSubscribe') ?? false;
+
+        if (!isSubscribed) {
+          // Proceed with payment after successful login
+          _proceedWithPayment();
+        } else {
+          setState(() {
+            _hasPaid = true;
+          });
+          // Auto-send report after login if already subscribed
+          _sendDetailedReport();
+        }
+      }
+      return;
+    }
+
+    final isSubscribed = prefs.getBool('isSubscribe') ?? false;
+    if (isSubscribed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You already have access to the report.")),
+      );
+      setState(() {
+        _hasPaid = true;
+      });
+      // Auto-send report if already subscribed
+      _sendDetailedReport();
+      return;
+    }
+
+    // If coupon is applied, unlock and send report
+    if (_couponApplied) {
+      prefs.setBool('isSubscribe', true);
+      setState(() {
+        _hasPaid = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Coupon applied!  Details unlocked."),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Automatically send detailed report after coupon unlock
+      _sendDetailedReport();
+      return;
+    }
+
+    // Otherwise proceed with payment
+    _proceedWithPayment();
+  }
+
+  void _proceedWithPayment() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    String name = '';
+    String email = '';
+    String number = '';
+
+    final userInfoJson = prefs.getString('userInfo');
+    if (userInfoJson != null && userInfoJson.isNotEmpty) {
+      final userInfo = json.decode(userInfoJson);
+      name = userInfo['name'] ?? '';
+      email = userInfo['email'] ?? '';
+      number = userInfo['phone'] ?? '';
+    } else {
+      name = prefs.getString('name') ?? '';
+      email = prefs.getString('email') ?? '';
+      number = prefs.getString('number') ?? '';
+    }
+
+    js.context.callMethod('openRazorpayCheckout', [
+      "order_id_placeholder",
+      "rzp_live_jBXpBOtKrydrbs",
+      "49900",
+      name,
+      email,
+      number,
+    ]);
+  }
+
+  Future<void> _applyCoupon() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
+
+    if (!isLoggedIn) {
+      // Navigate to login page
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+
+      // If login was successful, try applying coupon again
+      if (result == true) {
+        _applyCoupon();
+      }
+      return;
+    }
+
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _couponError = "Please enter a coupon code. ";
+      });
+      return;
+    }
+
+    setState(() {
+      _couponChecking = true;
+      _couponError = "";
+    });
+
+    try {
+      // final token = prefs.getString('_token') ?? '';
+      // final response = await http.post(
+      //   Uri.parse(
+      //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/coupon/verify',
+      //   ),
+      //   body: jsonEncode({"coupon_code": code}),
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': 'Bearer $token',
+      //   },
+      // );
+
+      // final body = jsonDecode(response.body);
+
+      if (code == "YOUV2025") {
+        setState(() {
+          _couponApplied = true;
+          _appliedCoupon = code;
+          _couponError = "";
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Coupon applied!  Payment skipped.")),
+        );
+      } else {
+        setState(() {
+          _couponError = code.isEmpty ? "Invalid coupon. " : code;
+          _couponApplied = false;
+          _appliedCoupon = "";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _couponError = "Error validating coupon. ";
+        _couponApplied = false;
+        _appliedCoupon = "";
+      });
+    } finally {
+      setState(() {
+        _couponChecking = false;
+      });
+    }
   }
 
   List<FactorItem> _getAcneFactors() {
@@ -245,7 +726,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
     print('=== Attractiveness Score Breakdown ===');
     print(
-      'Acne: ${acneDetailScore.toStringAsFixed(2)} × 25% = ${(acneDetailScore * acneWeight).toStringAsFixed(2)}',
+      'Acne:  ${acneDetailScore.toStringAsFixed(2)} × 25% = ${(acneDetailScore * acneWeight).toStringAsFixed(2)}',
     );
     print(
       'Hydration: ${hydrationDetailScore.toStringAsFixed(2)} × 20% = ${(hydrationDetailScore * hydrationWeight).toStringAsFixed(2)}',
@@ -254,7 +735,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       'Pigmentation: ${pigmentationDetailScore.toStringAsFixed(2)} × 20% = ${(pigmentationDetailScore * pigmentationWeight).toStringAsFixed(2)}',
     );
     print(
-      'Pores: ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
+      'Pores:  ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
     );
     print(
       'Wrinkles: ${wrinklesDetailScore.toStringAsFixed(2)} × 15% = ${(wrinklesDetailScore * wrinklesWeight).toStringAsFixed(2)}',
@@ -462,11 +943,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         final screenWidth = MediaQuery.of(context).size.width;
         final screenHeight = constraints.maxHeight;
 
-        return Stack(
-          children: [
-            Positioned.fill(child: Container(color: const Color(0xFFE8B4BA))),
-            Column(
+        return Container(
+          color: const Color(0xFFE8B4BA),
+          child: SingleChildScrollView(
+            child: Column(
               children: [
+                // Header with score banner
                 Container(
                   color: const Color(0xFFF5E6E8),
                   child: Column(
@@ -483,7 +965,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           borderRadius: BorderRadius.circular(25),
                         ),
                         child: Text(
-                          'Attractiveness Index Score: ${overallScore.toStringAsFixed(1)}%',
+                          'Attractiveness Index Score:  ${overallScore.toStringAsFixed(1)}%',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
@@ -492,10 +974,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
+
+                      // Image section (now scrollable)
                       Container(
                         height: screenHeight * 0.42,
                         width: screenWidth,
-                        padding: const EdgeInsets.fromLTRB(15, 5, 15, 0),
+                        padding: const EdgeInsets.fromLTRB(15, 5, 15, 15),
                         child: Stack(
                           children: [
                             ClipRRect(
@@ -549,170 +1033,172 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: Transform.translate(
-                    offset: const Offset(0, -30),
-                    child: Container(
-                      width: screenWidth,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE8B4BA),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30),
+
+                // Content section (now part of the scroll)
+                Container(
+                  width: screenWidth,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE8B4BA),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
+                  ),
+                  transform: Matrix4.translationValues(0, -30, 0),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      screenWidth * 0.04,
+                      35,
+                      screenWidth * 0.04,
+                      30,
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.02,
+                          ),
+                          child: const Text(
+                            'The closer you are to 100, the healthier your skin is.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                      ),
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.fromLTRB(
-                          screenWidth * 0.04,
-                          35,
-                          screenWidth * 0.04,
-                          0,
-                        ),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.02,
-                              ),
-                              child: const Text(
-                                'The closer you are to 100, the healthier your skin is.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
+                        const SizedBox(height: 16),
+
+                        // First Row - 3 Cards
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.01,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ScoreCard(
+                                  score: widget.analysisData!.acneScore
+                                      .toStringAsFixed(0),
+                                  label: 'Acne',
+                                  factors: _getAcneFactors(),
                                 ),
-                                textAlign: TextAlign.center,
                               ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // First Row - 3 Cards
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.01,
+                              SizedBox(width: screenWidth * 0.025),
+                              Expanded(
+                                child: ScoreCard(
+                                  score: widget.analysisData!.hydrationScore
+                                      .toStringAsFixed(0),
+                                  label: 'Hydration',
+                                  factors: _getHydrationFactors(),
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: ScoreCard(
-                                      score: widget.analysisData!.acneScore
-                                          .toStringAsFixed(0),
-                                      label: 'Acne',
-                                      factors: _getAcneFactors(),
-                                    ),
-                                  ),
-                                  SizedBox(width: screenWidth * 0.025),
-                                  Expanded(
-                                    child: ScoreCard(
-                                      score: widget.analysisData!.hydrationScore
-                                          .toStringAsFixed(0),
-                                      label: 'Hydration',
-                                      factors: _getHydrationFactors(),
-                                    ),
-                                  ),
-                                  SizedBox(width: screenWidth * 0.025),
-                                  Expanded(
-                                    child: ScoreCard(
-                                      score: widget
-                                          .analysisData!
-                                          .pigmentationScore
-                                          .toStringAsFixed(0),
-                                      label: 'Pigmentation',
-                                      factors: _getPigmentationFactors(),
-                                    ),
-                                  ),
-                                ],
+                              SizedBox(width: screenWidth * 0.025),
+                              Expanded(
+                                child: ScoreCard(
+                                  score: widget.analysisData!.pigmentationScore
+                                      .toStringAsFixed(0),
+                                  label: 'Pigmentation',
+                                  factors: _getPigmentationFactors(),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-
-                            // Second Row - 2 Cards (Centered)
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.15,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: ScoreCard(
-                                      score: widget.analysisData!.poresScore
-                                          .toStringAsFixed(0),
-                                      label: 'Pores',
-                                      factors: _getPoresFactors(),
-                                    ),
-                                  ),
-                                  SizedBox(width: screenWidth * 0.04),
-                                  Expanded(
-                                    child: ScoreCard(
-                                      score: widget.analysisData!.wrinklesScore
-                                          .toStringAsFixed(0),
-                                      label: 'Wrinkles',
-                                      factors: _getWrinklesFactors(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-
-                            // Info Pills
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.02,
-                              ),
-                              child: Wrap(
-                                spacing: screenWidth * 0.025,
-                                runSpacing: 10,
-                                alignment: WrapAlignment.center,
-                                children: [
-                                  _buildLargeInfoPill(
-                                    'Skin Age : ${widget.analysisData!.skinAge}',
-                                  ),
-                                  _buildLargeInfoPill(
-                                    'Eye Age : ${widget.analysisData!.eyeAge}',
-                                  ),
-                                  _buildLargeInfoPill(
-                                    'Skin Type: ${widget.analysisData!.skinType}',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Color Palette
-                            Wrap(
-                              spacing: screenWidth * 0.03,
-                              runSpacing: 12,
-                              alignment: WrapAlignment.center,
-                              children: List.generate(6, (index) {
-                                return _buildLargeColorCircle(
-                                  fitzpatrickColors[index],
-                                  selectedColorIndex == index,
-                                  () => setState(
-                                    () => selectedColorIndex = index,
-                                  ),
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Fitzpatrick Type ${selectedColorIndex + 1}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            const SizedBox(height: 30),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+
+                        // Second Row - 2 Cards (Centered)
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.15,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ScoreCard(
+                                  score: widget.analysisData!.poresScore
+                                      .toStringAsFixed(0),
+                                  label: 'Pores',
+                                  factors: _getPoresFactors(),
+                                ),
+                              ),
+                              SizedBox(width: screenWidth * 0.04),
+                              Expanded(
+                                child: ScoreCard(
+                                  score: widget.analysisData!.wrinklesScore
+                                      .toStringAsFixed(0),
+                                  label: 'Wrinkles',
+                                  factors: _getWrinklesFactors(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Info Pills
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.02,
+                          ),
+                          child: Wrap(
+                            spacing: screenWidth * 0.025,
+                            runSpacing: 10,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildLargeInfoPill(
+                                'Skin Age:  ${widget.analysisData!.skinAge}',
+                              ),
+                              _buildLargeInfoPill(
+                                'Eye Age: ${widget.analysisData!.eyeAge}',
+                              ),
+                              _buildLargeInfoPill(
+                                'Skin Type:  ${widget.analysisData!.skinType}',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Color Palette
+                        Wrap(
+                          spacing: screenWidth * 0.03,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: List.generate(6, (index) {
+                            return _buildLargeColorCircle(
+                              fitzpatrickColors[index],
+                              selectedColorIndex == index,
+                              () => setState(() => selectedColorIndex = index),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Fitzpatrick Type ${selectedColorIndex + 1}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+
+                        // DISCLAIMER SECTION
+                        _buildDisclaimerSection(screenWidth),
+                        const SizedBox(height: 20),
+
+                        // PAYMENT/COUPON SECTION
+                        _buildPaymentSection(screenWidth),
+                        const SizedBox(height: 30),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -783,6 +1269,349 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
+  Widget _buildDisclaimerSection(double screenWidth) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.yellow.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.yellow.shade700, width: 1),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              "Disclaimer",
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "• The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and entertainment purposes only.\n\n"
+              "• Results do not represent a medical diagnosis, dermatological assessment, or professional beauty advice.\n\n"
+              "• Factors such as lighting, camera quality, and environmental conditions may influence the outcome.\n\n"
+              "• Users should not rely solely on this analysis for making decisions regarding skincare, medical treatments, or personal wellbeing.\n\n"
+              "• For any medical or cosmetic concerns, please consult a qualified healthcare or skincare professional.\n\n"
+              "• The Service Provider makes no guarantees regarding accuracy, completeness, or suitability of the AI analysis.",
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentSection(double screenWidth) {
+    if (!_hasPaid) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, color: Colors.white, size: 40),
+              const SizedBox(height: 12),
+              const Text(
+                "Unlock Full Details",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Have a coupon? ",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Color(0xFFD4999F),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _couponController,
+                      enabled: !_couponApplied,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: "Enter coupon code",
+                        hintStyle: const TextStyle(color: Colors.white54),
+                        filled: true,
+                        fillColor: Colors.black,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFD4999F),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFD4999F),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _couponApplied || _couponChecking
+                        ? null
+                        : _applyCoupon,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _couponApplied
+                          ? Colors.green
+                          : const Color(0xFFD4999F),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(90, 48),
+                    ),
+                    child: _couponChecking
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(_couponApplied ? "Applied" : "Apply"),
+                  ),
+                ],
+              ),
+              if (_couponError.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Text(
+                    _couponError,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              if (_couponApplied && _appliedCoupon.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Text(
+                    "Coupon \"$_appliedCoupon\" applied! ",
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              Text(
+                _couponApplied
+                    ? "Your coupon is applied!  Click below to unlock your report."
+                    : "Reveal your skin's secrets with our in-depth analysis — just ₹499",
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                icon: Icon(_couponApplied ? Icons.check : Icons.lock_open),
+                label: Text(
+                  _couponApplied
+                      ? "Unlock with Coupon"
+                      : "Unlock Full Details (₹499)",
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4999F),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: _startPayment,
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFD4999F), width: 2),
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFD4999F).withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              const Icon(Icons.emoji_events, color: Colors.amber, size: 60),
+              const SizedBox(height: 12),
+              const Text(
+                "Congratulations!",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFD4999F),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "You've unlocked your full skin analysis.",
+                style: TextStyle(fontSize: 16, color: Colors.black87),
+              ),
+              const SizedBox(height: 20),
+
+              // Send Report Button (only if not sent yet)
+              if (!_reportSent)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _sendingReport ? null : _sendDetailedReport,
+                    icon: _sendingReport
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.email_outlined),
+                    label: Text(
+                      _sendingReport
+                          ? 'Sending.. .'
+                          : 'Send Detailed Report to Email',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4999F),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+
+              // Success message if report was sent
+              if (_reportSent) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200, width: 2),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green.shade700,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'PDF Sent to Email',
+                              style: TextStyle(
+                                color: Colors.green.shade900,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_reportMessage.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _reportMessage,
+                          style: TextStyle(
+                            color: Colors.green.shade800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Option to resend
+                TextButton.icon(
+                  onPressed: _sendingReport ? null : _sendDetailedReport,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Resend Report'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFD4999F),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // Info message
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _reportSent
+                            ? 'Check your email inbox for the detailed PDF report.'
+                            : 'Click the button above to receive a detailed PDF report via email within a few minutes.',
+                        style: TextStyle(color: Colors.blue[900], fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _buildDesktopLayout() {
     final overallScore = _calculateOverallScore();
 
@@ -800,7 +1629,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Text(
-                'Attractiveness Index Score: ${overallScore.toStringAsFixed(1)}%',
+                'Attractiveness Index Score:  ${overallScore.toStringAsFixed(1)}%',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
@@ -957,11 +1786,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                               children: [
                                 InfoPill(
                                   text:
-                                      'Skin Age : ${widget.analysisData!.skinAge}',
+                                      'Skin Age: ${widget.analysisData!.skinAge}',
                                 ),
                                 InfoPill(
                                   text:
-                                      'Eye Age : ${widget.analysisData!.eyeAge}',
+                                      'Eye Age: ${widget.analysisData!.eyeAge}',
                                 ),
                                 InfoPill(
                                   text:
@@ -993,6 +1822,14 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                 color: Colors.black54,
                               ),
                             ),
+                            const SizedBox(height: 30),
+
+                            // DISCLAIMER SECTION (Desktop)
+                            _buildDisclaimerSection(600),
+                            const SizedBox(height: 20),
+
+                            // PAYMENT/COUPON SECTION (Desktop)
+                            _buildPaymentSection(600),
                           ],
                         ),
                       ),

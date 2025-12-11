@@ -7,6 +7,7 @@ class SkinAnalysisModel {
   final int skinAge;
   final int eyeAge;
   final int fitzpatrickType;
+  final String? analysisId; // Add this field
   final AcneFactors acneFactors;
   final HydrationFactors hydrationFactors;
   final PigmentationFactors pigmentationFactors;
@@ -22,6 +23,7 @@ class SkinAnalysisModel {
     required this.skinAge,
     required this.eyeAge,
     required this.fitzpatrickType,
+    this.analysisId, // Add this parameter
     required this.acneFactors,
     required this.hydrationFactors,
     required this.pigmentationFactors,
@@ -30,9 +32,18 @@ class SkinAnalysisModel {
   });
 
   factory SkinAnalysisModel.fromJson(Map<String, dynamic> json) {
-    final scores = json['scores'] ?? {};
-    final rawFactors = json['raw_factors'] ?? {};
-    final ageAnalysis = json['age_analysis'] ?? {};
+    // Handle nested 'analysis' wrapper if present
+    final analysis = json['analysis'] ?? json;
+
+    // Get analysis_id from root level of JSON
+    final analysisId = json['analysis_id']?.toString();
+
+    final scores = analysis['scores'] ?? {};
+    // Try both 'raw_factors' and 'raw_data' keys
+    final rawFactors = analysis['raw_factors'] ?? analysis['raw_data'] ?? {};
+    final ageAnalysis = analysis['age_analysis'] ?? {};
+
+    print('Parsing analysis_id: $analysisId'); // Debug log
 
     return SkinAnalysisModel(
       acneScore: (scores['acne'] as num?)?.toDouble() ?? 0.0,
@@ -43,6 +54,7 @@ class SkinAnalysisModel {
       skinAge: (ageAnalysis['skin_age'] as num?)?.toInt() ?? 0,
       eyeAge: (ageAnalysis['eye_age'] as num?)?.toInt() ?? 0,
       fitzpatrickType: (ageAnalysis['fitzpatrick_type'] as num?)?.toInt() ?? 1,
+      analysisId: analysisId, // Add this
       acneFactors: AcneFactors.fromJson(rawFactors['acne'] ?? {}),
       hydrationFactors: HydrationFactors.fromJson(
         rawFactors['hydration'] ?? {},
@@ -76,6 +88,7 @@ class SkinAnalysisModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'analysis_id': analysisId, // Add this
       'scores': {
         'acne': acneScore,
         'hydration': hydrationScore,
@@ -88,7 +101,7 @@ class SkinAnalysisModel {
         'eye_age': eyeAge,
         'fitzpatrick_type': fitzpatrickType,
       },
-      'raw_factors': {
+      'raw_data': {
         'acne': acneFactors.toJson(),
         'hydration': hydrationFactors.toJson(),
         'pigmentation': pigmentationFactors.toJson(),
@@ -331,4 +344,12 @@ class WrinklesFactors {
       'under_eye_wrinkles': underEyeWrinkles,
     };
   }
+}
+
+// Helper class for displaying factor items in UI
+class FactorItem {
+  final String name;
+  final double value;
+
+  FactorItem({required this.name, required this.value});
 }

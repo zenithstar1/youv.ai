@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/skin_analysis_model.dart'; // Import FactorItem from model
 
-class FactorItem {
-  final String name;
-  final double value; // 0.0 to 1.0 (problem severity from API)
-
-  FactorItem({required this.name, required this.value});
-}
+// REMOVE the FactorItem class definition from here since it's already in skin_analysis_model.dart
 
 class ScoreCard extends StatelessWidget {
   final String score;
