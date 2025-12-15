@@ -201,9 +201,9 @@
     },
     {
       "name": "google_fonts",
-      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/google_fonts-6.3.2",
+      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/google_fonts-6.3.3",
       "packageUri": "lib/",
-      "languageVersion": "3.7"
+      "languageVersion": "3.9"
     },
     {
       "name": "google_identity_services_web",
@@ -273,7 +273,7 @@
     },
     {
       "name": "image_picker_ios",
-      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_ios-0.8.13+2",
+      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_ios-0.8.13+3",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -356,12 +356,6 @@
       "languageVersion": "2.12"
     },
     {
-      "name": "objective_c",
-      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/objective_c-9.1.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.8"
-    },
-    {
       "name": "path",
       "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/path-1.9.1",
       "packageUri": "lib/",
@@ -375,13 +369,13 @@
     },
     {
       "name": "path_provider_android",
-      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_android-2.2.21",
+      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_android-2.2.22",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "path_provider_foundation",
-      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_foundation-2.5.0",
+      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_foundation-2.5.1",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -432,12 +426,6 @@
       "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/provider-6.1.5+1",
       "packageUri": "lib/",
       "languageVersion": "2.12"
-    },
-    {
-      "name": "pub_semver",
-      "rootUri": "file:///C:/Users/gajen/AppData/Local/Pub/Cache/hosted/pub.dev/pub_semver-2.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
     },
     {
       "name": "shared_preferences",
