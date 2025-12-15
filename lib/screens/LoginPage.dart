@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pinput/pinput.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
@@ -39,55 +37,6 @@ class _LoginPageContentState extends State<LoginPageContent> {
   void dispose() {
     _phoneController.dispose();
     super.dispose();
-  }
-
-  Future<void> _handleGuestLogin() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Generate a unique guest ID
-      final guestId = 'guest_${DateTime.now().millisecondsSinceEpoch}';
-
-      // Create guest user info
-      final guestInfo = {
-        'name': 'Guest User',
-        'email': '$guestId@guest.com',
-        'phone': '',
-        'is_guest': true,
-        'guest_id': guestId,
-      };
-
-      // Store guest login data
-      await prefs.setBool('isLogin', true);
-      await prefs.setString('userInfo', jsonEncode(guestInfo));
-      await prefs.setString('name', 'Guest User');
-      await prefs.setString('email', '$guestId@guest.com');
-      await prefs.setBool('isGuest', true);
-
-      // Navigate back with success
-      if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logged in as Guest'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Guest login failed.  Please try again.';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
   }
 
   void _sendOTP() {
@@ -141,7 +90,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Google sign-in failed:  ${e.toString()}';
+        _errorMessage = 'Google sign-in failed:   ${e.toString()}';
         _isLoading = false;
       });
     }
@@ -259,7 +208,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
                     const SizedBox(height: 30),
 
                     const Text(
-                      'Welcome! ',
+                      'Welcome!  ',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -454,89 +403,6 @@ class _LoginPageContentState extends State<LoginPageContent> {
                           width: 1.2,
                         ),
                         backgroundColor: Colors.white,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Divider
-                    Row(
-                      children: const [
-                        Expanded(
-                          child: Divider(color: Colors.white54, thickness: 1.2),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Or continue with',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(color: Colors.white54, thickness: 1.2),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Guest Login Button
-                    ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _handleGuestLogin,
-                      icon: const Icon(Icons.person_outline),
-                      label: const Text(
-                        'Continue as Guest',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFFD4999F),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Info message
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'As a guest, you can view your skin analysis and receive a detailed PDF report via email.',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ],

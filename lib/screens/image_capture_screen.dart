@@ -1,10 +1,15 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'image_preview_screen.dart';
 import '../widgets/web_camera_widget.dart';
+import '../Bloc/auth_bloc.dart';
+import '../Bloc/auth_event.dart';
 
 class ImageCaptureScreen extends StatefulWidget {
   const ImageCaptureScreen({Key? key}) : super(key: key);
@@ -16,6 +21,87 @@ class ImageCaptureScreen extends StatefulWidget {
 class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
+  SharedPreferences? prefs;
+  bool _isLoggedIn = false;
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isLoggedIn = prefs?.getBool('isLogin') ?? false;
+      if (_isLoggedIn) {
+        final userInfoJson = prefs?.getString('userInfo');
+        if (userInfoJson != null && userInfoJson.isNotEmpty) {
+          try {
+            final userInfo = jsonDecode(userInfoJson);
+            _userName = userInfo['name'] ?? 'User';
+          } catch (e) {
+            _userName = prefs?.getString('name') ?? 'User';
+          }
+        } else {
+          _userName = prefs?.getString('name') ?? 'User';
+        }
+      }
+    });
+  }
+
+  Future<void> _logout() async {
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (prefs != null) {
+        await prefs!.setBool('isLogin', false);
+        await prefs!.remove('userInfo');
+        await prefs!.remove('_token');
+        await prefs!.remove('name');
+        await prefs!.remove('email');
+        await prefs!.remove('isSubscribe');
+        await prefs!.remove('isGuest');
+      }
+
+      if (mounted) {
+        context.read<AuthBloc>().add(LogoutRequested());
+
+        setState(() {
+          _isLoggedIn = false;
+          _userName = '';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged out successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _takePhoto() async {
     if (kIsWeb) {
@@ -63,7 +149,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         if (mounted) {
           _showErrorDialog(
             'Camera Error',
-            'Failed to access camera: ${e.toString()}',
+            'Failed to access camera:  ${e.toString()}',
           );
         }
       } finally {
@@ -196,7 +282,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF6B3E3E),
             ),
-            child: const Text('Got it!'),
+            child: const Text('Got it! '),
           ),
         ],
       ),
@@ -209,6 +295,37 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5E6E8),
+      appBar: _isLoggedIn
+          ? AppBar(
+              backgroundColor: const Color(0xFF6B3E3E),
+              elevation: 0,
+              title: Row(
+                children: [
+                  const Icon(Icons.person, size: 20, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Welcome, $_userName',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Logout',
+                  color: Colors.white,
+                ),
+              ],
+            )
+          : null,
       body: SafeArea(
         child: _isLoading
             ? Center(
@@ -310,8 +427,31 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
 
                       const Spacer(),
 
+                      // Logout button for non-appbar case (when not logged in)
+                      // or additional logout option at bottom
+                      if (_isLoggedIn) ...[
+                        const SizedBox(height: 20),
+                        OutlinedButton.icon(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.logout, size: 18),
+                          label: const Text('Logout'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF6B3E3E),
+                            side: const BorderSide(color: Color(0xFF6B3E3E)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ],
+
                       // Web-specific info
                       if (kIsWeb) ...[
+                        const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(

@@ -9,8 +9,8 @@ import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'package:skin_analysis_app/Models/FaceRatioLine.dart';
 import 'package:skin_analysis_app/screens/LoginPage.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
+import 'package:skin_analysis_app/widgets/analysis_point.dart';
 import '../models/skin_analysis_model.dart';
-import '../widgets/analysis_point.dart';
 import '../widgets/score_card.dart' hide FactorItem;
 import '../widgets/info_pill.dart';
 import '../widgets/color_circle.dart';
@@ -37,14 +37,15 @@ class SkinAnalysisScreen extends StatefulWidget {
 class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   late int selectedColorIndex;
 
-  // Payment & Coupon variables
-  bool _hasPaid = false;
-  String paymentStatus = "";
-  TextEditingController _couponController = TextEditingController();
-  bool _couponApplied = false;
-  bool _couponChecking = false;
-  String _couponError = "";
-  String _appliedCoupon = "";
+  // Payment & Coupon variables - COMMENTED OUT
+  // bool _hasPaid = false;
+  // String paymentStatus = "";
+  // TextEditingController _couponController = TextEditingController();
+  // bool _couponApplied = false;
+  // bool _couponChecking = false;
+  // String _couponError = "";
+  // String _appliedCoupon = "";
+
   bool _sendingReport = false;
   String _reportMessage = '';
   bool _reportSent = false;
@@ -101,7 +102,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     if (analysisId == null || analysisId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No analysis found. Please analyze your skin first.'),
+          content: Text('No analysis found.  Please analyze your skin first.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -245,37 +246,62 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     }
   }
 
+  // NEW: Function to handle send report with login check
+  Future<void> _handleSendReport() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
+
+    if (!isLoggedIn) {
+      // Show login page
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+
+      // If login successful, send report
+      if (result == true) {
+        await _sendDetailedReport();
+      }
+    } else {
+      // User already logged in, send report directly
+      await _sendDetailedReport();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1) - 1;
     _pageController = PageController(viewportFraction: 0.9);
-    checkSubscriptionStatus();
 
-    if (kIsWeb) {
-      js.context['flutterPaymentSuccess'] = (String paymentId) {
-        setState(() {
-          paymentStatus = "Payment Successful:  $paymentId";
-          _hasPaid = true;
-        });
-        _handlePaymentSuccess(paymentId);
-      };
-      js.context['flutterPaymentError'] = (String paymentId) {
-        setState(() {
-          paymentStatus = "Payment Failed:  $paymentId";
-        });
-        _handlePaymentError(paymentId);
-      };
-    }
+    // COMMENTED OUT: Payment initialization
+    // checkSubscriptionStatus();
+    // if (kIsWeb) {
+    //   js.context['flutterPaymentSuccess'] = (String paymentId) {
+    //     setState(() {
+    //       paymentStatus = "Payment Successful:  $paymentId";
+    //       _hasPaid = true;
+    //     });
+    //     _handlePaymentSuccess(paymentId);
+    //   };
+    //   js.context['flutterPaymentError'] = (String paymentId) {
+    //     setState(() {
+    //       paymentStatus = "Payment Failed: $paymentId";
+    //     });
+    //     _handlePaymentError(paymentId);
+    //   };
+    // }
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _couponController.dispose();
+    // _couponController.dispose(); // COMMENTED OUT
     super.dispose();
   }
 
+  // COMMENTED OUT: Payment and coupon functions
+  /*
   void checkSubscriptionStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final isSubscribed = prefs.getBool('isSubscribe') ?? false;
@@ -322,7 +348,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Payment successful!  Details unlocked."),
+        content: Text("Payment successful! Details unlocked."),
         backgroundColor: Colors.green,
       ),
     );
@@ -332,11 +358,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
   void _handlePaymentError(paymentId) async {
     final paymentData = {
-      "payment_id": paymentId ?? "",
+      "payment_id": paymentId ??  "",
       "amount": 499.00,
-      "currency": "INR",
+      "currency":  "INR",
       "status": "Failed",
-      "payment_method": "razorpay",
+      "payment_method":  "razorpay",
       "description": "Unlock Full Report",
       "metadata": {"order_id": paymentId ?? "", "customer_id": ""},
       "transaction_reference": paymentId ?? "",
@@ -351,7 +377,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       );
       await http.post(
         uri,
-        body: jsonEncode(paymentData),
+        body:  jsonEncode(paymentData),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -379,9 +405,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
       if (result == true) {
         final updatedPrefs = await SharedPreferences.getInstance();
-        final isSubscribed = updatedPrefs.getBool('isSubscribe') ?? false;
+        final isSubscribed = updatedPrefs. getBool('isSubscribe') ?? false;
 
-        if (!isSubscribed) {
+        if (! isSubscribed) {
           _proceedWithPayment();
         } else {
           setState(() {
@@ -413,7 +439,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Coupon applied!  Details unlocked."),
+          content: Text("Coupon applied! Details unlocked."),
           backgroundColor: Colors.green,
         ),
       );
@@ -444,7 +470,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       number = prefs.getString('number') ?? '';
     }
 
-    js.context.callMethod('openRazorpayCheckout', [
+    js.context. callMethod('openRazorpayCheckout', [
       "order_id_placeholder",
       "rzp_live_jBXpBOtKrydrbs",
       "49900",
@@ -461,7 +487,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     if (!isLoggedIn) {
       final result = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
+        MaterialPageRoute(builder:  (context) => const LoginPage()),
       );
 
       if (result == true) {
@@ -470,7 +496,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       return;
     }
 
-    final code = _couponController.text.trim();
+    final code = _couponController.text. trim();
     if (code.isEmpty) {
       setState(() {
         _couponError = "Please enter a coupon code. ";
@@ -502,7 +528,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       }
     } catch (e) {
       setState(() {
-        _couponError = "Error validating coupon. ";
+        _couponError = "Error validating coupon.";
         _couponApplied = false;
         _appliedCoupon = "";
       });
@@ -512,6 +538,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       });
     }
   }
+  */
 
   List<FactorItem> _getAcneFactors() {
     if (widget.analysisData == null) return [];
@@ -698,7 +725,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
   double? _parseRatioToNumber(String? s) {
     if (s == null) return null;
-    final parts = s.split(': ').map((e) => e.trim()).toList();
+    final parts = s.split(':  ').map((e) => e.trim()).toList();
     if (parts.length != 2) return double.tryParse(s);
     final left = double.tryParse(parts[0]);
     final right = double.tryParse(parts[1]);
@@ -860,16 +887,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       'Hydration: ${hydrationDetailScore.toStringAsFixed(2)} × 20% = ${(hydrationDetailScore * hydrationWeight).toStringAsFixed(2)}',
     );
     print(
-      'Pigmentation:  ${pigmentationDetailScore.toStringAsFixed(2)} × 20% = ${(pigmentationDetailScore * pigmentationWeight).toStringAsFixed(2)}',
+      'Pigmentation: ${pigmentationDetailScore.toStringAsFixed(2)} × 20% = ${(pigmentationDetailScore * pigmentationWeight).toStringAsFixed(2)}',
     );
     print(
-      'Pores:  ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
+      'Pores: ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
     );
     print(
       'Wrinkles: ${wrinklesDetailScore.toStringAsFixed(2)} × 15% = ${(wrinklesDetailScore * wrinklesWeight).toStringAsFixed(2)}',
     );
     print(
-      'Aging: ${agingScore.toStringAsFixed(2)} × 5% = ${(agingScore * agingWeight).toStringAsFixed(2)}',
+      'Aging:  ${agingScore.toStringAsFixed(2)} × 5% = ${(agingScore * agingWeight).toStringAsFixed(2)}',
     );
     print('Final Skin Health Score: ${totalScore.toStringAsFixed(2)}%');
     print('========================================');
@@ -1080,7 +1107,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       builder: (context, constraints) {
         final screenWidth = MediaQuery.of(context).size.width;
 
-        // ADD DEBUG LOGGING
         print('=== FACIAL SYMMETRY DEBUG ===');
         print('faceRatioJson is null: ${widget.faceRatioJson == null}');
         if (widget.faceRatioJson != null) {
@@ -1103,7 +1129,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 const SizedBox(height: 30),
 
                 // ==================== SECTION 2: FACIAL SYMMETRY ANALYSIS ====================
-                // CHANGED: Show section even if faceRatioJson is null (with fallback UI)
                 _buildFacialSymmetrySection(symmetryScore, screenWidth),
                 const SizedBox(height: 30),
 
@@ -1114,10 +1139,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // PAYMENT/COUPON SECTION
+                // REPORT SECTION (REPLACED PAYMENT SECTION)
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-                  child: _buildPaymentSection(screenWidth),
+                  child: _buildReportSection(screenWidth),
                 ),
                 const SizedBox(height: 30),
               ],
@@ -1128,7 +1153,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
-  // UPDATE:  Facial Symmetry Section with better error handling
   Widget _buildFacialSymmetrySection(double symmetryScore, double screenWidth) {
     FaceRatioData? faceData;
     bool hasValidData = false;
@@ -1147,7 +1171,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       print('widget.faceRatioJson is NULL');
     }
 
-    // Convert symmetry score (0-10) to percentage for Attractiveness Index
     final symmetryPercentage = symmetryScore * 10.0;
 
     return Container(
@@ -1165,7 +1188,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       ),
       child: Column(
         children: [
-          // Section Header with Attractiveness Index
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -1198,8 +1220,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Facial Symmetry Attractiveness Index Score
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -1253,12 +1273,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             ),
           ),
 
-          // Content
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Symmetry Score Display
                 TweenAnimationBuilder<double>(
                   tween: Tween<double>(begin: 0, end: symmetryScore),
                   duration: const Duration(milliseconds: 2000),
@@ -1340,8 +1358,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-
-                // Explanation
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1362,12 +1378,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Swipeable Ratio Cards OR Error Message
                 if (hasValidData && faceData != null) ...[
                   _buildSwipeableRatioCards(faceData),
                 ] else ...[
-                  // Show error/loading state
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -1413,7 +1426,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
-  // ==================== SKIN HEALTH SECTION ====================
   Widget _buildSkinHealthSection(double skinHealthScore, double screenWidth) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
@@ -1430,7 +1442,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       ),
       child: Column(
         children: [
-          // Section Header with Attractiveness Index
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -1467,8 +1478,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Skin Health Attractiveness Index Score
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -1522,7 +1531,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             ),
           ),
 
-          // Image Section
           if (widget.imageBytes != null) ...[
             Container(
               height: 320,
@@ -1564,7 +1572,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             ),
           ],
 
-          // Content
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1580,7 +1587,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Score Cards Row 1
                 Row(
                   children: [
                     Expanded(
@@ -1614,7 +1620,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Score Cards Row 2
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.12),
                   child: Row(
@@ -1641,15 +1646,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Info Pills
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   alignment: WrapAlignment.center,
                   children: [
-                    _buildLargeInfoPill(
-                      'Skin Age:  ${widget.analysisData!.skinAge}',
-                    ),
                     _buildLargeInfoPill(
                       'Eye Age: ${widget.analysisData!.eyeAge}',
                     ),
@@ -1933,34 +1934,66 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   }
 
   Widget _buildDesktopLayout(double skinHealthScore, double symmetryScore) {
-    return SingleChildScrollView(
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 1400),
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            children: [
-              // SECTION 1: SKIN HEALTH ANALYSIS
-              _buildSkinHealthSection(skinHealthScore, 1200),
+    return Container(
+      color: const Color(0xFFE8B4BA),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        child: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 1400),
+            child: Column(
+              children: [
+                // SECTION 1: SKIN HEALTH ANALYSIS
+                _buildSkinHealthSection(skinHealthScore, 1200),
 
-              const SizedBox(height: 40),
+                const SizedBox(height: 40),
 
-              // SECTION 2: FACIAL SYMMETRY ANALYSIS
-              if (widget.faceRatioJson != null) ...[
-                _buildFacialSymmetrySection(symmetryScore, 1200),
+                // SECTION 2: FACIAL SYMMETRY ANALYSIS
+                if (widget.faceRatioJson != null) ...[
+                  _buildFacialSymmetrySection(symmetryScore, 1200),
+                  const SizedBox(height: 40),
+                ],
+
+                // DISCLAIMER & REPORT
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Stack vertically on smaller laptop screens
+                    if (constraints.maxWidth < 900) {
+                      return Column(
+                        children: [
+                          _buildDisclaimerSection(constraints.maxWidth),
+                          const SizedBox(height: 20),
+                          _buildReportSection(constraints.maxWidth),
+                        ],
+                      );
+                    }
+
+                    // Side by side on larger screens
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _buildDisclaimerSection(
+                              constraints.maxWidth / 2 - 10,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildReportSection(
+                              constraints.maxWidth / 2 - 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                // Add bottom padding to prevent overflow
                 const SizedBox(height: 40),
               ],
-
-              // DISCLAIMER & PAYMENT
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildDisclaimerSection(600)),
-                  const SizedBox(width: 20),
-                  Expanded(child: _buildPaymentSection(600)),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -2073,202 +2106,73 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
-  Widget _buildPaymentSection(double width) {
-    if (!_hasPaid) {
-      return Center(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.black87,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock, color: Colors.white, size: 40),
-              const SizedBox(height: 12),
-              const Text(
-                "Unlock Full Details",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                "Have a coupon? ",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFFD4999F),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _couponController,
-                      enabled: !_couponApplied,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "Enter coupon code",
-                        hintStyle: const TextStyle(color: Colors.white54),
-                        filled: true,
-                        fillColor: Colors.black,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFD4999F),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFD4999F),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: _couponApplied || _couponChecking
-                        ? null
-                        : _applyCoupon,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _couponApplied
-                          ? Colors.green
-                          : const Color(0xFFD4999F),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(90, 48),
-                    ),
-                    child: _couponChecking
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(_couponApplied ? "Applied" : "Apply"),
-                  ),
+  // NEW: Report Section (replaces payment section)
+  Widget _buildReportSection(double width) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: _reportSent
+            ? LinearGradient(
+                colors: [Colors.green.shade50, Colors.green.shade100],
+              )
+            : LinearGradient(
+                colors: [
+                  const Color(0xFFD4999F).withOpacity(0.1),
+                  Colors.white,
                 ],
               ),
-              if (_couponError.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6.0),
-                  child: Text(
-                    _couponError,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ),
-              if (_couponApplied && _appliedCoupon.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6.0),
-                  child: Text(
-                    "Coupon \"$_appliedCoupon\" applied! ",
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _reportSent ? Colors.green.shade300 : const Color(0xFFD4999F),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (_reportSent) ...[
+            // Success state
+            Icon(Icons.check_circle, color: Colors.green.shade700, size: 60),
+            const SizedBox(height: 12),
+            Text(
+              "Report Sent Successfully! ",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            if (_reportMessage.isNotEmpty)
               Text(
-                _couponApplied
-                    ? "Your coupon is applied! Click below to unlock your report."
-                    : "Reveal your skin's secrets with our in-depth analysis — just ₹499",
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                _reportMessage,
+                style: TextStyle(fontSize: 14, color: Colors.green.shade700),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: Icon(_couponApplied ? Icons.check : Icons.lock_open),
-                label: Text(
-                  _couponApplied
-                      ? "Unlock with Coupon"
-                      : "Unlock Full Details (₹499)",
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4999F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
-                  ),
-                ),
-                onPressed: _startPayment,
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      return Column(
-        children: [
-          // Success message if report was sent
-          if (_reportSent) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.shade200, width: 2),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.green.shade700,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Report Sent Successfully!',
-                          style: TextStyle(
-                            color: Colors.green.shade900,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_reportMessage.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _reportMessage,
-                      style: TextStyle(
-                        color: Colors.green.shade800,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
             const SizedBox(height: 12),
+            const Text(
+              "Check your email for the detailed PDF report.",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
             // Option to resend
             TextButton.icon(
-              onPressed: _sendingReport ? null : _sendDetailedReport,
+              onPressed: _sendingReport ? null : _handleSendReport,
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Resend Report'),
               style: TextButton.styleFrom(
@@ -2276,76 +2180,99 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               ),
             ),
           ] else ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.green.shade50, Colors.green.shade100],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green.shade300, width: 2),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.emoji_events, color: Colors.amber, size: 60),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Congratulations! ",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "You've unlocked your full beauty analysis.",
-                    style: TextStyle(fontSize: 16, color: Colors.black87),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Your image has been sent to our experts.  You will receive a detailed PDF report within 24 hours via email, or you can login to Youvai to view and download your full report.",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _sendingReport ? null : _sendDetailedReport,
-                    icon: _sendingReport
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.send),
-                    label: Text(
-                      _sendingReport ? 'Sending.. .' : 'Send Detailed Report',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4999F),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ],
+            // Initial state - prompt to get report
+            Icon(
+              Icons.picture_as_pdf,
+              color: const Color(0xFFD4999F),
+              size: 60,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Get Your Detailed Report",
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
             ),
+            const SizedBox(height: 12),
+            const Text(
+              "Receive a comprehensive PDF analysis report with detailed insights about your skin health and facial symmetry.",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            if (_sendingReport) ...[
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4999F)),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _reportMessage.isNotEmpty ? _reportMessage : 'Processing.. .',
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+                textAlign: TextAlign.center,
+              ),
+            ] else ...[
+              ElevatedButton.icon(
+                icon: const Icon(Icons.send),
+                label: const Text(
+                  'Send Detailed Report',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4999F),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                ),
+                onPressed: _handleSendReport,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Login required to receive your report',
+                        style: TextStyle(
+                          color: Colors.blue.shade900,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
-      );
-    }
+      ),
+    );
   }
 }
 
@@ -2446,7 +2373,7 @@ class _RatioCardContent extends StatelessWidget {
       case RatioMode.faceBox:
         if (data.faceBox != null) {
           info =
-              "Your ratio:  ${data.faceBox!.yours}\nGolden:  ${data.faceBox!.golden}";
+              "Your ratio: ${data.faceBox!.yours}\nGolden:  ${data.faceBox!.golden}";
         }
         break;
       case RatioMode.noseLipChin:
