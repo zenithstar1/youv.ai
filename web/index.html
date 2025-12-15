@@ -71,6 +71,29 @@
     <div class="loader"></div>
     <div class="loading-text">Loading Skin Analysis...</div>
   </div>
+
+  <!-- Clear Service Worker, Cache, and Local/Session Storage on every load -->
+<script>
+  // Remove Service Workers
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for(let registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
+  // Clear Caches (if supported)
+  if (window.caches) {
+    caches.keys().then(function(names) {
+      for (let name of names) {
+        caches.delete(name);
+      }
+    });
+  }
+  // Clear localStorage & sessionStorage (for demo -- optional, DANGEROUS! Remove if you persist actual user data)
+  localStorage.clear();
+  sessionStorage.clear();
+</script>
   
   <script src="flutter_bootstrap.js" async></script>
   
