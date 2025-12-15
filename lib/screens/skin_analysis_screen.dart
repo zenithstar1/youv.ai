@@ -1061,7 +1061,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFE8B4BA),
       appBar: AppBar(
-        title: const Text('Complete Beauty Analysis'),
+        title: const Text('Complete Skin Analysis'),
         backgroundColor: const Color(0xFFD4999F),
         foregroundColor: Colors.white,
         elevation: 0,

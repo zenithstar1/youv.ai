@@ -1,4 +1,4 @@
-package com.youvai.skin_analysis_app
+package com.globalspace.youvai
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,9 +1,23 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/screens/image_capture_screen.dart';
 import 'onboarding_flow.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase for Web
+  await Firebase.initializeApp(
+    options: FirebaseOptions(
+      apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
+      authDomain: "youvai-56995.firebaseapp.com",
+      projectId: "project-377693730311",
+      storageBucket: "youvai-56995.firebasestorage.app",
+      messagingSenderId: "377693730311",
+      appId: "1:377693730311:web:24dfc047db461c18c3dca2",
+    ),
+  );
   runApp(const MyApp());
 }
 
