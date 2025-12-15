@@ -1,8 +1,15 @@
 import 'dart:typed_data';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser;
 import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'skin_analysis_screen.dart';
+// Make sure it's lowercase 'models':
+import 'package:skin_analysis_app/models/skin_analysis_model.dart';
 
 class ImagePreviewScreen extends StatefulWidget {
   final Uint8List imageBytes;
@@ -30,9 +37,10 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     "YOU'VE BEEN FOUND GUILTY OF\nBEING TOO ATTRACTIVE.",
     "ATTRACTIVENESS ISN'T FIXED; THE\nINDEX JUST TRACKS THE JOURNEY.",
     "THE INDEX UNCOVERS HIDDEN\nAESTHETIC STRENGTHS THAT MOST\nPEOPLE OVERLOOK.",
-    "ANALYZING YOUR UNIQUE\nFACIAL FEATURES...",
+    "ANALYZING YOUR UNIQUE\nFACIAL FEATURES.. .",
     "CALCULATING SKIN HEALTH\nINDICATORS...",
-    "PROCESSING BEAUTY\nALGORITHMS...",
+    "PROCESSING FACIAL SYMMETRY.. .",
+    "COMPUTING GOLDEN RATIOS...",
   ];
 
   @override
@@ -55,6 +63,48 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     super.dispose();
   }
 
+  // ==================== SYMMETRY API CALL ====================
+  Future<Map<String, dynamic>?> _callSymmetryAPI(
+    Uint8List bytes,
+    String filename,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        'https://anujakkulkarni-symmetry.hf.space/analyze?draw=0',
+      );
+      final req = http.MultipartRequest('POST', uri);
+
+      req.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: filename,
+          contentType: http_parser.MediaType('image', 'jpeg'),
+        ),
+      );
+
+      print('📸 Calling Symmetry API.. .');
+      final streamed = await req.send();
+      final res = await http.Response.fromStream(streamed);
+
+      if (res.statusCode == 200) {
+        print('✅ Symmetry API Success:  ${res.statusCode}');
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        print('Symmetry data keys: ${data.keys}');
+        return data;
+      } else {
+        print('❌ Symmetry API Failed: ${res.statusCode} ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Symmetry API Error: $e');
+      return null;
+    }
+  }
+
+  // ==================== PARALLEL API CALLS ====================
+  // ==================== PARALLEL API CALLS ====================
+  // ==================== PARALLEL API CALLS ====================
   Future<void> _sendForAnalysis() async {
     setState(() {
       _isAnalyzing = true;
@@ -64,27 +114,77 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     _startMessageCycling();
 
     try {
+      print('🚀 Starting parallel API calls.. .');
+
       final apiService = ApiService();
 
-      final analysisData = await apiService.analyzeSkinWithImageBytes(
-        widget.imageBytes,
-        widget.fileName,
-      );
+      // Execute both in parallel
+      final results = await Future.wait([
+        apiService.analyzeSkinWithImageBytes(
+          widget.imageBytes,
+          widget.fileName,
+        ),
+        _callSymmetryAPI(widget.imageBytes, widget.fileName),
+      ]);
+
+      // ✅ FIXED: Explicitly type the variables as non-nullable first
+      final skinAnalysisResult = results[0];
+      final symmetryResult = results[1];
+
+      // Convert to proper types
+      SkinAnalysisModel? skinAnalysisData;
+      Map<String, dynamic>? symmetryData;
+
+      // Handle skin analysis result
+      if (skinAnalysisResult is SkinAnalysisModel) {
+        skinAnalysisData = skinAnalysisResult;
+      } else if (skinAnalysisResult != null) {
+        // Try to parse if it's a Map
+        try {
+          skinAnalysisData = SkinAnalysisModel.fromJson(
+            skinAnalysisResult as Map<String, dynamic>,
+          );
+        } catch (e) {
+          print('Failed to parse skin analysis:  $e');
+        }
+      }
+
+      // Handle symmetry result
+      if (symmetryResult is Map<String, dynamic>) {
+        symmetryData = symmetryResult;
+      }
 
       _messageTimer?.cancel();
 
+      print('✅ Both APIs completed');
+      print('Skin Analysis Data: ${skinAnalysisData != null ? "✓" : "✗"}');
+      print('Symmetry Data:  ${symmetryData != null ? "✓" : "✗"}');
+
+      if (symmetryData != null) {
+        print('Symmetry Data Keys: ${symmetryData.keys}');
+      }
+
+      // Validate that we have skin analysis data
+      if (skinAnalysisData == null) {
+        throw Exception('Skin analysis failed.  Please try again.');
+      }
+
       if (mounted) {
+        // ✅ skinAnalysisData is guaranteed non-null here
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => SkinAnalysisScreen(
-              analysisData: analysisData,
+              analysisData:
+                  skinAnalysisData, // This is now SkinAnalysisModel (non-nullable)
               imageBytes: widget.imageBytes,
+              faceRatioJson: symmetryData,
             ),
           ),
         );
       }
     } catch (e) {
+      print('❌ Analysis Error: $e');
       _messageTimer?.cancel();
       if (mounted) {
         setState(() => _isAnalyzing = false);
@@ -105,7 +205,10 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   }
 
   void _showErrorDialog(String error) {
-    final isServerBusy = error.contains('Server is busy');
+    final isServerBusy =
+        error.contains('Server is busy') ||
+        error.contains('timeout') ||
+        error.contains('failed');
 
     showDialog(
       context: context,
@@ -133,7 +236,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              error.replaceAll('Exception: ', ''),
+              error.replaceAll('Exception:  ', ''),
               style: const TextStyle(fontSize: 14),
             ),
             if (isServerBusy) ...[
@@ -202,7 +305,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             ? _buildAnalyzingScreen()
             : Column(
                 children: [
-                  const SizedBox(height: 10), // Small top padding
+                  const SizedBox(height: 10),
                   // Image Area
                   Expanded(
                     child: Padding(

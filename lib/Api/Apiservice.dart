@@ -123,75 +123,6 @@ class ApiService {
     );
   }
 
-  /// Send detailed analysis report via email after payment
-  static Future<Map<String, dynamic>> sendDetailedReport(
-    String analysisId,
-  ) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('_token') ?? '';
-
-      // if (token.isEmpty) {
-      //   throw Exception('User not authenticated');
-      // }
-
-      print('Sending detailed report for analysis_id: $analysisId');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/analysis/$analysisId/send-both'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
-
-      print('Send report response status: ${response.statusCode}');
-      print('Send report response body:  ${response.body}');
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-
-        // Extract email and WhatsApp results
-        final results = responseData['results'];
-        final emailSent = results?['email']?['sent'] ?? false;
-        final emailMessage = results?['email']?['message'] ?? '';
-        final whatsappSent = results?['whatsapp']?['sent'] ?? false;
-        final whatsappMessage = results?['whatsapp']?['message'] ?? '';
-
-        // Build user-friendly message
-        String userMessage =
-            responseData['message'] ?? 'Report sent successfully';
-
-        if (emailSent && whatsappSent) {
-          userMessage = 'PDF sent to Email and WhatsApp\n$emailMessage';
-        } else if (emailSent) {
-          userMessage = 'PDF sent to Email\n$emailMessage';
-        } else if (whatsappSent) {
-          userMessage = 'PDF sent to WhatsApp\n$whatsappMessage';
-        } else {
-          userMessage = 'Report sent but delivery status unknown';
-        }
-
-        return {
-          'success': true,
-          'message': userMessage,
-          'email_sent': emailSent,
-          'whatsapp_sent': whatsappSent,
-          'data': responseData,
-        };
-      } else {
-        final errorData = json.decode(response.body);
-        throw Exception(
-          errorData['message'] ??
-              'Failed to send report:  ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      print('Error sending detailed report: $e');
-      return {'success': false, 'message': 'Error sending report: $e'};
-    }
-  }
-
   /// Get PDF download URL for detailed report
   static Future<Map<String, dynamic>> getReportPdfUrl(String analysisId) async {
     try {
@@ -280,6 +211,142 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error updating policy acceptance: $e');
+    }
+  }
+
+  /// Generate PDF from analysis before sending
+  static Future<Map<String, dynamic>> generatePdfFromAnalysis(
+    String analysisId,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      print('Generating PDF for analysis_id: $analysisId');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/generate-pdf-from-analysis/$analysisId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('Generate PDF response status: ${response.statusCode}');
+      print('Generate PDF response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'PDF generated successfully',
+          'data': responseData,
+        };
+      } else {
+        final errorData = json.decode(response.body);
+        return {
+          'success': false,
+          'message':
+              errorData['message'] ??
+              'Failed to generate PDF:  ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Error generating PDF: $e');
+      return {'success': false, 'message': 'Error generating PDF: $e'};
+    }
+  }
+
+  /// Send detailed analysis report via email after payment
+  /// First generates PDF, then sends it
+  static Future<Map<String, dynamic>> sendDetailedReport(
+    String analysisId,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      if (token.isEmpty) {
+        throw Exception('User not authenticated');
+      }
+
+      print(
+        'Starting report generation and sending process for analysis_id: $analysisId',
+      );
+
+      // Step 1: Generate PDF first
+      print('Step 1: Generating PDF.. .');
+      final generateResult = await generatePdfFromAnalysis(analysisId);
+
+      if (generateResult['success'] != true) {
+        print('❌ PDF generation failed: ${generateResult['message']}');
+        return {
+          'success': false,
+          'message': 'Failed to generate report:  ${generateResult['message']}',
+        };
+      }
+
+      print('✅ PDF generated successfully');
+
+      // Step 2: Send the report via email/WhatsApp
+      print('Step 2: Sending report to email/WhatsApp...');
+      final response = await http.post(
+        Uri.parse('$baseUrl/analysis/$analysisId/send-both'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('Send report response status: ${response.statusCode}');
+      print('Send report response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+
+        // Extract email and WhatsApp results
+        final results = responseData['results'];
+        final emailSent = results?['email']?['sent'] ?? false;
+        final emailMessage = results?['email']?['message'] ?? '';
+        final whatsappSent = results?['whatsapp']?['sent'] ?? false;
+        final whatsappMessage = results?['whatsapp']?['message'] ?? '';
+
+        // Build user-friendly message
+        String userMessage =
+            responseData['message'] ?? 'Report sent successfully';
+
+        if (emailSent && whatsappSent) {
+          userMessage = 'PDF sent to Email and WhatsApp\n$emailMessage';
+        } else if (emailSent) {
+          userMessage = 'PDF sent to Email\n$emailMessage';
+        } else if (whatsappSent) {
+          userMessage = 'PDF sent to WhatsApp\n$whatsappMessage';
+        } else {
+          userMessage =
+              'Report generated but delivery failed.  Please contact support.';
+        }
+
+        print('✅ Report sent successfully');
+
+        return {
+          'success': true,
+          'message': userMessage,
+          'email_sent': emailSent,
+          'whatsapp_sent': whatsappSent,
+          'data': responseData,
+        };
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+          errorData['message'] ??
+              'Failed to send report: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('❌ Error in sendDetailedReport: $e');
+      return {'success': false, 'message': 'Error sending report: $e'};
     }
   }
 }
