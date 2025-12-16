@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pinput/pinput.dart';
+// import 'package:pinput/pinput.dart'; // COMMENTED OUT - Not needed for Google login only
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
 import 'package:skin_analysis_app/Bloc/auth_event.dart';
 import 'package:skin_analysis_app/Bloc/auth_state.dart';
-import 'dart:async';
+// import 'dart:async'; // COMMENTED OUT - Not needed for Google login only
 
 class LoginPage extends StatelessWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -29,16 +29,19 @@ class LoginPageContent extends StatefulWidget {
 }
 
 class _LoginPageContentState extends State<LoginPageContent> {
-  final _phoneController = TextEditingController();
+  // COMMENTED OUT - Phone login removed
+  // final _phoneController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    // _phoneController.dispose(); // COMMENTED OUT
     super.dispose();
   }
 
+  // COMMENTED OUT - Phone OTP functionality
+  /*
   void _sendOTP() {
     final phone = _phoneController.text.trim();
 
@@ -52,6 +55,33 @@ class _LoginPageContentState extends State<LoginPageContent> {
     // Use BLoC to send OTP
     context.read<AuthBloc>().add(SendOtpRequested(phone: phone));
   }
+
+  void _showOtpPopup(String phoneNumber) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return BlocProvider.value(
+          value: context.read<AuthBloc>(),
+          child: _OtpPopupWidget(
+            phoneNumber: phoneNumber,
+            onOtpSubmit: (otp) {
+              context. read<AuthBloc>().add(
+                VerifyLoginMobile(
+                  phone: phoneNumber,
+                  name: '',
+                  email: '',
+                  password: '',
+                  otp:  otp,
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+  */
 
   void _handleGoogleLogin() async {
     setState(() {
@@ -90,36 +120,10 @@ class _LoginPageContentState extends State<LoginPageContent> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Google sign-in failed:   ${e.toString()}';
+        _errorMessage = 'Google sign-in failed:  ${e.toString()}';
         _isLoading = false;
       });
     }
-  }
-
-  void _showOtpPopup(String phoneNumber) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return BlocProvider.value(
-          value: context.read<AuthBloc>(),
-          child: _OtpPopupWidget(
-            phoneNumber: phoneNumber,
-            onOtpSubmit: (otp) {
-              context.read<AuthBloc>().add(
-                VerifyLoginMobile(
-                  phone: phoneNumber,
-                  name: '',
-                  email: '',
-                  password: '',
-                  otp: otp,
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -131,7 +135,10 @@ class _LoginPageContentState extends State<LoginPageContent> {
             _isLoading = true;
             _errorMessage = '';
           });
-        } else if (state is AuthMessage) {
+        }
+        // COMMENTED OUT - Phone OTP popup trigger
+        /*
+        else if (state is AuthMessage) {
           setState(() {
             _isLoading = false;
           });
@@ -143,7 +150,9 @@ class _LoginPageContentState extends State<LoginPageContent> {
           );
           // Show OTP popup
           _showOtpPopup(_phoneController.text.trim());
-        } else if (state is AuthAuthenticated) {
+        }
+        */
+        else if (state is AuthAuthenticated) {
           setState(() {
             _isLoading = false;
           });
@@ -208,7 +217,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
                     const SizedBox(height: 30),
 
                     const Text(
-                      'Welcome!  ',
+                      'Welcome! ',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -224,6 +233,8 @@ class _LoginPageContentState extends State<LoginPageContent> {
                     ),
                     const SizedBox(height: 40),
 
+                    // COMMENTED OUT - Phone Login Form
+                    /*
                     // Login Form
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -245,7 +256,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
                             'Login with Phone',
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontWeight:  FontWeight.bold,
                               color: Color(0xFFD4999F),
                             ),
                             textAlign: TextAlign.center,
@@ -260,9 +271,9 @@ class _LoginPageContentState extends State<LoginPageContent> {
                             decoration: InputDecoration(
                               labelText: 'Phone Number',
                               hintText: 'Enter your phone',
-                              prefixIcon: const Icon(Icons.phone_android),
+                              prefixIcon: const Icon(Icons. phone_android),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius. circular(12),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -279,7 +290,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.red.shade50,
+                                color: Colors.red. shade50,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.red.shade200),
                               ),
@@ -287,15 +298,15 @@ class _LoginPageContentState extends State<LoginPageContent> {
                                 children: [
                                   Icon(
                                     Icons.error_outline,
-                                    color: Colors.red.shade700,
+                                    color:  Colors.red.shade700,
                                     size: 20,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: Text(
+                                    child:  Text(
                                       _errorMessage,
-                                      style: TextStyle(
-                                        color: Colors.red.shade700,
+                                      style:  TextStyle(
+                                        color:  Colors.red.shade700,
                                         fontSize: 13,
                                       ),
                                     ),
@@ -310,8 +321,8 @@ class _LoginPageContentState extends State<LoginPageContent> {
                           // Send OTP Button
                           ElevatedButton(
                             onPressed: _isLoading ? null : _sendOTP,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD4999F),
+                            style: ElevatedButton. styleFrom(
+                              backgroundColor:  const Color(0xFFD4999F),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -330,9 +341,9 @@ class _LoginPageContentState extends State<LoginPageContent> {
                                   )
                                 : const Text(
                                     'Login / Register with OTP',
-                                    style: TextStyle(
+                                    style:  TextStyle(
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight:  FontWeight.w600,
                                     ),
                                   ),
                           ),
@@ -346,10 +357,10 @@ class _LoginPageContentState extends State<LoginPageContent> {
                     Row(
                       children: const [
                         Expanded(
-                          child: Divider(color: Colors.white54, thickness: 1.2),
+                          child: Divider(color: Colors.white54, thickness: 1. 2),
                         ),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          padding:  EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'OR',
                             style: TextStyle(
@@ -359,50 +370,140 @@ class _LoginPageContentState extends State<LoginPageContent> {
                           ),
                         ),
                         Expanded(
-                          child: Divider(color: Colors.white54, thickness: 1.2),
+                          child:  Divider(color: Colors.white54, thickness: 1.2),
                         ),
                       ],
                     ),
 
                     const SizedBox(height: 20),
+                    */
 
-                    // Google Sign In Button
-                    OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _handleGoogleLogin,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Image.asset(
-                              'assets/google_logo.png',
-                              height: 22,
-                              width: 22,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.login, size: 22);
-                              },
+                    // Error message display (if any)
+                    if (_errorMessage.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red.shade700,
+                              size: 20,
                             ),
-                      label: Text(
-                        _isLoading
-                            ? "Signing in..."
-                            : "Login/Register with Google",
-                        style: const TextStyle(
-                          color: Color(0xFF444444),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage,
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    ],
+
+                    // Google Sign In Button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _handleGoogleLogin,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFFD4999F),
+                                  ),
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/google_logo.png',
+                                height: 24,
+                                width: 24,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.login,
+                                    size: 24,
+                                    color: Color(0xFFD4999F),
+                                  );
+                                },
+                              ),
+                        label: Text(
+                          _isLoading
+                              ? "Signing in..."
+                              : "Login/Register with Google",
+                          style: const TextStyle(
+                            color: Color(0xFF444444),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
                         ),
-                        side: const BorderSide(
-                          color: Color(0xFFE2E2E2),
-                          width: 1.2,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          side: const BorderSide(
+                            color: Color(0xFFE2E2E2),
+                            width: 1.2,
+                          ),
+                          backgroundColor: Colors.white,
                         ),
-                        backgroundColor: Colors.white,
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // Info message
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Sign in with your Google account to access your skin analysis reports and detailed insights.',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -416,6 +517,8 @@ class _LoginPageContentState extends State<LoginPageContent> {
   }
 }
 
+// COMMENTED OUT - OTP Popup Widget (not needed for Google login only)
+/*
 // OTP Popup Widget
 class _OtpPopupWidget extends StatefulWidget {
   final void Function(String otp) onOtpSubmit;
@@ -449,7 +552,7 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
   void _startTimer() {
     _countdown = 30;
     _canResend = false;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer. periodic(const Duration(seconds: 1), (timer) {
       if (_countdown > 0) {
         setState(() {
           _countdown--;
@@ -465,7 +568,7 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
 
   void _resendOtp() {
     if (_canResend) {
-      context.read<AuthBloc>().add(SendOtpRequested(phone: widget.phoneNumber));
+      context.read<AuthBloc>().add(SendOtpRequested(phone:  widget.phoneNumber));
       _startTimer();
       ScaffoldMessenger.of(
         context,
@@ -510,11 +613,11 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text('Enter OTP'),
         content: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize. min,
           children: [
             Text(
-              'We sent a 6-digit code to ${widget.phoneNumber}',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              'We sent a 6-digit code to ${widget. phoneNumber}',
+              style:  const TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -537,7 +640,7 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
               focusedPinTheme: PinTheme(
                 width: 45,
                 height: 55,
-                textStyle: const TextStyle(fontSize: 18, color: Colors.black),
+                textStyle: const TextStyle(fontSize:  18, color: Colors.black),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: primaryColor, width: 2),
@@ -549,7 +652,7 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
-                  onPressed: _canResend ? _resendOtp : null,
+                  onPressed:  _canResend ? _resendOtp : null,
                   child: Text(
                     _canResend ? 'Resend OTP' : 'Resend in ${_countdown}s',
                     style: TextStyle(
@@ -567,12 +670,12 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height:  10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isVerifying ? null : _verifyOtp,
-                style: ElevatedButton.styleFrom(
+                style:  ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -593,7 +696,7 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
                         'Verify',
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight. bold,
                         ),
                       ),
               ),
@@ -604,3 +707,4 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
     );
   }
 }
+*/
