@@ -1652,6 +1652,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   alignment: WrapAlignment.center,
                   children: [
                     _buildLargeInfoPill(
+                      'Skin Age: ${widget.analysisData!.skinAge}',
+                    ),
+                    _buildLargeInfoPill(
                       'Eye Age: ${widget.analysisData!.eyeAge}',
                     ),
                     _buildLargeInfoPill(
