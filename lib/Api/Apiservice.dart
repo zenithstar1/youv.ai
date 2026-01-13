@@ -6,7 +6,7 @@ import '../models/skin_analysis_model.dart';
 
 class ApiService {
   static const String baseUrl =
-      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+      'https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api';
   static const int maxRetries = 3;
   static const Duration retryDelay = Duration(seconds: 2);
 

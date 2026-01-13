@@ -24431,7 +24431,7 @@ m=j==null?"":j
 if(J.bF(m)===0){i=A.cj("User not authenticated")
 throw A.e(i)}i=t.N
 s=8
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/accept-policy",0,null),null,A.a6(["Authorization","Bearer "+A.j(m),"Content-Type","application/json"],i,i)),$async$GH)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/accept-policy",0,null),null,A.a6(["Authorization","Bearer "+A.j(m),"Content-Type","application/json"],i,i)),$async$GH)
 case 8:l=c
 if(l.b===200){i=l
 i=B.Q.aM(0,A.cU(A.cT(i.e)).aM(0,i.w))
@@ -24465,7 +24465,7 @@ m=h==null?"":h
 A.ap("Generating PDF for analysis_id: "+a)
 g=t.N
 s=8
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/generate-pdf-from-analysis/"+a,0,null),null,A.a6(["Authorization","Bearer "+A.j(m),"Content-Type","application/json","Accept","application/json"],g,g)),$async$GG)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/generate-pdf-from-analysis/"+a,0,null),null,A.a6(["Authorization","Bearer "+A.j(m),"Content-Type","application/json","Accept","application/json"],g,g)),$async$GG)
 case 8:l=c
 A.ap("Generate PDF response status: "+l.b)
 f=l
@@ -24524,7 +24524,7 @@ break}A.ap("\u2705 PDF generated successfully")
 A.ap("Step 2: Sending report to email/WhatsApp...")
 a0=t.N
 s=9
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analysis/"+a9+"/send-both",0,null),null,A.a6(["Authorization","Bearer "+A.j(m),"Content-Type","application/json","Accept","application/json"],a0,a0)),$async$wm)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/analysis/"+a9+"/send-both",0,null),null,A.a6(["Authorization","Bearer "+A.j(m),"Content-Type","application/json","Accept","application/json"],a0,a0)),$async$wm)
 case 9:k=b1
 A.ap("Send report response status: "+k.b)
 a1=k
@@ -77263,7 +77263,7 @@ case 3:if(!(a7<3)){s=4
 break}++a7
 A.ij("Attempt "+A.j(a7)+" of 3.. .")
 p=6
-n=A.axI("POST",A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin",0,null))
+n=A.axI("POST",A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/secondary-analyze-skin",0,null))
 a1=n.y
 a2=new A.ia(null,null,null,null,c)
 a3=a2.uy()
@@ -77276,7 +77276,7 @@ a2=A.arh(new A.hL(new A.h6(a2,a0)))
 a3=new A.tf("application".toLowerCase(),"octet-stream".toLowerCase(),new A.kb(A.t(d,d),b))
 a1.push(new A.zk("file",g,b1,a3,a2))
 n.r.J(0,A.a6(["Accept","application/json"],d,d))
-A.ij("Sending request to: https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze")
+A.ij("Sending request to: https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/analyze")
 A.ij(e)
 A.ij(f)
 s=9
