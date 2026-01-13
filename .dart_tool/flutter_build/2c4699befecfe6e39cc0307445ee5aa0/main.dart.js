@@ -77361,7 +77361,7 @@ p=4
 A.ap("login")
 j=t.N
 s=7
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login",0,null),A.a6(["email",a.gmr(),"password",a.gxJ(a)],j,j),null),$async$qs)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/login",0,null),A.a6(["email",a.gmr(),"password",a.gxJ(a)],j,j),null),$async$qs)
 case 7:n=d
 j=n
 A.ap(A.cU(A.cT(j.e)).aM(0,j.w))
@@ -77426,7 +77426,7 @@ if(!a1.d)a1.a.$1(new A.cP(i))
 s=1
 break}if(!a1.d)a1.a.$1(new A.im())
 p=4
-i=A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register",0,null)
+i=A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/register",0,null)
 h=a0.ghN(a0)
 g=a0.gmr()
 f=a0.gxJ(a0)
@@ -77488,7 +77488,7 @@ s=q}for(;;)switch(s){case 0:if(!b.d)b.a.$1(new A.im())
 q=3
 m=t.N
 s=6
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/send-otp",0,null),A.a6(["mobile",a.gtk(a)],m,m),null),$async$tU)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/send-otp",0,null),A.a6(["mobile",a.gtk(a)],m,m),null),$async$tU)
 case 6:o=d
 m=o
 A.ap(A.cU(A.cT(m.e)).aM(0,m.w))
@@ -77516,7 +77516,7 @@ s=q}for(;;)switch(s){case 0:if(!b.d)b.a.$1(new A.im())
 q=3
 k=t.N
 s=6
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/mobile-login",0,null),A.a6(["phone",a.gtk(a),"otp",a.gahO(),"mobile",a.gtk(a),"name",a.ghN(a),"email",a.gmr()],k,k),null),$async$t8)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/mobile-login",0,null),A.a6(["phone",a.gtk(a),"otp",a.gahO(),"mobile",a.gtk(a),"name",a.ghN(a),"email",a.gmr()],k,k),null),$async$t8)
 case 6:o=d
 k=o
 A.ap(A.cU(A.cT(k.e)).aM(0,k.w))
@@ -77563,7 +77563,7 @@ s=q}for(;;)switch(s){case 0:if(!b.d)b.a.$1(new A.im())
 q=3
 k=t.N
 s=6
-return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/google-login",0,null),A.a6(["google_id",a.a,"email",a.b,"name",a.c,"uid",a.d,"image",a.e,"phone",a.f],k,k),null),$async$qd)
+return A.v(A.lZ(A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/google-login",0,null),A.a6(["google_id",a.a,"email",a.b,"name",a.c,"uid",a.d,"image",a.e,"phone",a.f],k,k),null),$async$qd)
 case 6:o=d
 k=o
 A.ap(A.cU(A.cT(k.e)).aM(0,k.w))
@@ -77613,7 +77613,7 @@ var $async$jb=A.H(function(c,d){if(c===1){p.push(d)
 s=q}for(;;)switch(s){case 0:if(!b.d)b.a.$1(new A.im())
 q=3
 A.ap("Logging out...")
-m=A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/logout",0,null)
+m=A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/logout",0,null)
 h=A
 g=J
 s=6
@@ -77660,7 +77660,7 @@ return A.v(A.eK(),$async$qO)
 case 6:o=a4
 g=A.al(J.aa(o.a,"_token"))
 n=g==null?"":g
-f=A.cZ("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/update-profile",0,null)
+f=A.cZ("https://aestheticai.globalspace.in/youvai/youvai_bodycraft/public/api/auth/update-profile",0,null)
 e=t.N
 d=A.a6(["Authorization","Bearer "+A.j(n),"Content-Type","application/json"],e,e)
 c=a1.gyr()
