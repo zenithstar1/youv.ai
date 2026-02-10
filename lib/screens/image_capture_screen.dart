@@ -114,9 +114,32 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
       return;
     }
 
+    // Show camera selection dialog for mobile
+    if (!mounted) return;
+    
+    final cameraDevice = await showDialog<CameraDevice>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Camera'),
+        content: const Text('Choose which camera to use:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, CameraDevice.front),
+            child: const Text('Front Camera'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, CameraDevice.rear),
+            child: const Text('Back Camera'),
+          ),
+        ],
+      ),
+    );
+
+    if (cameraDevice == null) return;
+
     final XFile? photo = await _picker.pickImage(
       source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
+      preferredCameraDevice: cameraDevice,
       imageQuality: 85,
     );
 

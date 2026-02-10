@@ -24,6 +24,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
   bool _isLoading = true;
   String? _error;
   late String _viewType;
+  bool _useFrontCamera = true;
 
   @override
   void initState() {
@@ -35,6 +36,16 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
 
   void _detectIOS() {
     // iOS detection is not currently used
+  }
+
+  Future<void> _toggleCamera() async {
+    setState(() {
+      _useFrontCamera = !_useFrontCamera;
+      _isCameraActive = false;
+      _isLoading = true;
+    });
+    _stopCamera();
+    await _initializeCamera();
   }
 
   Future<void> _initializeCamera() async {
@@ -51,7 +62,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
 
       final constraints = {
         'video': {
-          'facingMode': 'user',
+          'facingMode': _useFrontCamera ? 'user' : 'environment',
           'width': {'ideal': 1280},
           'height': {'ideal': 720},
         },
@@ -250,9 +261,9 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.info_outline,
+                  icon: const Icon(Icons.flip_camera_android,
                       color: Colors.white, size: 26),
-                  onPressed: () {},
+                  onPressed: _toggleCamera,
                 ),
               ],
             ),
