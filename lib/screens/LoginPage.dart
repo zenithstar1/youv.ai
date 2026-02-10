@@ -93,10 +93,13 @@ class _LoginPageContentState extends State<LoginPageContent> {
             ),
           );
 
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
-          );
+          // Return true to indicate successful login, allowing the calling screen
+          // to continue with its intended action (e.g., send detailed report)
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              Navigator.pop(context, true);
+            }
+          });
     
         } else if (state is AuthError) {
           setState(() {
