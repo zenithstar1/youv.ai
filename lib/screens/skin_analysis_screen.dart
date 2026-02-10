@@ -1,7 +1,3 @@
-import 'dart:convert';
-import 'dart:html' as html;
-import 'dart:js' as js;
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,10 +7,8 @@ import 'package:skin_analysis_app/screens/LoginPage.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import 'package:skin_analysis_app/widgets/analysis_point.dart';
 import '../models/skin_analysis_model.dart';
-import '../widgets/score_card.dart' hide FactorItem;
-import '../widgets/info_pill.dart';
-import '../widgets/color_circle.dart';
-import 'package:http/http.dart' as http;
+import '../widgets/score_card.dart';
+import 'before_after_screen.dart';
 
 class SkinAnalysisScreen extends StatefulWidget {
   final SkinAnalysisModel? analysisData;
@@ -23,12 +17,12 @@ class SkinAnalysisScreen extends StatefulWidget {
   final Map<String, dynamic>? apiResponse; // ← full API response (optional)
 
   const SkinAnalysisScreen({
-    Key? key,
+    super.key,
     this.analysisData,
     this.imageBytes,
     this.faceRatioJson,
     this.apiResponse,
-  }) : super(key: key);
+  });
 
   @override
   State<SkinAnalysisScreen> createState() => _SkinAnalysisScreenState();
@@ -53,6 +47,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   // Facial Symmetry PageView
   late PageController _pageController;
   int _currentPage = 0;
+  late ScrollController _scrollController;
+  bool _disclaimerExpanded = false;
 
   final List<Color> fitzpatrickColors = [
     const Color(0xFFFFF5F0),
@@ -90,8 +86,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         return "Lips Ratio";
       case RatioMode.jaw:
         return "Jaw Ratio";
-      default:
-        return "Facial Ratio";
     }
   }
 
@@ -272,7 +266,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   void initState() {
     super.initState();
     selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1) - 1;
-    _pageController = PageController(viewportFraction: 0.9);
+    _pageController = PageController(
+    viewportFraction: 0.9,
+    initialPage: 0,
+    keepPage: true,
+   );
+    _scrollController = ScrollController();
+
 
     // COMMENTED OUT: Payment initialization
     // checkSubscriptionStatus();
@@ -296,6 +296,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _scrollController.dispose();
     // _couponController.dispose(); // COMMENTED OUT
     super.dispose();
   }
@@ -798,7 +799,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       weights.add(10);
     }
 
-    double? _eyeScore(EyeBox? e) {
+    double? eyeScore0(EyeBox? e) {
       if (e == null) return null;
       final g = _parseRatioToNumber(e.golden);
       final m = _parseRatioToNumber(e.measured);
@@ -806,8 +807,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       return _scoreFromRatio(m, g);
     }
 
-    final lScore = _eyeScore(d.leftEye);
-    final rScore = _eyeScore(d.rightEye);
+    final lScore = eyeScore0(d.leftEye);
+    final rScore = eyeScore0(d.rightEye);
     double? eyeScore;
     if (lScore != null && rScore != null) {
       eyeScore = (lScore + rScore) / 2.0;
@@ -879,7 +880,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         (wrinklesDetailScore * wrinklesWeight) +
         (agingScore * agingWeight);
 
-    print('=== Skin Health Attractiveness Score ===');
+    print('=== Skin Health Score ===');
     print(
       'Acne:  ${acneDetailScore.toStringAsFixed(2)} × 25% = ${(acneDetailScore * acneWeight).toStringAsFixed(2)}',
     );
@@ -1091,6 +1092,35 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         title: const Text('Complete Skin Analysis'),
         backgroundColor: const Color(0xFFD4999F),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Before & After',
+            icon: const Icon(Icons.compare),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final isLoggedIn = prefs.getBool('isLogin') ?? false;
+
+              if (!isLoggedIn) {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                );
+
+                if (result == true) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BeforeAfterScreen()),
+                  );
+                }
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BeforeAfterScreen()),
+                );
+              }
+            },
+          ),
+        ],
         elevation: 0,
       ),
       body: SafeArea(
@@ -1106,23 +1136,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = MediaQuery.of(context).size.width;
-
-        print('=== FACIAL SYMMETRY DEBUG ===');
-        print('faceRatioJson is null: ${widget.faceRatioJson == null}');
-        if (widget.faceRatioJson != null) {
-          print('faceRatioJson keys: ${widget.faceRatioJson!.keys}');
-          print('faceRatioJson content: ${widget.faceRatioJson}');
-        }
-        print('symmetryScore: $symmetryScore');
-        print('============================');
-
-        return Container(
-          color: const Color(0xFFE8B4BA),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-
+            return Container(
+              color: const Color(0xFFE8B4BA),
+              child: CustomScrollView(
+            controller: _scrollController,
+            cacheExtent: 2000,   // increased for smoother scrolling on iPhone
+            slivers: [
+             SliverToBoxAdapter(
+              child: Column(
+                children: [
                 // ==================== SECTION 1: SKIN HEALTH ANALYSIS ====================
                 _buildSkinHealthSection(skinHealthScore, screenWidth),
 
@@ -1130,6 +1152,21 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
                 // ==================== SECTION 2: FACIAL SYMMETRY ANALYSIS ====================
                 _buildFacialSymmetrySection(symmetryScore, screenWidth),
+                const SizedBox(height: 20),
+                
+                // Arrow to detailed report
+                Center(
+                  child: GestureDetector(
+                    onTap: _scrollToBottom,
+                    child: Column(
+                      children: const [
+                        Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.grey),
+                        SizedBox(height: 4),
+                        Text('Get detailed report', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 30),
 
                 // DISCLAIMER SECTION
@@ -1144,10 +1181,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
                   child: _buildReportSection(screenWidth),
                 ),
-                const SizedBox(height: 30),
-              ],
+               const SizedBox(height: 30),
+             ],
             ),
-          ),
+           ),
+          ],
+         ),
         );
       },
     );
@@ -1202,72 +1241,68 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 topRight: Radius.circular(24),
               ),
             ),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.face, color: Colors.white, size: 28),
+                SizedBox(width: 12),
+                Text(
+                  'Facial Symmetry Analysis',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.95),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.face, color: Colors.white, size: 28),
-                    SizedBox(width: 12),
-                    Text(
-                      'Facial Symmetry Analysis',
+                const Icon(
+                  Icons.stars,
+                  color: Color(0xFF9B7653),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Symmetry Score',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 12,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      '${symmetryPercentage.toStringAsFixed(1)}',
+                      style: const TextStyle(
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color(0xFF9B7653),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.stars,
-                        color: Color(0xFF9B7653),
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Symmetry Attractiveness Index',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Text(
-                            '${symmetryPercentage.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF9B7653),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -1368,7 +1403,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Your symmetry score is calculated using facial proportions based on golden ratio standards, including vertical/horizontal sections, eye ratios, face box, nose-lip-chin proportions, lip ratios, and jaw alignment.',
+                    'Your symmetry score is calculated using facial proportions observed in this image based on golden ratio standards, including vertical/horizontal sections, eye ratios, face box, nose–lip–chin proportions, lip ratios, and jaw alignment.',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.black87,
@@ -1507,15 +1542,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Skin Attractiveness Index',
+                                  'Skin Health Score',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.black54,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Text(
-                            '${skinHealthScore.toStringAsFixed(1)}%',
+                                Text(
+                                  '${skinHealthScore.toStringAsFixed(1)}',
                             style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -1530,21 +1565,54 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Center(
+            child: GestureDetector(
+              onTap: _scrollToBottom,
+              child: Column(
+                children: const [
+                  Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.grey),
+                  SizedBox(height: 4),
+                  Text('Get detailed report', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
 
           if (widget.imageBytes != null) ...[
             Container(
-              height: 320,
+              height: 260,
               width: double.infinity,
               margin: const EdgeInsets.all(16),
               child: Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.memory(
-                      widget.imageBytes!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (widget.imageBytes == null) return;
+                        showDialog(
+                          context: context,
+                          builder: (context) => Dialog(
+                            insetPadding: const EdgeInsets.all(12),
+                            child: InteractiveViewer(
+                              panEnabled: true,
+                              minScale: 0.5,
+                              maxScale: 4.0,
+                              child: Image.memory(
+                                widget.imageBytes!,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: Image.memory(
+                        widget.imageBytes!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -1552,9 +1620,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     top: 20,
                     child: AnalysisPoint(
                       label: 'Pigmentation',
-                      value: widget.analysisData!.pigmentationScore
-                          .toStringAsFixed(0),
-                      color: Colors.white.withOpacity(0.95),
+                      color: _colorForScore(widget.analysisData!.pigmentationScore),
                     ),
                   ),
                   Positioned(
@@ -1562,9 +1628,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     top: 60,
                     child: AnalysisPoint(
                       label: 'Hydration',
-                      value: widget.analysisData!.hydrationScore
-                          .toStringAsFixed(0),
-                      color: const Color(0xFF9B7653).withOpacity(0.95),
+                      color: _colorForScore(widget.analysisData!.hydrationScore),
                     ),
                   ),
                 ],
@@ -1576,15 +1640,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                const Text(
-                  'The closer you are to 100, the healthier your skin is.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                          const Text(
+                            'This score reflects visible characteristics captured in this scan',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                 const SizedBox(height: 16),
 
                 Row(
@@ -1652,15 +1716,28 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   alignment: WrapAlignment.center,
                   children: [
                     _buildLargeInfoPill(
-                      'Skin Age: ${widget.analysisData!.skinAge}',
+                      'Skin Age: ${_ageLabel(widget.analysisData!.skinAge)}',
                     ),
                     _buildLargeInfoPill(
-                      'Eye Age: ${widget.analysisData!.eyeAge}',
+                      'Eye Age: ${_ageLabel(widget.analysisData!.eyeAge)}',
                     ),
                     _buildLargeInfoPill(
                       'Skin Type: ${widget.analysisData!.skinType}',
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade100),
+                  ),
+                  child: const Text(
+                    'Based on visual features in this image only',
+                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -1759,6 +1836,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             children: [
               PageView.builder(
                 controller: _pageController,
+                physics: const BouncingScrollPhysics(),
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
@@ -1891,13 +1969,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           borderRadius: BorderRadius.circular(20),
           child: Stack(
             children: [
-              // Main content
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: _RatioCardContent(data: data, mode: mode),
-                ),
-              ),
+                  // Main content
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: _RatioCardContent(data: data, mode: mode),
+                    ),
+                  ),
 
               // Mode badge
               Positioned(
@@ -1936,6 +2014,52 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
+  Widget _scoreGradientBar(double score, {double height = 8}) {
+    // score: 0..100
+    final pos = (score.clamp(0.0, 100.0) / 100.0);
+    return SizedBox(
+      height: 40,
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Container(
+            height: height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6BCB77), Color(0xFFFFB199)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+          ),
+          Positioned(
+            left: pos * (MediaQuery.of(context).size.width * 0.6),
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                color: Colors.black.withOpacity(0.6),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 20,
+            child: const Text('100', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+          Positioned(
+            right: 0,
+            top: 20,
+            child: const Text('0', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDesktopLayout(double skinHealthScore, double symmetryScore) {
     return Container(
       color: const Color(0xFFE8B4BA),
@@ -1954,6 +2078,19 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 // SECTION 2: FACIAL SYMMETRY ANALYSIS
                 if (widget.faceRatioJson != null) ...[
                   _buildFacialSymmetrySection(symmetryScore, 1200),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: GestureDetector(
+                      onTap: _scrollToBottom,
+                      child: Column(
+                        children: const [
+                          Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.grey),
+                          SizedBox(height: 4),
+                          Text('Get detailed report', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 40),
                 ],
 
@@ -2029,6 +2166,26 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     );
   }
 
+  Color _colorForScore(double score) {
+    final t = (score.clamp(0.0, 100.0) / 100.0);
+    return Color.lerp(const Color(0xFFFF6B6B), const Color(0xFF6BCB77), t) ?? const Color(0xFF9B7653);
+  }
+
+  String _ageLabel(int age) {
+    if (age <= 0) return 'Unknown';
+    final decade = (age ~/ 10) * 10;
+    final within = age % 10;
+    String part;
+    if (within <= 3) {
+      part = 'Early';
+    } else if (within <= 6) {
+      part = 'Mid';
+    } else {
+      part = 'Late';
+    }
+    return '$part ${decade}s';
+  }
+
   Widget _buildLargeColorCircle(
     Color color,
     bool isSelected,
@@ -2080,8 +2237,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
+        children: [
+          const Text(
             "Disclaimer",
             style: TextStyle(
               color: Colors.black87,
@@ -2089,24 +2246,72 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               fontSize: 16,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            "• The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and entertainment purposes only.\n\n"
-            "• Results do not represent a medical diagnosis, dermatological assessment, or professional beauty advice.\n\n"
-            "• Factors such as lighting, camera quality, and environmental conditions may influence the outcome.\n\n"
-            "• Users should not rely solely on this analysis for making decisions regarding skincare, medical treatments, or personal wellbeing.\n\n"
-            "• For any medical or cosmetic concerns, please consult a qualified healthcare or skincare professional.\n\n"
-            "• The Service Provider makes no guarantees regarding accuracy, completeness, or suitability of the AI analysis.",
-            style: TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-              height: 1.5,
+          const SizedBox(height: 8),
+          AnimatedCrossFade(
+            firstChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "• The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and educational purposes only.",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+                SizedBox(height: 8),
+              ],
+            ),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "• The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and educational purposes only.\n\n"
+                  "• Results do not represent a medical diagnosis, dermatological assessment, or professional beauty advice.\n\n"
+                  "• Factors such as lighting, camera quality, and environmental conditions may influence the outcome.\n\n"
+                  "• Users should not rely solely on this analysis for making decisions regarding skincare, medical treatments, or personal wellbeing.\n\n"
+                  "• For any medical or cosmetic concerns, please consult a qualified healthcare or skincare professional.\n\n"
+                  "• The Service Provider makes no guarantees regarding accuracy, completeness, or suitability of the AI analysis.",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+            crossFadeState: _disclaimerExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => setState(() => _disclaimerExpanded = !_disclaimerExpanded),
+            child: Text(
+              _disclaimerExpanded ? 'Read less' : 'Read more',
+              style: TextStyle(
+                color: Colors.blue.shade800,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _scrollToBottom() {
+    if (!mounted) return;
+    try {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    } catch (e) {
+      // ignore
+    }
   }
 
   // NEW: Report Section (replaces payment section)
@@ -2284,8 +2489,7 @@ class _RatioCardContent extends StatelessWidget {
   final FaceRatioData data;
   final RatioMode mode;
 
-  const _RatioCardContent({Key? key, required this.data, required this.mode})
-    : super(key: key);
+  const _RatioCardContent({required this.data, required this.mode});
 
   @override
   Widget build(BuildContext context) {
@@ -2295,48 +2499,65 @@ class _RatioCardContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Image with overlay
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            constraints: const BoxConstraints(maxHeight: 400, maxWidth: 350),
-            child: AspectRatio(
-              aspectRatio: (data.imageW == 0 || data.imageH == 0)
-                  ? 3 / 4
-                  : data.imageW / data.imageH,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (img != null)
-                    FittedBox(
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: data.imageW,
-                        height: data.imageH,
-                        child: Image.memory(img, fit: BoxFit.fill),
-                      ),
-                    ),
-                  if (img != null)
-                    FittedBox(
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: data.imageW,
-                        height: data.imageH,
-                        child: CustomPaint(
-                          painter: PrettyRatioPainter(data, mode),
+        // Image with overlay (tap to enlarge)
+        GestureDetector(
+          onTap: () {
+            if (img == null) return;
+            showDialog(
+              context: context,
+              builder: (context) => Dialog(
+                insetPadding: const EdgeInsets.all(12),
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Image.memory(img, fit: BoxFit.contain),
+                ),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 400, maxWidth: 350),
+              child: AspectRatio(
+                aspectRatio: (data.imageW == 0 || data.imageH == 0)
+                    ? 3 / 4
+                    : data.imageW / data.imageH,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (img != null)
+                      FittedBox(
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: data.imageW,
+                          height: data.imageH,
+                          child: Image.memory(img, fit: BoxFit.fill),
                         ),
                       ),
-                    ),
-                  if (img == null)
-                    const Center(
-                      child: Text(
-                        "No image available",
-                        style: TextStyle(color: Colors.redAccent),
+                    if (img != null)
+                      FittedBox(
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: data.imageW,
+                          height: data.imageH,
+                          child: CustomPaint(
+                            painter: PrettyRatioPainter(data, mode),
+                          ),
+                        ),
                       ),
-                    ),
-                ],
+                    if (img == null)
+                      const Center(
+                        child: Text(
+                          "No image available",
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -2376,7 +2597,7 @@ class _RatioCardContent extends StatelessWidget {
       case RatioMode.faceBox:
         if (data.faceBox != null) {
           info =
-              "Your ratio: ${data.faceBox!.yours}\nGolden:  ${data.faceBox!.golden}";
+              "Observed: ${data.faceBox!.yours}\nGolden ratio: ${data.faceBox!.golden}";
         }
         break;
       case RatioMode.noseLipChin:

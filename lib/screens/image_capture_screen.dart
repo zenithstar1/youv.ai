@@ -1,18 +1,23 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'image_preview_screen.dart';
 import '../widgets/web_camera_widget.dart';
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_event.dart';
 
 class ImageCaptureScreen extends StatefulWidget {
-  const ImageCaptureScreen({Key? key}) : super(key: key);
+  final bool isHair;
+
+  const ImageCaptureScreen({
+    super.key,
+    this.isHair = false,
+  });
 
   @override
   State<ImageCaptureScreen> createState() => _ImageCaptureScreenState();
@@ -20,7 +25,6 @@ class ImageCaptureScreen extends StatefulWidget {
 
 class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   final ImagePicker _picker = ImagePicker();
-  bool _isLoading = false;
   SharedPreferences? prefs;
   bool _isLoggedIn = false;
   String _userName = '';
@@ -29,6 +33,10 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   void initState() {
     super.initState();
     _loadUserInfo();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showInstructionsDialog();
+    });
   }
 
   Future<void> _loadUserInfo() async {
@@ -38,25 +46,17 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
       if (_isLoggedIn) {
         final userInfoJson = prefs?.getString('userInfo');
         if (userInfoJson != null && userInfoJson.isNotEmpty) {
-          try {
-            final userInfo = jsonDecode(userInfoJson);
-            _userName = userInfo['name'] ?? 'User';
-          } catch (e) {
-            _userName = prefs?.getString('name') ?? 'User';
-          }
-        } else {
-          _userName = prefs?.getString('name') ?? 'User';
+          final userInfo = jsonDecode(userInfoJson);
+          _userName = userInfo['name'] ?? 'User';
         }
       }
     });
   }
 
   Future<void> _logout() async {
-    // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
@@ -66,223 +66,168 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Logout'),
           ),
         ],
       ),
     );
 
-    if (confirm == true) {
-      if (prefs != null) {
-        await prefs!.setBool('isLogin', false);
-        await prefs!.remove('userInfo');
-        await prefs!.remove('_token');
-        await prefs!.remove('name');
-        await prefs!.remove('email');
-        await prefs!.remove('isSubscribe');
-        await prefs!.remove('isGuest');
-      }
-
-      if (mounted) {
-        context.read<AuthBloc>().add(LogoutRequested());
-
-        setState(() {
-          _isLoggedIn = false;
-          _userName = '';
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logged out successfully'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+    if (confirm == true && mounted) {
+      await prefs?.clear();
+      context.read<AuthBloc>().add(LogoutRequested());
+      setState(() {
+        _isLoggedIn = false;
+        _userName = '';
+      });
     }
   }
 
   Future<void> _takePhoto() async {
+    // Show positioning guide first
+    if (!mounted) return;
+    // Directly proceed to camera — positioning overlay removed per request.
+    _proceedToCamera();
+  }
+
+  Future<void> _proceedToCamera() async {
     if (kIsWeb) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => WebCameraWidget(
+            isHair: widget.isHair,
             onImageCaptured: (bytes, fileName) {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ImagePreviewScreen(imageBytes: bytes, fileName: fileName),
+                  builder: (context) => ImagePreviewScreen(
+                    imageBytes: bytes,
+                    fileName: fileName,
+                    isHair: widget.isHair,
+                  ),
                 ),
               );
             },
           ),
         ),
       );
-    } else {
-      setState(() => _isLoading = true);
-      try {
-        final XFile? photo = await _picker.pickImage(
-          source: ImageSource.camera,
-          maxWidth: 1920,
-          maxHeight: 1080,
-          imageQuality: 85,
-          preferredCameraDevice: CameraDevice.front,
-        );
+      return;
+    }
 
-        if (photo != null) {
-          final bytes = await photo.readAsBytes();
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    ImagePreviewScreen(imageBytes: bytes, fileName: photo.name),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        print('Camera error: $e');
-        if (mounted) {
-          _showErrorDialog(
-            'Camera Error',
-            'Failed to access camera:  ${e.toString()}',
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 85,
+    );
+
+    if (photo != null && mounted) {
+      final bytes = await photo.readAsBytes();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImagePreviewScreen(
+            imageBytes: bytes,
+            fileName: photo.name,
+            isHair: widget.isHair,
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _uploadFromDevice() async {
-    setState(() => _isLoading = true);
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        if (file.bytes != null) {
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ImagePreviewScreen(
-                  imageBytes: file.bytes!,
-                  fileName: file.name,
-                ),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      print('Upload error: $e');
-      if (mounted) {
-        _showErrorDialog(
-          'Upload Error',
-          'Failed to upload image: ${e.toString()}',
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result != null && mounted) {
+      final file = result.files.first;
+      if (file.bytes != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImagePreviewScreen(
+              imageBytes: file.bytes!,
+              fileName: file.name,
+              isHair: widget.isHair,
+            ),
+          ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
-  }
-
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red),
-            const SizedBox(width: 10),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF6B3E3E),
-            ),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showInstructionsDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: const [
-            Icon(Icons.lightbulb_outline, color: Color(0xFF6B3E3E)),
-            SizedBox(width: 10),
-            Expanded(child: Text('How to take a great shot')),
-          ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (kIsWeb) ...[
-                const InstructionItem(
-                  icon: Icons.web,
-                  text: 'Allow camera access when prompted by browser',
-                ),
-                const SizedBox(height: 12),
-              ],
-              const InstructionItem(
-                icon: Icons.light_mode,
-                text: 'Use natural lighting or bright room light',
-              ),
-              const SizedBox(height: 12),
-              const InstructionItem(
-                icon: Icons.face,
-                text: 'Face the camera directly',
-              ),
-              const SizedBox(height: 12),
-              const InstructionItem(
-                icon: Icons.center_focus_strong,
-                text: 'Keep your face centered in the frame',
-              ),
-              const SizedBox(height: 12),
-              const InstructionItem(
-                icon: Icons.sentiment_neutral,
-                text: 'Use a neutral expression',
-              ),
-              const SizedBox(height: 12),
-              const InstructionItem(
-                icon: Icons.clean_hands,
-                text: 'Remove makeup for accurate analysis',
-              ),
-            ],
-          ),
+        title: Row(
+  crossAxisAlignment: CrossAxisAlignment.center,
+  children: [
+    const Icon(Icons.lightbulb_outline, color: Color(0xFF6B3E3E)),
+    const SizedBox(width: 10),
+
+    // 👇 THIS STOPS THE 13px OVERFLOW
+    const Expanded(
+      child: Text(
+        "How to take a great shot",
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  ],
+),
+
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: () {
+            final skinTips = [
+              {'icon': Icons.camera_alt_outlined, 'text': 'Allow camera access when prompted'},
+              {'icon': Icons.wb_sunny_outlined, 'text': 'Use natural lighting or bright room light'},
+              {'icon': Icons.face, 'text': 'Face the camera directly'},
+              {'icon': Icons.center_focus_strong, 'text': 'Keep your face centered in the frame'},
+              {'icon': Icons.sentiment_neutral, 'text': 'Use a neutral expression'},
+              {'icon': Icons.no_photography_outlined, 'text': 'Remove makeup for accurate analysis'},
+            ];
+
+            final hairTips = [
+              {'icon': Icons.camera_alt_outlined, 'text': 'Allow camera access when prompted'},
+              {'icon': Icons.wb_sunny_outlined, 'text': 'Use even, diffuse lighting (avoid harsh backlight)'},
+              {'icon': Icons.content_cut, 'text': 'Part or lift hair to expose the scalp clearly'},
+              {'icon': Icons.center_focus_strong, 'text': 'Keep the head centered and steady'},
+              {'icon': Icons.no_photography_outlined, 'text': 'Remove hats, clips or accessories that hide the scalp'},
+              {'icon': Icons.water_drop, 'text': 'Capture dry hair (avoid wet or oily hair)'} ,
+            ];
+
+            final tips = widget.isHair ? hairTips : skinTips;
+
+            return tips
+                .map((t) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _TipItem(icon: t['icon'] as IconData, text: t['text'] as String),
+                        const SizedBox(height: 8),
+                      ],
+                    ))
+                .toList();
+          }(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF6B3E3E),
+            child: const Text(
+              "Got it!",
+              style: TextStyle(
+                color: Color(0xFF6B3E3E),
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            child: const Text('Got it! '),
           ),
         ],
       ),
@@ -291,265 +236,213 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 600;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5E6E8),
       appBar: _isLoggedIn
           ? AppBar(
-              backgroundColor: const Color(0xFF6B3E3E),
-              elevation: 0,
-              title: Row(
-                children: [
-                  const Icon(Icons.person, size: 20, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Welcome, $_userName',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
+              title: Text('Welcome, $_userName'),
               actions: [
                 IconButton(
                   onPressed: _logout,
                   icon: const Icon(Icons.logout),
-                  tooltip: 'Logout',
-                  color: Colors.white,
-                ),
+                )
               ],
             )
           : null,
       body: SafeArea(
-        child: _isLoading
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFF6B3E3E),
+        child: Center(
+          child: Padding(   // ✅ FIX: removed maxWidth constraint
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: _showInstructionsDialog,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6B3E3E),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const ListTile(
+                        leading: Icon(
+                          Icons.lightbulb_outline,
+                          color: Colors.white,
+                        ),
+                        title: Text(
+                          "How to take a great shot",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.arrow_forward,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Text('Loading...'),
-                  ],
-                ),
-              )
-            : Center(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: isDesktop ? 500 : double.infinity,
                   ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
+                ),
+
+                const SizedBox(height: 40),
+
+                Text(
+                  widget.isHair
+                      ? 'Start your personalized hair scan'
+                      : 'Start your personalized facial scan',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                ),
+
+                const SizedBox(height: 40),
+
+                _buildPrimaryButton(
+                  icon: Icons.camera_alt,
+                  label: 'Open Camera',
+                  onTap: _takePhoto,
+                ),
+
+                const SizedBox(height: 20),
+
+                _buildSecondaryButton(
+                  icon: Icons.photo_library,
+                  label: 'Upload from device',
+                  onTap: _uploadFromDevice,
+                ),
+
+                const Spacer(),
+
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Instructions Button
-                      GestureDetector(
-                        onTap: _showInstructionsDialog,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 15,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6B3E3E),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.lightbulb_outline,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                  SizedBox(width: 15),
-                                  Text(
-                                    'How to take a great\nshot',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Icon(
-                                Icons.arrow_forward,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ],
-                          ),
+                      const Icon(Icons.info_outline, color: Colors.blue),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          widget.isHair
+                              ? '• Use even, diffuse lighting\n• Part or lift hair to expose the scalp\n• Remove hats/clips that cover the scalp'
+                              : '• Ensure good lighting\n• Remove hair from face',
+                          style: const TextStyle(color: Colors.blue),
                         ),
                       ),
-
-                      const Spacer(),
-
-                      // Title
-                      const Text(
-                        'Select the capture option',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      // Take a photo button
-                      _buildActionButton(
-                        icon: Icons.camera_alt,
-                        label: kIsWeb
-                            ? 'Take a photo (Camera)'
-                            : 'Take a photo',
-                        onTap: _takePhoto,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Upload from device button
-                      _buildActionButton(
-                        icon: Icons.photo_library,
-                        label: 'Upload from device',
-                        onTap: _uploadFromDevice,
-                      ),
-
-                      const Spacer(),
-
-                      // Logout button for non-appbar case (when not logged in)
-                      // or additional logout option at bottom
-                      if (_isLoggedIn) ...[
-                        const SizedBox(height: 20),
-                        OutlinedButton.icon(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.logout, size: 18),
-                          label: const Text('Logout'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF6B3E3E),
-                            side: const BorderSide(color: Color(0xFF6B3E3E)),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      // Web-specific info
-                      if (kIsWeb) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.blue[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.blue[700],
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Click "Take a photo" to open live camera',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue[700],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
                     ],
                   ),
                 ),
-              ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildPrimaryButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: const Color(0xFF6B3E3E),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6B3E3E),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ],
+          ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(width: 15),
-            Flexible(
-              child: Text(
+      ),
+    );
+  }
+
+  Widget _buildSecondaryButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,   // ✅ FIXED (was 300)
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFF6B3E3E)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: const Color(0xFF6B3E3E)),
+              const SizedBox(width: 12),
+              Text(
                 label,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B3E3E),
+                  fontSize: 16,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class InstructionItem extends StatelessWidget {
+class _TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const InstructionItem({Key? key, required this.icon, required this.text})
-    : super(key: key);
+  const _TipItem({
+    required this.icon,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: const Color(0xFF6B3E3E), size: 24),
-        const SizedBox(width: 12),
+        Icon(icon, color: const Color(0xFF6B3E3E)),
+        const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(fontSize: 14, color: Colors.black87),
+            style: const TextStyle(fontSize: 14),
           ),
         ),
       ],

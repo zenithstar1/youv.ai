@@ -11,7 +11,6 @@ class PrettyRatioPainter extends CustomPainter {
   static const _roseDeep = Color(0xFFE67880);
   static const _mauve = Color(0xFFCA6E77);
   static const _plum = Color(0xFFA4545E);
-  static const _maroon = Color(0xFF7B3E45);
   static const _veil = Color(0x15000000);
   static const _pillBg = Color(0xE61C1C1C);
 
@@ -78,11 +77,15 @@ class PrettyRatioPainter extends CustomPainter {
     String? golden,
     double scale = 1.0,
   }) {
-    final title = _tp(
-      your,
-      fs: 17 * scale.clamp(1.0, 1.3),
-      fw: FontWeight.w900,
-    );
+    // Hide 'Your Ratio' overlay to avoid duplicate display; keep golden label
+    final showYour = !(your.trim().toLowerCase().startsWith('your ratio'));
+    final title = showYour
+        ? _tp(
+            your,
+            fs: 17 * scale.clamp(1.0, 1.3),
+            fw: FontWeight.w900,
+          )
+        : null;
     final sub = golden != null && golden.trim().isNotEmpty
         ? _tp(
             golden,
@@ -93,11 +96,11 @@ class PrettyRatioPainter extends CustomPainter {
         : null;
 
     final w = sub == null
-        ? (title.width + (38 * scale))
-        : (title.width > sub.width ? title.width : sub.width) + (40 * scale);
+      ? ((title?.width ?? 0) + (38 * scale))
+      : ((title?.width ?? 0) > (sub.width) ? (title?.width ?? 0) : sub.width) + (40 * scale);
     final h = sub == null
-        ? (title.height + (16 * scale))
-        : (title.height + sub.height + (24 * scale));
+      ? ((title?.height ?? 0) + (16 * scale))
+      : ((title?.height ?? 0) + sub.height + (24 * scale));
 
     final r = RRect.fromRectAndRadius(
       Rect.fromCenter(
@@ -110,15 +113,15 @@ class PrettyRatioPainter extends CustomPainter {
     canvas.drawRRect(r, Paint()..color = _pillBg);
 
     final topLeft = Offset(
-      size.width / 2 - title.width / 2,
+      size.width / 2 - (title?.width ?? 0) / 2,
       (34 * scale) - (h / 2) + (10 * scale),
     );
-    title.paint(canvas, topLeft);
+    if (title != null) {
+      title.paint(canvas, topLeft);
+    }
 
     if (sub != null) {
-      final subTop =
-          topLeft +
-          Offset((title.width - sub.width) / 2, title.height + (5 * scale));
+      final subTop = topLeft + Offset(((title?.width ?? 0) - sub.width) / 2, (title?.height ?? 0) + (5 * scale));
       sub.paint(canvas, subTop);
     }
   }
@@ -413,22 +416,22 @@ class PrettyRatioPainter extends CustomPainter {
         final dashGap = (5 * s * k);
 
         // Local smaller arrowheads so they don't create an "X" look
-        void _arrowUpSmall(Offset p) {
+        void arrowUpSmall(Offset p) {
           canvas.drawLine(p, p + Offset(-6 * s * k, 8 * s * k), _dashP(s));
           canvas.drawLine(p, p + Offset(6 * s * k, 8 * s * k), _dashP(s));
         }
 
-        void _arrowDownSmall(Offset p) {
+        void arrowDownSmall(Offset p) {
           canvas.drawLine(p, p + Offset(-6 * s * k, -8 * s * k), _dashP(s));
           canvas.drawLine(p, p + Offset(6 * s * k, -8 * s * k), _dashP(s));
         }
 
-        void _arrowLeftSmall(Offset p) {
+        void arrowLeftSmall(Offset p) {
           canvas.drawLine(p, p + Offset(9 * s * k, -6 * s * k), _dashP(s));
           canvas.drawLine(p, p + Offset(9 * s * k, 6 * s * k), _dashP(s));
         }
 
-        void _arrowRightSmall(Offset p) {
+        void arrowRightSmall(Offset p) {
           canvas.drawLine(p, p + Offset(-9 * s * k, -6 * s * k), _dashP(s));
           canvas.drawLine(p, p + Offset(-9 * s * k, 6 * s * k), _dashP(s));
         }
@@ -445,8 +448,8 @@ class PrettyRatioPainter extends CustomPainter {
           gap: dashGap,
           scale: 1,
         );
-        _arrowLeftSmall(Offset(rect.left, belowY));
-        _arrowRightSmall(Offset(rect.right, belowY));
+        arrowLeftSmall(Offset(rect.left, belowY));
+        arrowRightSmall(Offset(rect.right, belowY));
 
         // --- Vertical dashed height ruler (left of eye), adapted to eye height ---
         _dashedV(
@@ -459,8 +462,8 @@ class PrettyRatioPainter extends CustomPainter {
           gap: dashGap,
           scale: 1,
         );
-        _arrowUpSmall(Offset(leftX, vTop));
-        _arrowDownSmall(Offset(leftX, vBot));
+        arrowUpSmall(Offset(leftX, vTop));
+        arrowDownSmall(Offset(leftX, vBot));
 
         // --- “1” bubble on the side ruler ---
         final oneTxt = _tp("1", fs: 11 * s);

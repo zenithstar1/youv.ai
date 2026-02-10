@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 
 class AnalysisPoint extends StatelessWidget {
   final String label;
-  final String value;
   final Color color;
 
   const AnalysisPoint({
-    Key? key,
+    super.key,
     required this.label,
-    required this.value,
     required this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,31 +25,13 @@ class AnalysisPoint extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: color.computeLuminance() > 0.5
-                  ? Colors.black
-                  : Colors.white,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color.computeLuminance() > 0.5
-                  ? Colors.black
-                  : Colors.white,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+        ),
       ),
     );
   }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:skin_analysis_app/screens/image_capture_screen.dart';
-import 'login_screens.dart';
+import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 
 class OnboardingFlow extends StatefulWidget {
+  const OnboardingFlow({super.key});
+
   @override
   _OnboardingFlowState createState() => _OnboardingFlowState();
 }
@@ -57,14 +58,29 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      body: PageView(
-        controller: controller,
-        physics: const NeverScrollableScrollPhysics(),
-        children: pages.map((page) {
-          int index = pages.indexOf(page);
-          return Wrapper(index: index % 3, child: page);
-        }).toList(),
+      body: Stack(
+        children: [
+          // ---------- MOVING CAROUSEL (manual + auto) ----------
+          PageView(
+            controller: controller,
+            physics: const PageScrollPhysics(), // allows manual swipe
+            children: pages.map((page) {
+              int index = pages.indexOf(page);
+              return Wrapper(index: index % 3, child: page);
+            }).toList(),
+          ),
+
+          // ---------- FIXED CONTINUE BUTTON (lifted slightly) ----------
+          Positioned(
+            bottom: h * 0.10,   // <-- lifted a little from original place
+            left: 30,
+            right: 30,
+            child: ResponsiveButtons(),
+          ),
+        ],
       ),
     );
   }
@@ -74,7 +90,7 @@ class Wrapper extends StatelessWidget {
   final int index;
   final Widget child;
 
-  const Wrapper({required this.index, required this.child});
+  const Wrapper({super.key, required this.index, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +109,8 @@ abstract class HasBottomCard {
 // ======================================================
 
 class SecondScreen extends StatelessWidget implements HasBottomCard {
+  const SecondScreen({super.key});
+
   @override
   Widget build(BuildContext context) => const SizedBox();
 
@@ -100,8 +118,7 @@ class SecondScreen extends StatelessWidget implements HasBottomCard {
   Widget withPageIndex(int pageIndex) {
     return Builder(
       builder: (context) {
-        final size = MediaQuery.of(context).size;
-        final h = size.height;
+        final h = MediaQuery.of(context).size.height;
 
         return Stack(
           children: [
@@ -122,7 +139,7 @@ class SecondScreen extends StatelessWidget implements HasBottomCard {
               child: buildBottomCard(
                 context,
                 h,
-                "Attractiveness Index",
+                "Skin Health Score",
                 "Reveal your Aesthetic score with AI",
                 "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
                 pageIndex,
@@ -140,6 +157,8 @@ class SecondScreen extends StatelessWidget implements HasBottomCard {
 // ======================================================
 
 class ThirdScreen extends StatelessWidget implements HasBottomCard {
+  const ThirdScreen({super.key});
+
   @override
   Widget build(BuildContext context) => const SizedBox();
 
@@ -186,6 +205,8 @@ class ThirdScreen extends StatelessWidget implements HasBottomCard {
 // ======================================================
 
 class FourthScreen extends StatelessWidget implements HasBottomCard {
+  const FourthScreen({super.key});
+
   @override
   Widget build(BuildContext context) => const SizedBox();
 
@@ -228,7 +249,7 @@ class FourthScreen extends StatelessWidget implements HasBottomCard {
 }
 
 // ======================================================
-// SHARED BOTTOM CARD (Responsive Hybrid)
+// SHARED BOTTOM CARD (NO BUTTON INSIDE NOW)
 // ======================================================
 
 Widget buildBottomCard(
@@ -299,37 +320,30 @@ Widget buildBottomCard(
             dot(isActive: pageIndex == 2),
           ],
         ),
-
-        SizedBox(height: h * 0.05),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: ResponsiveButtons(),
-        ),
       ],
     ),
   );
 }
 
 // ======================================================
-// RESPONSIVE BUTTONS (Hybrid scaling)
+// RESPONSIVE BUTTON (FIXED & LIFTED)
 // ======================================================
 
 class ResponsiveButtons extends StatelessWidget {
+  const ResponsiveButtons({super.key});
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-
-    final buttonWidth = size.width * 0.27;
-    final buttonHeight = size.height * 0.047;
+    final buttonHeight = size.height * 0.052;
     final borderRadius = buttonHeight * 0.75;
 
     Widget buildButton(String label, {VoidCallback? onTap}) {
       return GestureDetector(
         onTap: onTap,
         child: Container(
-          width: buttonWidth,
           height: buttonHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           decoration: BoxDecoration(
             color: const Color(0xFFF1D9DB),
             borderRadius: BorderRadius.circular(borderRadius),
@@ -345,10 +359,13 @@ class ResponsiveButtons extends StatelessWidget {
           child: Center(
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
               style: GoogleFonts.lora(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF510808),
+                letterSpacing: 0.6,
+                color: const Color(0xFF510808),
               ),
             ),
           ),
@@ -357,21 +374,22 @@ class ResponsiveButtons extends StatelessWidget {
     }
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Opacity(opacity: 0, child: buildButton("SKIP")),
         buildButton(
           "CONTINUE",
           onTap: () {
             Navigator.of(context).push(
               PageRouteBuilder(
-                transitionDuration: Duration(milliseconds: 200),
-                pageBuilder: (_, __, ___) => ImageCaptureScreen(),
+                transitionDuration: const Duration(milliseconds: 200),
+                pageBuilder: (_, __, ___) =>
+                    const AnalysisTypeScreen(),
                 transitionsBuilder: (_, animation, __, child) {
                   final tween = Tween(
-                    begin: Offset(1.0, 0.0),
+                    begin: const Offset(1.0, 0.0),
                     end: Offset.zero,
                   ).chain(CurveTween(curve: Curves.easeInOut));
+
                   return SlideTransition(
                     position: animation.drive(tween),
                     child: child,
@@ -387,16 +405,18 @@ class ResponsiveButtons extends StatelessWidget {
 }
 
 // ======================================================
-// DOT
+// DOT INDICATOR
 // ======================================================
 
 Widget dot({required bool isActive}) {
   return AnimatedContainer(
-    duration: Duration(milliseconds: 200),
+    duration: const Duration(milliseconds: 200),
     width: isActive ? 20 : 6,
     height: 6,
     decoration: BoxDecoration(
-      color: isActive ? Color(0xFF510808) : Colors.white.withOpacity(0.6),
+      color: isActive
+          ? const Color(0xFF510808)
+          : Colors.white.withOpacity(0.6),
       borderRadius: BorderRadius.circular(3),
     ),
   );

@@ -3,11 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'terms_and_conditions.dart';
 import 'package:flutter/gestures.dart';
 import 'otp_screen.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 
 class SignUpScreen extends StatefulWidget {
-  SignUpScreen({super.key});
+  const SignUpScreen({super.key});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
