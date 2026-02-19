@@ -59,13 +59,13 @@ class EyeBox {
       required String measured,
       double ox = 0,
       double oy = 0}) {
-    Offset _p(List v) =>
+    Offset p(List v) =>
         Offset((v[0] as num).toDouble() - ox, (v[1] as num).toDouble() - oy);
     return EyeBox(
-      tl: _p(box['top_left']),
-      tr: _p(box['top_right']),
-      bl: _p(box['bottom_left']),
-      br: _p(box['bottom_right']),
+      tl: p(box['top_left']),
+      tr: p(box['top_right']),
+      bl: p(box['bottom_left']),
+      br: p(box['bottom_right']),
       golden: golden,
       measured: measured,
     );
@@ -175,7 +175,7 @@ class FaceRatioData {
       } catch (_) {}
     }
 
-    List<double> _pct(dynamic l) => (l as List? ?? [])
+    List<double> pct(dynamic l) => (l as List? ?? [])
         .map((p) => double.tryParse(p.toString().replaceAll('%', '')) ?? 0.0)
         .toList();
 
@@ -204,7 +204,7 @@ class FaceRatioData {
     final eyes = m['eye_aspect_ratios'] ?? m['eye_aspect_ratio'];
     if (eyes is Map) {
       final me = Map<String, dynamic>.from(eyes);
-      EyeBox? _eye(Map<String, dynamic>? raw) {
+      EyeBox? eye(Map<String, dynamic>? raw) {
         if (raw == null) return null;
         final box = Map<String, dynamic>.from(raw['box_coordinates'] as Map);
         return EyeBox.fromJson(
@@ -215,8 +215,8 @@ class FaceRatioData {
         );
       }
 
-      leftEye = _eye(me['left_eye'] as Map<String, dynamic>?);
-      rightEye = _eye(me['right_eye'] as Map<String, dynamic>?);
+      leftEye = eye(me['left_eye'] as Map<String, dynamic>?);
+      rightEye = eye(me['right_eye'] as Map<String, dynamic>?);
     }
 
     // Face box (cropped-space)
@@ -225,15 +225,15 @@ class FaceRatioData {
     if (faceNode is Map) {
       final f = Map<String, dynamic>.from(faceNode);
       final b = Map<String, dynamic>.from(f['box_coordinates'] ?? {});
-      Offset _p(List v) => Offset(
+      Offset p(List v) => Offset(
             (v[0] as num).toDouble() - ox,
             (v[1] as num).toDouble() - oy,
           );
       if (b.isNotEmpty) {
-        final tl = _p(b['top_left']);
-        final tr = _p(b['top_right']);
-        final bl = _p(b['bottom_left']);
-        final br = _p(b['bottom_right']);
+        final tl = p(b['top_left']);
+        final tr = p(b['top_right']);
+        final bl = p(b['bottom_left']);
+        final br = p(b['bottom_right']);
         final xs = [tl.dx, tr.dx, bl.dx, br.dx]..sort();
         final ys = [tl.dy, tr.dy, bl.dy, br.dy]..sort();
         faceBox = FaceBox(
@@ -256,15 +256,15 @@ class FaceRatioData {
     final jnode = Map<String, dynamic>.from(m['jaw_ratio'] ?? const {});
     if (jnode.isNotEmpty && jnode['coordinates'] is Map) {
       final c = Map<String, dynamic>.from(jnode['coordinates']);
-      Offset _pt(List v) => Offset(
+      Offset pt(List v) => Offset(
             (v[0] as num).toDouble() - ox,
             (v[1] as num).toDouble() - oy,
           );
       jaw = JawPoints(
-        leftJaw: _pt(c['left_jaw'] as List),
-        rightJaw: _pt(c['right_jaw'] as List),
-        chin: _pt(c['chin'] as List),
-        noseBottom: _pt(c['nose_bottom'] as List),
+        leftJaw: pt(c['left_jaw'] as List),
+        rightJaw: pt(c['right_jaw'] as List),
+        chin: pt(c['chin'] as List),
+        noseBottom: pt(c['nose_bottom'] as List),
         ideal: (jnode['ideal_ratio'] as num?)?.toDouble() ?? 0,
         ratio: (jnode['ratio'] as num?)?.toDouble() ?? 0,
       );
@@ -279,8 +279,8 @@ class FaceRatioData {
       verticalLines: vLines,
       horizontalLines: hLines,
       verticalPerc:
-          _pct(m['Vertical Face Ratio'] ?? m['vertical_sections_percent']),
-      horizontalPerc: _pct(m['Horizontal Face Ratio'] ??
+          pct(m['Vertical Face Ratio'] ?? m['vertical_sections_percent']),
+      horizontalPerc: pct(m['Horizontal Face Ratio'] ??
           m['Horizontal Faces Ratio'] ??
           m['horizontal_sections_percent']),
       idealVertical: (m['Vertical Golden Ratio'] ??

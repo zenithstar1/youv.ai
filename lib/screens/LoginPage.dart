@@ -6,7 +6,6 @@ import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
 import 'package:skin_analysis_app/Bloc/auth_event.dart';
 import 'package:skin_analysis_app/Bloc/auth_state.dart';
 import 'settings_screen.dart';
-import 'analysis_type_screen.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});

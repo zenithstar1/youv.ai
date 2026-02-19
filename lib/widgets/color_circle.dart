@@ -6,11 +6,11 @@ class ColorCircle extends StatefulWidget {
   final VoidCallback? onTap;
 
   const ColorCircle({
-    Key? key,
+    super.key,
     required this.color,
     this.isSelected = false,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   State<ColorCircle> createState() => _ColorCircleState();

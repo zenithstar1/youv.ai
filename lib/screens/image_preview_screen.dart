@@ -10,13 +10,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:skin_analysis_app/Api/Apiservice.dart';
-import 'package:skin_analysis_app/screens/LoginPage.dart';
 import 'skin_analysis_screen.dart';
 import '../Models/hair_analysis_model.dart' as hair;
 import 'hair_api_service.dart';
 import 'hair_result_screen.dart';
 import 'package:skin_analysis_app/models/skin_analysis_model.dart';
-import '../widgets/face_mapper_animation.dart';
 
 class ImagePreviewScreen extends StatefulWidget {
   final Uint8List imageBytes;

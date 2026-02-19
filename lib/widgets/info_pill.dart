@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class InfoPill extends StatelessWidget {
   final String text;
 
-  const InfoPill({Key? key, required this.text}) : super(key: key);
+  const InfoPill({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {

@@ -1,14 +1,19 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/skin_analysis_model.dart';
 
 class ApiService {
   static const String baseUrl =
       'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  static const String skinAnalyzeEndpoint = '$baseUrl/secondary-analyze-skin';
   static const int maxRetries = 3;
   static const Duration retryDelay = Duration(seconds: 2);
+  static const Duration requestTimeout = Duration(seconds: 120);
+  static const int preferredUploadBytes = 700 * 1024;
+  static const int minimumUploadBytes = 250 * 1024;
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -24,6 +29,8 @@ class ApiService {
   ) async {
     int attemptCount = 0;
     Exception? lastException;
+    Duration nextRetryDelay = retryDelay;
+    Uint8List uploadBytes = _optimizeInitialUpload(imageBytes);
 
     while (attemptCount < maxRetries) {
       attemptCount++;
@@ -32,22 +39,22 @@ class ApiService {
       try {
         var request = http.MultipartRequest(
           'POST',
-          Uri.parse('$baseUrl/secondary-analyze-skin'),
+          Uri.parse(skinAnalyzeEndpoint),
         );
 
         // Add image file from bytes
         request.files.add(
-          http.MultipartFile.fromBytes('file', imageBytes, filename: fileName),
+          http.MultipartFile.fromBytes('file', uploadBytes, filename: fileName),
         );
 
         request.headers.addAll({'Accept': 'application/json'});
 
-        print('Sending request to: $baseUrl/analyze');
+        print('Sending request to: $skinAnalyzeEndpoint');
         print('File name: $fileName');
-        print('File size: ${imageBytes.length} bytes');
+        print('File size: ${uploadBytes.length} bytes');
 
         var streamedResponse = await request.send().timeout(
-          const Duration(seconds: 60),
+          requestTimeout,
           onTimeout: () {
             throw Exception('Request timeout.  Please try again.');
           },
@@ -56,7 +63,10 @@ class ApiService {
         var response = await http.Response.fromStream(streamedResponse);
 
         print('Response status: ${response.statusCode}');
-        print('Response body: ${response.body}');
+        final responsePreview = response.body.length > 500
+          ? '${response.body.substring(0, 500)}...'
+          : response.body;
+        print('Response body: $responsePreview');
 
         if (response.statusCode == 200) {
           final jsonData = json.decode(response.body);
@@ -80,7 +90,20 @@ class ApiService {
           );
         } else if (response.statusCode >= 500) {
           // Server error - retry
-          lastException = Exception('Server error (${response.statusCode})');
+          final responseBodyLower = response.body.toLowerCase();
+          final isUploadFailure = responseBodyLower.contains('failed to upload') ||
+              responseBodyLower.contains('file failed to upload');
+
+          if (isUploadFailure) {
+            uploadBytes = _compressForRetry(uploadBytes);
+            nextRetryDelay = const Duration(milliseconds: 600);
+            lastException = Exception('Server upload failed (payload adjusted)');
+            print('⚠️ Upload failed on server, retrying with smaller image (${uploadBytes.length} bytes)');
+          } else {
+            nextRetryDelay = retryDelay;
+            lastException = Exception('Server error (${response.statusCode})');
+          }
+
           print(
             '⚠️ Server error on attempt $attemptCount:  ${response.statusCode}',
           );
@@ -94,9 +117,11 @@ class ApiService {
         print('❌ Error on attempt $attemptCount: $e');
 
         if (e.toString().contains('SocketException')) {
+          nextRetryDelay = const Duration(milliseconds: 800);
           lastException = Exception('No internet connection');
         } else if (e.toString().contains('TimeoutException') ||
             e.toString().contains('timeout')) {
+          nextRetryDelay = const Duration(seconds: 1);
           lastException = Exception('Request timeout');
         } else if (e.toString().contains('Invalid image format') ||
             e.toString().contains('422')) {
@@ -109,8 +134,10 @@ class ApiService {
 
       // Wait before retrying (except on last attempt)
       if (attemptCount < maxRetries) {
-        print('⏳ Waiting ${retryDelay.inSeconds} seconds before retry...');
-        await Future.delayed(retryDelay);
+        print(
+          '⏳ Waiting ${(nextRetryDelay.inMilliseconds / 1000).toStringAsFixed(1)} seconds before retry...',
+        );
+        await Future.delayed(nextRetryDelay);
       }
     }
 
@@ -121,6 +148,85 @@ class ApiService {
       'We attempted $maxRetries times but couldn\'t process your request.\n'
       'Last error: ${lastException?.toString().replaceAll('Exception:  ', '')}',
     );
+  }
+
+  Uint8List _optimizeInitialUpload(Uint8List originalBytes) {
+    if (originalBytes.length <= preferredUploadBytes) {
+      return originalBytes;
+    }
+    return _compressJpegToTarget(
+      originalBytes,
+      targetBytes: preferredUploadBytes,
+      maxWidth: 1280,
+      startQuality: 85,
+      minQuality: 55,
+    );
+  }
+
+  Uint8List _compressForRetry(Uint8List currentBytes) {
+    final nextTarget = (currentBytes.length * 0.7)
+        .round()
+        .clamp(minimumUploadBytes, preferredUploadBytes);
+    return _compressJpegToTarget(
+      currentBytes,
+      targetBytes: nextTarget,
+      maxWidth: 1080,
+      startQuality: 78,
+      minQuality: 45,
+    );
+  }
+
+  Uint8List _compressJpegToTarget(
+    Uint8List sourceBytes, {
+    required int targetBytes,
+    required int maxWidth,
+    required int startQuality,
+    required int minQuality,
+  }) {
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) {
+      return sourceBytes;
+    }
+
+    img.Image working = decoded;
+    if (working.width > maxWidth) {
+      working = img.copyResize(working, width: maxWidth);
+    }
+
+    Uint8List best = Uint8List.fromList(
+      img.encodeJpg(working, quality: startQuality),
+    );
+    if (best.length <= targetBytes) {
+      return best;
+    }
+
+    for (int quality = startQuality - 5; quality >= minQuality; quality -= 5) {
+      final candidate = Uint8List.fromList(
+        img.encodeJpg(working, quality: quality),
+      );
+      if (candidate.length < best.length) {
+        best = candidate;
+      }
+      if (candidate.length <= targetBytes) {
+        return candidate;
+      }
+    }
+
+    while (working.width > 720) {
+      final newWidth = (working.width * 0.85).round();
+      working = img.copyResize(working, width: newWidth);
+      final candidate = Uint8List.fromList(
+        img.encodeJpg(working, quality: minQuality),
+      );
+      if (candidate.length < best.length) {
+        best = candidate;
+      }
+      if (candidate.length <= targetBytes) {
+        return candidate;
+      }
+    }
+
+    return best;
   }
 
   /// Get PDF download URL for detailed report

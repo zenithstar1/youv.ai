@@ -91,6 +91,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
   Future<void> _sendDetailedReport() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final analysisId = prefs.getString('analysis_id');
 
     if (analysisId == null || analysisId.isEmpty) {
@@ -110,6 +111,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
     try {
       final result = await ApiService.sendDetailedReport(analysisId);
+      if (!mounted) return;
 
       setState(() {
         _sendingReport = false;
@@ -225,6 +227,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _sendingReport = false;
         _reportMessage = '';
@@ -243,6 +246,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   // NEW: Function to handle send report with login check
   Future<void> _handleSendReport() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final isLoggedIn = prefs.getBool('isLogin') ?? false;
 
     if (!isLoggedIn) {
@@ -880,27 +884,27 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         (wrinklesDetailScore * wrinklesWeight) +
         (agingScore * agingWeight);
 
-    print('=== Skin Health Score ===');
-    print(
+    debugPrint('=== Skin Health Score ===');
+    debugPrint(
       'Acne:  ${acneDetailScore.toStringAsFixed(2)} × 25% = ${(acneDetailScore * acneWeight).toStringAsFixed(2)}',
     );
-    print(
+    debugPrint(
       'Hydration: ${hydrationDetailScore.toStringAsFixed(2)} × 20% = ${(hydrationDetailScore * hydrationWeight).toStringAsFixed(2)}',
     );
-    print(
+    debugPrint(
       'Pigmentation: ${pigmentationDetailScore.toStringAsFixed(2)} × 20% = ${(pigmentationDetailScore * pigmentationWeight).toStringAsFixed(2)}',
     );
-    print(
+    debugPrint(
       'Pores: ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
     );
-    print(
+    debugPrint(
       'Wrinkles: ${wrinklesDetailScore.toStringAsFixed(2)} × 15% = ${(wrinklesDetailScore * wrinklesWeight).toStringAsFixed(2)}',
     );
-    print(
+    debugPrint(
       'Aging:  ${agingScore.toStringAsFixed(2)} × 5% = ${(agingScore * agingWeight).toStringAsFixed(2)}',
     );
-    print('Final Skin Health Score: ${totalScore.toStringAsFixed(2)}%');
-    print('========================================');
+    debugPrint('Final Skin Health Score: ${totalScore.toStringAsFixed(2)}%');
+    debugPrint('========================================');
 
     return totalScore.clamp(0.0, 100.0);
   }
@@ -1098,6 +1102,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             icon: const Icon(Icons.compare),
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
+              if (!context.mounted) return;
               final isLoggedIn = prefs.getBool('isLogin') ?? false;
 
               if (!isLoggedIn) {
@@ -1105,6 +1110,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   context,
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                 );
+                if (!context.mounted) return;
 
                 if (result == true) {
                   Navigator.push(
@@ -1198,16 +1204,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
     if (widget.faceRatioJson != null) {
       try {
-        print('Attempting to parse faceRatioJson...');
+        debugPrint('Attempting to parse faceRatioJson...');
         faceData = FaceRatioData.fromMap(widget.faceRatioJson!);
         hasValidData = true;
-        print('Successfully parsed faceRatioJson');
+        debugPrint('Successfully parsed faceRatioJson');
       } catch (e) {
-        print('Error parsing face ratio data: $e');
-        print('Stack trace: ${StackTrace.current}');
+        debugPrint('Error parsing face ratio data: $e');
+        debugPrint('Stack trace: ${StackTrace.current}');
       }
     } else {
-      print('widget.faceRatioJson is NULL');
+      debugPrint('widget.faceRatioJson is NULL');
     }
 
     final symmetryPercentage = symmetryScore * 10.0;
@@ -1219,7 +1225,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -1242,16 +1248,19 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: const [
                 Icon(Icons.face, color: Colors.white, size: 28),
                 SizedBox(width: 12),
-                Text(
-                  'Facial Symmetry Analysis',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                Expanded(
+                  child: Text(
+                    'Facial Symmetry Analysis',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -1264,11 +1273,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -1295,7 +1304,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                       ),
                     ),
                     Text(
-                      '${symmetryPercentage.toStringAsFixed(1)}',
+                      symmetryPercentage.toStringAsFixed(1),
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -1333,7 +1342,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                                   strokeWidth: 12,
                                   backgroundColor: const Color(
                                     0xFF9B7653,
-                                  ).withOpacity(0.2),
+                                  ).withValues(alpha: 0.2),
                                   valueColor:
                                       const AlwaysStoppedAnimation<Color>(
                                         Color(0xFF9B7653),
@@ -1396,10 +1405,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF9B7653).withOpacity(0.1),
+                    color: const Color(0xFF9B7653).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFF9B7653).withOpacity(0.3),
+                      color: const Color(0xFF9B7653).withValues(alpha: 0.3),
                     ),
                   ),
                   child: const Text(
@@ -1469,7 +1478,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -1519,11 +1528,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
@@ -1550,7 +1559,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                             ),
                           ),
                                 Text(
-                                  '${skinHealthScore.toStringAsFixed(1)}',
+                                  skinHealthScore.toStringAsFixed(1),
                             style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -1780,8 +1789,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF9B7653).withOpacity(0.8),
-                const Color(0xFF7D5E48).withOpacity(0.8),
+                const Color(0xFF9B7653).withValues(alpha: 0.8),
+                const Color(0xFF7D5E48).withValues(alpha: 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
@@ -1872,7 +1881,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1897,7 +1906,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1959,7 +1968,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF9B7653).withOpacity(0.2),
+              color: const Color(0xFF9B7653).withValues(alpha: 0.2),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -1991,7 +2000,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -2010,52 +2019,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _scoreGradientBar(double score, {double height = 8}) {
-    // score: 0..100
-    final pos = (score.clamp(0.0, 100.0) / 100.0);
-    return SizedBox(
-      height: 40,
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          Container(
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6BCB77), Color(0xFFFFB199)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-            ),
-          ),
-          Positioned(
-            left: pos * (MediaQuery.of(context).size.width * 0.6),
-            child: Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                color: Colors.black.withOpacity(0.6),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            top: 20,
-            child: const Text('100', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          ),
-          Positioned(
-            right: 0,
-            top: 20,
-            child: const Text('0', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          ),
-        ],
       ),
     );
   }
@@ -2146,10 +2109,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD4999F).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFD4999F).withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -2209,7 +2172,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -2326,7 +2289,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
               )
             : LinearGradient(
                 colors: [
-                  const Color(0xFFD4999F).withOpacity(0.1),
+                  const Color(0xFFD4999F).withValues(alpha: 0.1),
                   Colors.white,
                 ],
               ),
@@ -2337,7 +2300,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -2626,7 +2589,7 @@ class _RatioCardContent extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(

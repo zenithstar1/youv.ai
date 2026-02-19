@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'image_preview_screen.dart';
+import 'enhanced_camera_screen.dart';
+import 'standard_camera_screen.dart';
 import '../widgets/web_camera_widget.dart';
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_event.dart';
@@ -24,7 +27,6 @@ class ImageCaptureScreen extends StatefulWidget {
 }
 
 class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
-  final ImagePicker _picker = ImagePicker();
   SharedPreferences? prefs;
   bool _isLoggedIn = false;
   String _userName = '';
@@ -72,8 +74,9 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
       ),
     );
 
-    if (confirm == true && mounted) {
+    if (confirm == true) {
       await prefs?.clear();
+      if (!mounted) return;
       context.read<AuthBloc>().add(LogoutRequested());
       setState(() {
         _isLoggedIn = false;
@@ -114,7 +117,33 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
       return;
     }
 
-    // Show camera selection dialog for mobile
+    // For hair analysis, automatically use enhanced camera with auto-capture
+    if (widget.isHair) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EnhancedCameraScreen(
+            isHair: widget.isHair,
+            onImageCaptured: (bytes, fileName) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ImagePreviewScreen(
+                    imageBytes: bytes,
+                    fileName: fileName,
+                    isHair: widget.isHair,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Skin analysis uses standard camera flow only (no auto-align mode)
     if (!mounted) return;
     
     final cameraDevice = await showDialog<CameraDevice>(
@@ -137,25 +166,31 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
 
     if (cameraDevice == null) return;
 
-    final XFile? photo = await _picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: cameraDevice,
-      imageQuality: 85,
-    );
+    if (!mounted) return;
+    final lensDirection = cameraDevice == CameraDevice.front
+        ? CameraLensDirection.front
+        : CameraLensDirection.back;
 
-    if (photo != null && mounted) {
-      final bytes = await photo.readAsBytes();
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ImagePreviewScreen(
-            imageBytes: bytes,
-            fileName: photo.name,
-            isHair: widget.isHair,
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StandardCameraScreen(
+          lensDirection: lensDirection,
+          onImageCaptured: (bytes, fileName) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ImagePreviewScreen(
+                  imageBytes: bytes,
+                  fileName: fileName,
+                  isHair: widget.isHair,
+                ),
+              ),
+            );
+          },
         ),
-      );
-    }
+      ),
+    );
   }
 
   Future<void> _uploadFromDevice() async {

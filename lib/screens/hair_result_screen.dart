@@ -5,9 +5,9 @@ class HairResultScreen extends StatelessWidget {
   final HairAnalysisModel analysis;
 
   const HairResultScreen({
-    Key? key,
+    super.key,
     required this.analysis,
-  }) : super(key: key);
+  });
 
   Color _gradeColor(int grade) {
     switch (grade) {
