@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'login_screens.dart';
+import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 
 class OnboardingFlow extends StatefulWidget {
+  const OnboardingFlow({super.key});
+
   @override
   _OnboardingFlowState createState() => _OnboardingFlowState();
 }
@@ -56,14 +58,29 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      body: PageView(
-        controller: controller,
-        physics: const NeverScrollableScrollPhysics(),
-        children: pages.map((page) {
-          int index = pages.indexOf(page);
-          return Wrapper(index: index % 3, child: page);
-        }).toList(),
+      body: Stack(
+        children: [
+          // ---------- MOVING CAROUSEL (manual + auto) ----------
+          PageView(
+            controller: controller,
+            physics: const PageScrollPhysics(), // allows manual swipe
+            children: pages.map((page) {
+              int index = pages.indexOf(page);
+              return Wrapper(index: index % 3, child: page);
+            }).toList(),
+          ),
+
+          // ---------- FIXED CONTINUE BUTTON (lifted slightly) ----------
+          Positioned(
+            bottom: h * 0.10,   // <-- lifted a little from original place
+            left: 30,
+            right: 30,
+            child: ResponsiveButtons(),
+          ),
+        ],
       ),
     );
   }
@@ -73,7 +90,7 @@ class Wrapper extends StatelessWidget {
   final int index;
   final Widget child;
 
-  const Wrapper({required this.index, required this.child});
+  const Wrapper({super.key, required this.index, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -92,43 +109,46 @@ abstract class HasBottomCard {
 // ======================================================
 
 class SecondScreen extends StatelessWidget implements HasBottomCard {
+  const SecondScreen({super.key});
+
   @override
   Widget build(BuildContext context) => const SizedBox();
 
   @override
   Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final size = MediaQuery.of(context).size;
-      final h = size.height;
+    return Builder(
+      builder: (context) {
+        final h = MediaQuery.of(context).size.height;
 
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.10,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/face_grid.png",
-              height: h * 0.42,
-              fit: BoxFit.contain,
+        return Stack(
+          children: [
+            Positioned(
+              top: h * 0.10,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                "assets/images/face_grid.png",
+                height: h * 0.42,
+                fit: BoxFit.contain,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Attractiveness Index",
-              "Reveal your Aesthetic score with AI",
-              "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
-              pageIndex,
+            Positioned(
+              bottom: h * 0.06,
+              left: 0,
+              right: 0,
+              child: buildBottomCard(
+                context,
+                h,
+                "Skin Health Score",
+                "Reveal your Aesthetic score with AI",
+                "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
+                pageIndex,
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -137,42 +157,57 @@ class SecondScreen extends StatelessWidget implements HasBottomCard {
 // ======================================================
 
 class ThirdScreen extends StatelessWidget implements HasBottomCard {
+  const ThirdScreen({super.key});
+
   @override
   Widget build(BuildContext context) => const SizedBox();
 
   @override
   Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final h = MediaQuery.of(context).size.height;
+    return Builder(
+      builder: (context) {
+        final h = MediaQuery.of(context).size.height;
 
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.10,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/consultation.png",
-              height: h * 0.48,
-              fit: BoxFit.cover,
+        return Stack(
+          children: [
+            Positioned(
+              top: h * 0.10,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                "assets/images/consultation.png",
+                height: h * 0.42,
+                fit: BoxFit.contain,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Expert Consultation",
-              "Access premium aesthetic services",
-              "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
-              pageIndex,
+            Positioned(
+              bottom: h * 0.06,
+              left: 0,
+              right: 0,
+              child: buildBottomCard(
+                context,
+                h,
+                // OLD:
+                // "Expert Consultation",
+                // NEW:
+                "Guided Skin Consultation",
+                // OLD:
+                // "Access premium aesthetic services",
+                // NEW:
+                "Stay in control with clear, expert-backed next steps",
+                // OLD:
+                // "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
+                // NEW:
+                "Understand what matters first, then choose personalized guidance when you're ready.",
+                pageIndex,
+                secondaryTitle:
+                    "Simple insights first — deeper support only if you want it",
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -181,47 +216,63 @@ class ThirdScreen extends StatelessWidget implements HasBottomCard {
 // ======================================================
 
 class FourthScreen extends StatelessWidget implements HasBottomCard {
+  const FourthScreen({super.key});
+
   @override
   Widget build(BuildContext context) => const SizedBox();
 
   @override
   Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final h = MediaQuery.of(context).size.height;
+    return Builder(
+      builder: (context) {
+        final h = MediaQuery.of(context).size.height;
 
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.08,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/phone.png",
-              height: h * 0.50,
-              fit: BoxFit.cover,
+        return Stack(
+          children: [
+            Positioned(
+              top: h * 0.08,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                "assets/images/phone.png",
+                height: h * 0.50,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Personalized Report",
-              "Receive your full analysis on WhatsApp",
-              "Get a complete, easy-to-read report delivered instantly for your convenience.",
-              pageIndex,
+            Positioned(
+              bottom: h * 0.06,
+              left: 0,
+              right: 0,
+              child: buildBottomCard(
+                context,
+                h,
+                // OLD:
+                // "Personalized Report",
+                // NEW:
+                "Your face, explained clearly",
+                // OLD:
+                // "Receive your full analysis on WhatsApp",
+                // NEW:
+                "Your analysis is saved and shareable on WhatsApp",
+                // OLD:
+                // "Get a complete, easy-to-read report delivered instantly for your convenience.",
+                // NEW:
+                "Receive an easy-to-read report instantly — saved for you to revisit anytime.",
+                pageIndex,
+                // NEW sub-headline below main headline
+                secondaryTitle:
+                    "Get a clear summary first — explore details only if you want",
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
 // ======================================================
-// SHARED BOTTOM CARD (Responsive Hybrid)
+// SHARED BOTTOM CARD (NO BUTTON INSIDE NOW)
 // ======================================================
 
 Widget buildBottomCard(
@@ -230,7 +281,9 @@ Widget buildBottomCard(
   String title,
   String subtitle,
   String description,
-  int pageIndex,
+  int pageIndex, {
+  String? secondaryTitle,
+}
 ) {
   return Container(
     height: h * 0.45,
@@ -240,11 +293,7 @@ Widget buildBottomCard(
         topRight: Radius.circular(40),
       ),
       gradient: const LinearGradient(
-        colors: [
-          Color(0xFFD79096),
-          Color(0xFFEEC8CC),
-          Color(0x1FFFFFFF),
-        ],
+        colors: [Color(0xFFD79096), Color(0xFFEEC8CC), Color(0x1FFFFFFF)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ),
@@ -252,23 +301,50 @@ Widget buildBottomCard(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(title,
-            style: GoogleFonts.lora(
-                fontSize: 24, color: Colors.black, height: 1.1)),
+        Text(
+          title,
+          style: GoogleFonts.lora(
+            fontSize: 24,
+            color: Colors.black,
+            height: 1.1,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (secondaryTitle != null) ...[
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              secondaryTitle,
+              style: GoogleFonts.lora(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
         const SizedBox(height: 15),
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             children: [
-              Text(subtitle,
-                  style: GoogleFonts.lora(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center),
+              Text(
+                subtitle,
+                style: GoogleFonts.lora(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 10),
-              Text(description,
-                  style: GoogleFonts.lora(fontSize: 14, height: 1.35),
-                  textAlign: TextAlign.center),
+              Text(
+                description,
+                style: GoogleFonts.lora(fontSize: 14, height: 1.35),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -285,37 +361,30 @@ Widget buildBottomCard(
             dot(isActive: pageIndex == 2),
           ],
         ),
-
-        SizedBox(height: h * 0.05),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: ResponsiveButtons(),
-        ),
       ],
     ),
   );
 }
 
 // ======================================================
-// RESPONSIVE BUTTONS (Hybrid scaling)
+// RESPONSIVE BUTTON (FIXED & LIFTED)
 // ======================================================
 
 class ResponsiveButtons extends StatelessWidget {
+  const ResponsiveButtons({super.key});
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-
-    final buttonWidth = size.width * 0.27;
-    final buttonHeight = size.height * 0.047;
+    final buttonHeight = size.height * 0.052;
     final borderRadius = buttonHeight * 0.75;
 
     Widget buildButton(String label, {VoidCallback? onTap}) {
       return GestureDetector(
         onTap: onTap,
         child: Container(
-          width: buttonWidth,
           height: buttonHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           decoration: BoxDecoration(
             color: const Color(0xFFF1D9DB),
             borderRadius: BorderRadius.circular(borderRadius),
@@ -331,10 +400,14 @@ class ResponsiveButtons extends StatelessWidget {
           child: Center(
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
               style: GoogleFonts.lora(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF510808)),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+                color: const Color(0xFF510808),
+              ),
             ),
           ),
         ),
@@ -342,40 +415,52 @@ class ResponsiveButtons extends StatelessWidget {
     }
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Opacity(opacity: 0, child: buildButton("SKIP")),
-        buildButton("CONTINUE", onTap: () {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              transitionDuration: Duration(milliseconds: 200),
-              pageBuilder: (_, __, ___) => LoginScreen(),
-              transitionsBuilder: (_, animation, __, child) {
-                final tween = Tween(
-                        begin: Offset(1.0, 0.0), end: Offset.zero)
-                    .chain(CurveTween(curve: Curves.easeInOut));
-                return SlideTransition(
-                    position: animation.drive(tween), child: child);
-              },
-            ),
-          );
-        }),
+        buildButton(
+          // OLD:
+          // "CONTINUE",
+          // NEW:
+          "Next: Take the Scan",
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 200),
+                pageBuilder: (_, __, ___) =>
+                    const AnalysisTypeScreen(),
+                transitionsBuilder: (_, animation, __, child) {
+                  final tween = Tween(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).chain(CurveTween(curve: Curves.easeInOut));
+
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 }
 
 // ======================================================
-// DOT
+// DOT INDICATOR
 // ======================================================
 
 Widget dot({required bool isActive}) {
   return AnimatedContainer(
-    duration: Duration(milliseconds: 200),
+    duration: const Duration(milliseconds: 200),
     width: isActive ? 20 : 6,
     height: 6,
     decoration: BoxDecoration(
-      color: isActive ? Color(0xFF510808) : Colors.white.withOpacity(0.6),
+      color: isActive
+          ? const Color(0xFF510808)
+          : Colors.white.withOpacity(0.6),
       borderRadius: BorderRadius.circular(3),
     ),
   );

@@ -44,7 +44,6 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
-    final H = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFCE7E7),
