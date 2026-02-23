@@ -329,7 +329,7 @@ class AutoCaptureController {
       final fillReady =
         _faceFillRatio >= minFaceFillRatio && _faceFillRatio <= maxFaceFillRatio;
       final scalpFramingReady =
-        _faceCenterYRatio >= 0.54 && _faceCenterYRatio <= 0.80;
+        _faceCenterYRatio >= 0.52 && _faceCenterYRatio <= 0.82;
       final landmarkPoseReady = _isHairLandmarkPoseReady(landmarks);
       final manualReferenceReady = _matchesManualHairReference(
         hasValidPose: hasValidPose,
@@ -640,6 +640,28 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
 
+  double _calculateGuideSize(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final shortestSide = size.shortestSide;
+
+    // Keep the guide proportional across phones/tablets so capture framing
+    // remains visually consistent.
+    final responsiveSize = shortestSide * 0.72;
+    return responsiveSize.clamp(280.0, 520.0);
+  }
+
+  double _calculateGuideVerticalInset(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final responsiveInset = mediaQuery.size.height * 0.12;
+    return (responsiveInset + (mediaQuery.padding.top * 0.4)).clamp(100.0, 180.0);
+  }
+
+  double _calculateGuideHorizontalInset(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final responsiveInset = mediaQuery.size.width * 0.04;
+    return responsiveInset.clamp(16.0, 56.0);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -933,11 +955,15 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   /// Build the guidance overlay widget
   Widget _buildGuidanceOverlay() {
+    final guideSize = _calculateGuideSize(context);
+    final verticalInset = _calculateGuideVerticalInset(context);
+    final horizontalInset = _calculateGuideHorizontalInset(context);
+
     return Positioned(
-      top: 120,
-      bottom: 120,
-      left: 16,
-      right: 16,
+      top: verticalInset,
+      bottom: verticalInset,
+      left: horizontalInset,
+      right: horizontalInset,
       child: Center(
         child: AutoCaptureGuideWidget(
           currentPitch: _autoCaptureController.currentPitch,
@@ -952,7 +978,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
           isHairMode: widget.isHair,
           faceFillRatio: _autoCaptureController.faceFillRatio,
           captureTimerMs: _autoCaptureController.captureTimerMs,
-          guideSize: 280,
+          guideSize: guideSize,
         ),
       ),
     );

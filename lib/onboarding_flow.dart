@@ -176,8 +176,8 @@ class ThirdScreen extends StatelessWidget implements HasBottomCard {
               right: 0,
               child: Image.asset(
                 "assets/images/consultation.png",
-                height: h * 0.48,
-                fit: BoxFit.cover,
+                height: h * 0.42,
+                fit: BoxFit.contain,
               ),
             ),
             Positioned(
@@ -187,10 +187,21 @@ class ThirdScreen extends StatelessWidget implements HasBottomCard {
               child: buildBottomCard(
                 context,
                 h,
-                "Expert Consultation",
-                "Access premium aesthetic services",
-                "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
+                // OLD:
+                // "Expert Consultation",
+                // NEW:
+                "Guided Skin Consultation",
+                // OLD:
+                // "Access premium aesthetic services",
+                // NEW:
+                "Stay in control with clear, expert-backed next steps",
+                // OLD:
+                // "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
+                // NEW:
+                "Understand what matters first, then choose personalized guidance when you're ready.",
                 pageIndex,
+                secondaryTitle:
+                    "Simple insights first — deeper support only if you want it",
               ),
             ),
           ],
@@ -235,10 +246,22 @@ class FourthScreen extends StatelessWidget implements HasBottomCard {
               child: buildBottomCard(
                 context,
                 h,
-                "Personalized Report",
-                "Receive your full analysis on WhatsApp",
-                "Get a complete, easy-to-read report delivered instantly for your convenience.",
+                // OLD:
+                // "Personalized Report",
+                // NEW:
+                "Your face, explained clearly",
+                // OLD:
+                // "Receive your full analysis on WhatsApp",
+                // NEW:
+                "Your analysis is saved and shareable on WhatsApp",
+                // OLD:
+                // "Get a complete, easy-to-read report delivered instantly for your convenience.",
+                // NEW:
+                "Receive an easy-to-read report instantly — saved for you to revisit anytime.",
                 pageIndex,
+                // NEW sub-headline below main headline
+                secondaryTitle:
+                    "Get a clear summary first — explore details only if you want",
               ),
             ),
           ],
@@ -258,7 +281,9 @@ Widget buildBottomCard(
   String title,
   String subtitle,
   String description,
-  int pageIndex,
+  int pageIndex, {
+  String? secondaryTitle,
+}
 ) {
   return Container(
     height: h * 0.45,
@@ -283,7 +308,23 @@ Widget buildBottomCard(
             color: Colors.black,
             height: 1.1,
           ),
+          textAlign: TextAlign.center,
         ),
+        if (secondaryTitle != null) ...[
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              secondaryTitle,
+              style: GoogleFonts.lora(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
         const SizedBox(height: 15),
 
         Padding(
@@ -377,7 +418,10 @@ class ResponsiveButtons extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         buildButton(
-          "CONTINUE",
+          // OLD:
+          // "CONTINUE",
+          // NEW:
+          "Next: Take the Scan",
           onTap: () {
             Navigator.of(context).push(
               PageRouteBuilder(
