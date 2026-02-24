@@ -1,382 +1,783 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:google_fonts/google_fonts.dart';
-import 'login_screens.dart';
+import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 
-class OnboardingFlow extends StatefulWidget {
+class OnboardingFlow extends StatelessWidget {
+  const OnboardingFlow({super.key});
+
   @override
-  _OnboardingFlowState createState() => _OnboardingFlowState();
+  Widget build(BuildContext context) {
+    return const _PostIntroExplanationScreen();
+  }
 }
 
-class _OnboardingFlowState extends State<OnboardingFlow> {
-  late PageController controller;
-  int currentPage = 0;
+// ======================================================
+// POST-INTRO EXPLANATION SCREEN
+// ======================================================
 
-  final List<Widget> pages = [];
+class _PostIntroExplanationScreen extends StatefulWidget {
+  const _PostIntroExplanationScreen();
+
+  @override
+  State<_PostIntroExplanationScreen> createState() =>
+      _PostIntroExplanationScreenState();
+}
+
+class _PostIntroExplanationScreenState
+    extends State<_PostIntroExplanationScreen>
+    with TickerProviderStateMixin {
+  late final AnimationController _glowController;
+  late final AnimationController _shimmerController;
+  late final AnimationController _scanController;
+  late final Animation<double> _glowAnim;
+  late final Animation<double> _shimmerAnim;
+  late final Animation<double> _scanAnim;
+  bool _ctaPressed = false;
 
   @override
   void initState() {
     super.initState();
 
-    controller = PageController();
+    // Glow pulse — 3s cycle
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat(reverse: true);
+    _glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
 
-    pages.addAll([
-      SecondScreen(),
-      ThirdScreen(),
-      FourthScreen(),
-      SecondScreen(), // duplicate for looping
-    ]);
+    // Shimmer scan — 4s cycle
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    )..repeat();
+    _shimmerAnim = Tween<double>(begin: -0.3, end: 1.3).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
 
-    controller.addListener(() {
-      if (!controller.hasClients) return;
-      setState(() {
-        currentPage = controller.page!.round() % 3;
-      });
-    });
+    // Scan line sweep — 3.5s cycle, sweeps top to bottom
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3500),
+    )..repeat();
+    _scanAnim = Tween<double>(begin: -0.1, end: 1.1).animate(
+      CurvedAnimation(parent: _scanController, curve: Curves.linear),
+    );
+  }
 
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return false;
+  @override
+  void dispose() {
+    _glowController.dispose();
+    _shimmerController.dispose();
+    _scanController.dispose();
+    super.dispose();
+  }
 
-      int next = (controller.page ?? 0).round() + 1;
-
-      controller.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-      );
-
-      if (next == 3) {
-        await Future.delayed(const Duration(milliseconds: 360));
-        controller.jumpToPage(0);
-      }
-
-      return true;
-    });
+  void _navigateToAnalysis() {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (_, __, ___) => const AnalysisTypeScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          final tween = Tween(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeInOut));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+
+    const Color lowMutedText = Color(0xFFA89B93);
+    const Color headlineText = Color(0xFF3A2A22);
+    const Color mutedText = Color(0xFF8A7A72);
+
     return Scaffold(
-      body: PageView(
-        controller: controller,
-        physics: const NeverScrollableScrollPhysics(),
-        children: pages.map((page) {
-          int index = pages.indexOf(page);
-          return Wrapper(index: index % 3, child: page);
-        }).toList(),
+      backgroundColor: const Color(0xFFF9F0EC),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFF5E6E0),
+              Color(0xFFF9F0EC),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
+
+                // ── 1. MICRO LABEL ──
+                Text(
+                  'AI FACIAL ANALYSIS',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lora(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2.0,
+                    color: lowMutedText,
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+
+                // ── 2. HEADLINE (bigger, more breathing room) ──
+                Text(
+                  'Understand what your skin\nand facial structure reveal.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lora(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: headlineText,
+                  ),
+                ),
+
+                const Spacer(flex: 1),
+
+                // ── 3. SUBTEXT (lower opacity, tighter) ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'Your personalized report includes clinically referenced '
+                    'skin indicators and facial proportion analysis.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.lora(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      color: mutedText.withValues(alpha: 0.70),
+                    ),
+                  ),
+                ),
+
+                const Spacer(flex: 3),
+
+                // ── 4. ANIMATED FACE IMAGE ──
+                _AnimatedFaceImage(
+                  height: h * 0.36,
+                  glowAnim: _glowAnim,
+                  shimmerAnim: _shimmerAnim,
+                  scanAnim: _scanAnim,
+                ),
+
+                const Spacer(flex: 3),
+
+                // ── 5. VALUE BLOCKS (soft card style) ──
+                const _OnboardingValueCard(
+                  icon: Icons.health_and_safety_outlined,
+                  title: 'Skin Health Index',
+                  description:
+                      'A structured visual analysis of hydration, pigmentation, acne activity, pore visibility, and visible aging patterns',
+                  hookLine:
+                      'See where your skin stands today \u2014 and what may need attention.',
+                ),
+                SizedBox(height: h * 0.012),
+                const _OnboardingValueCard(
+                  icon: Icons.balance_outlined,
+                  title: 'Facial Symmetry Mapping',
+                  description:
+                      'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
+                  hookLine:
+                      'Discover how your natural proportions compare to ideal structural ratios.',
+                ),
+
+                const Spacer(flex: 3),
+
+                const Spacer(flex: 2),
+
+                // ── 7. CTA BUTTON (deeper rose, glow halo, tap scale) ──
+                GestureDetector(
+                  onTapDown: (_) => setState(() => _ctaPressed = true),
+                  onTapUp: (_) {
+                    setState(() => _ctaPressed = false);
+                    _navigateToAnalysis();
+                  },
+                  onTapCancel: () => setState(() => _ctaPressed = false),
+                  child: AnimatedScale(
+                    scale: _ctaPressed ? 0.96 : 1.0,
+                    duration: const Duration(milliseconds: 120),
+                    curve: Curves.easeOut,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE4B3B8),
+                        borderRadius: BorderRadius.circular(40),
+                        border: Border.all(
+                          color: const Color(0xFFE0B5BA),
+                          width: 0.6,
+                        ),
+                        boxShadow: [
+                          // Outer glow halo
+                          BoxShadow(
+                            color: const Color(0xFFD79096).withValues(alpha: 0.10),
+                            blurRadius: 14,
+                            spreadRadius: 1,
+                          ),
+                          // Drop shadow
+                          const BoxShadow(
+                            color: Color(0x14A6553F),
+                            offset: Offset(0, 3),
+                            blurRadius: 8,
+                          ),
+                        ],
+                        // Inset-like highlight via gradient
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color(0xFFF2D5D8), // softer top
+                            Color(0xFFEAC0C5), // softer bottom
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Create My Analysis Profile',
+                          style: GoogleFonts.lora(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                            color: const Color(0xFF7A3030),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const Spacer(flex: 1),
+
+                // ── 8. SECONDARY LINK ──
+                GestureDetector(
+                  onTap: () {
+                    // Wire to existing retrieve-report flow when ready
+                  },
+                  child: Text(
+                    'Already logged in?',
+                    style: GoogleFonts.lora(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: lowMutedText,
+                    ),
+                  ),
+                ),
+
+                const Spacer(flex: 3),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class Wrapper extends StatelessWidget {
-  final int index;
-  final Widget child;
+// ======================================================
+// ANIMATED FACE IMAGE — triangulated face mesh overlay
+// ======================================================
 
-  const Wrapper({required this.index, required this.child});
+class _AnimatedFaceImage extends StatelessWidget {
+  const _AnimatedFaceImage({
+    required this.height,
+    required this.glowAnim,
+    required this.shimmerAnim,
+    required this.scanAnim,
+  });
+
+  final double height;
+  final Animation<double> glowAnim;
+  final Animation<double> shimmerAnim;
+  final Animation<double> scanAnim;
 
   @override
   Widget build(BuildContext context) {
-    return child is HasBottomCard
-        ? (child as HasBottomCard).withPageIndex(index)
-        : child;
-  }
-}
+    final double frameW = height * 0.78;
 
-abstract class HasBottomCard {
-  Widget withPageIndex(int index);
-}
-
-// ======================================================
-// SCREEN 1 — ATTRACTIVENESS INDEX
-// ======================================================
-
-class SecondScreen extends StatelessWidget implements HasBottomCard {
-  @override
-  Widget build(BuildContext context) => const SizedBox();
-
-  @override
-  Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final size = MediaQuery.of(context).size;
-      final h = size.height;
-
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.10,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/face_grid.png",
-              height: h * 0.42,
-              fit: BoxFit.contain,
-            ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Attractiveness Index",
-              "Reveal your Aesthetic score with AI",
-              "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
-              pageIndex,
-            ),
-          ),
-        ],
-      );
-    });
-  }
-}
-
-// ======================================================
-// SCREEN 2 — CONSULTATION
-// ======================================================
-
-class ThirdScreen extends StatelessWidget implements HasBottomCard {
-  @override
-  Widget build(BuildContext context) => const SizedBox();
-
-  @override
-  Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final h = MediaQuery.of(context).size.height;
-
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.10,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/consultation.png",
-              height: h * 0.48,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Expert Consultation",
-              "Access premium aesthetic services",
-              "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
-              pageIndex,
-            ),
-          ),
-        ],
-      );
-    });
-  }
-}
-
-// ======================================================
-// SCREEN 3 — REPORT
-// ======================================================
-
-class FourthScreen extends StatelessWidget implements HasBottomCard {
-  @override
-  Widget build(BuildContext context) => const SizedBox();
-
-  @override
-  Widget withPageIndex(int pageIndex) {
-    return Builder(builder: (context) {
-      final h = MediaQuery.of(context).size.height;
-
-      return Stack(
-        children: [
-          Positioned(
-            top: h * 0.08,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              "assets/images/phone.png",
-              height: h * 0.50,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned(
-            bottom: h * 0.06,
-            left: 0,
-            right: 0,
-            child: buildBottomCard(
-              context,
-              h,
-              "Personalized Report",
-              "Receive your full analysis on WhatsApp",
-              "Get a complete, easy-to-read report delivered instantly for your convenience.",
-              pageIndex,
-            ),
-          ),
-        ],
-      );
-    });
-  }
-}
-
-// ======================================================
-// SHARED BOTTOM CARD (Responsive Hybrid)
-// ======================================================
-
-Widget buildBottomCard(
-  BuildContext context,
-  double h,
-  String title,
-  String subtitle,
-  String description,
-  int pageIndex,
-) {
-  return Container(
-    height: h * 0.45,
-    decoration: BoxDecoration(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(40),
-        topRight: Radius.circular(40),
-      ),
-      gradient: const LinearGradient(
-        colors: [
-          Color(0xFFD79096),
-          Color(0xFFEEC8CC),
-          Color(0x1FFFFFFF),
-        ],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ),
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(title,
-            style: GoogleFonts.lora(
-                fontSize: 24, color: Colors.black, height: 1.1)),
-        const SizedBox(height: 15),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
+    return AnimatedBuilder(
+      animation: Listenable.merge([glowAnim, shimmerAnim, scanAnim]),
+      builder: (context, _) {
+        return SizedBox(
+          height: height,
+          width: frameW + 32,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Text(subtitle,
-                  style: GoogleFonts.lora(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 10),
-              Text(description,
-                  style: GoogleFonts.lora(fontSize: 14, height: 1.35),
-                  textAlign: TextAlign.center),
-            ],
-          ),
-        ),
+              // Face image underneath
+              Image.asset(
+                'assets/images/face_outline.png',
+                height: height * 0.92,
+                fit: BoxFit.contain,
+              ),
 
-        const SizedBox(height: 20),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            dot(isActive: pageIndex == 0),
-            const SizedBox(width: 6),
-            dot(isActive: pageIndex == 1),
-            const SizedBox(width: 6),
-            dot(isActive: pageIndex == 2),
-          ],
-        ),
-
-        SizedBox(height: h * 0.05),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: ResponsiveButtons(),
-        ),
-      ],
-    ),
-  );
-}
-
-// ======================================================
-// RESPONSIVE BUTTONS (Hybrid scaling)
-// ======================================================
-
-class ResponsiveButtons extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    final buttonWidth = size.width * 0.27;
-    final buttonHeight = size.height * 0.047;
-    final borderRadius = buttonHeight * 0.75;
-
-    Widget buildButton(String label, {VoidCallback? onTap}) {
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: buttonWidth,
-          height: buttonHeight,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1D9DB),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: const Color(0xFFD79096), width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x6BA6553F),
-                offset: Offset(0, 10),
-                blurRadius: 4,
+              // Triangulated face mesh on top
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _FaceMeshPainter(
+                    glowValue: glowAnim.value,
+                    pulseValue: shimmerAnim.value,
+                    scanLineY: scanAnim.value,
+                  ),
+                ),
               ),
             ],
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: GoogleFonts.lora(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF510808)),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Opacity(opacity: 0, child: buildButton("SKIP")),
-        buildButton("CONTINUE", onTap: () {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              transitionDuration: Duration(milliseconds: 200),
-              pageBuilder: (_, __, ___) => LoginScreen(),
-              transitionsBuilder: (_, animation, __, child) {
-                final tween = Tween(
-                        begin: Offset(1.0, 0.0), end: Offset.zero)
-                    .chain(CurveTween(curve: Curves.easeInOut));
-                return SlideTransition(
-                    position: animation.drive(tween), child: child);
-              },
-            ),
-          );
-        }),
-      ],
+        );
+      },
     );
   }
 }
 
+// ── Triangulated face mesh painter ──
+class _FaceMeshPainter extends CustomPainter {
+  _FaceMeshPainter({
+    required this.glowValue,
+    required this.pulseValue,
+    required this.scanLineY,
+  });
+
+  final double glowValue;
+  final double pulseValue;
+
+  // Brighter mesh colors for better visibility
+  static const Color _lineColor = Color(0xFFD4A59E);
+  static const Color _lineHighlightColor = Color(0xFFF5C8BF);
+  static const Color _nodeColor = Color(0xFFF0DDD6);
+  static const Color _nodeHighlightColor = Color(0xFFFFEDE8);
+  static const Color _glowColor = Color(0xFFE8C8BE);
+  static const Color _scanLineColor = Color(0xFFD4A59E);
+
+  // All vertex positions as [relX, relY] within the painted area.
+  // Coordinates: 0.5 = center X, 0.0 = top, 1.0 = bottom.
+  static const List<List<double>> _v = [
+    // Row 0: Crown (top of head)
+    [0.50, 0.06], // 0
+
+    // Row 1: Upper forehead
+    [0.36, 0.10], // 1
+    [0.50, 0.10], // 2
+    [0.64, 0.10], // 3
+
+    // Row 2: Mid forehead
+    [0.26, 0.16], // 4
+    [0.38, 0.15], // 5
+    [0.50, 0.15], // 6
+    [0.62, 0.15], // 7
+    [0.74, 0.16], // 8
+
+    // Row 3: Lower forehead / brow
+    [0.22, 0.22], // 9
+    [0.33, 0.21], // 10
+    [0.42, 0.21], // 11
+    [0.50, 0.20], // 12
+    [0.58, 0.21], // 13
+    [0.67, 0.21], // 14
+    [0.78, 0.22], // 15
+
+    // Row 4: Eyes level
+    [0.18, 0.29], // 16 - left temple
+    [0.28, 0.28], // 17 - left eye outer
+    [0.35, 0.27], // 18 - left eye top
+    [0.41, 0.28], // 19 - left eye inner
+    [0.50, 0.28], // 20 - between eyes
+    [0.59, 0.28], // 21 - right eye inner
+    [0.65, 0.27], // 22 - right eye top
+    [0.72, 0.28], // 23 - right eye outer
+    [0.82, 0.29], // 24 - right temple
+
+    // Row 5: Below eyes
+    [0.17, 0.35], // 25
+    [0.28, 0.33], // 26 - left eye bottom outer
+    [0.35, 0.32], // 27 - left eye bottom
+    [0.42, 0.33], // 28 - left eye bottom inner
+    [0.50, 0.34], // 29 - nose bridge
+    [0.58, 0.33], // 30 - right eye bottom inner
+    [0.65, 0.32], // 31 - right eye bottom
+    [0.72, 0.33], // 32 - right eye bottom outer
+    [0.83, 0.35], // 33
+
+    // Row 6: Nose / upper cheeks
+    [0.18, 0.42], // 34
+    [0.30, 0.40], // 35 - left cheek upper
+    [0.42, 0.40], // 36
+    [0.50, 0.41], // 37 - nose mid
+    [0.58, 0.40], // 38
+    [0.70, 0.40], // 39 - right cheek upper
+    [0.82, 0.42], // 40
+
+    // Row 7: Nose tip / mid cheeks
+    [0.20, 0.49], // 41
+    [0.32, 0.47], // 42
+    [0.42, 0.46], // 43 - left nostril
+    [0.50, 0.48], // 44 - nose tip
+    [0.58, 0.46], // 45 - right nostril
+    [0.68, 0.47], // 46
+    [0.80, 0.49], // 47
+
+    // Row 8: Upper lip / lower cheeks
+    [0.22, 0.56], // 48
+    [0.34, 0.54], // 49
+    [0.42, 0.53], // 50 - left mouth area
+    [0.50, 0.52], // 51 - upper lip center
+    [0.58, 0.53], // 52 - right mouth area
+    [0.66, 0.54], // 53
+    [0.78, 0.56], // 54
+
+    // Row 9: Mouth
+    [0.24, 0.62], // 55
+    [0.36, 0.60], // 56 - left mouth corner
+    [0.43, 0.58], // 57 - upper lip left
+    [0.50, 0.57], // 58 - upper lip center
+    [0.57, 0.58], // 59 - upper lip right
+    [0.64, 0.60], // 60 - right mouth corner
+    [0.76, 0.62], // 61
+
+    // Row 10: Below mouth / lower lip
+    [0.26, 0.68], // 62
+    [0.37, 0.66], // 63
+    [0.44, 0.64], // 64 - lower lip left
+    [0.50, 0.65], // 65 - lower lip center
+    [0.56, 0.64], // 66 - lower lip right
+    [0.63, 0.66], // 67
+    [0.74, 0.68], // 68
+
+    // Row 11: Jaw
+    [0.30, 0.74], // 69
+    [0.40, 0.72], // 70
+    [0.50, 0.73], // 71 - chin upper
+    [0.60, 0.72], // 72
+    [0.70, 0.74], // 73
+
+    // Row 12: Lower jaw
+    [0.35, 0.80], // 74
+    [0.50, 0.80], // 75 - chin mid
+    [0.65, 0.80], // 76
+
+    // Row 13: Chin
+    [0.42, 0.86], // 77
+    [0.50, 0.87], // 78 - chin tip
+    [0.58, 0.86], // 79
+  ];
+
+  // Edge connections [from, to] forming triangulated mesh
+  static const List<List<int>> _edges = [
+    // Crown to upper forehead
+    [0, 1], [0, 2], [0, 3],
+    // Upper forehead horizontal + down
+    [1, 2], [2, 3],
+    [1, 4], [1, 5], [2, 5], [2, 6], [2, 7], [3, 7], [3, 8],
+    // Mid forehead
+    [4, 5], [5, 6], [6, 7], [7, 8],
+    [4, 9], [4, 10], [5, 10], [5, 11], [6, 11], [6, 12], [6, 13],
+    [7, 13], [7, 14], [8, 14], [8, 15],
+    // Lower forehead
+    [9, 10], [10, 11], [11, 12], [12, 13], [13, 14], [14, 15],
+    [9, 16], [9, 17], [10, 17], [10, 18], [11, 18], [11, 19],
+    [12, 19], [12, 20], [13, 20], [13, 21], [14, 21], [14, 22],
+    [15, 22], [15, 23], [15, 24],
+    // Eyes row
+    [16, 17], [17, 18], [18, 19], [19, 20], [20, 21], [21, 22],
+    [22, 23], [23, 24],
+    // Eyes to below-eyes
+    [16, 25], [16, 26], [17, 26], [17, 27], [18, 27], [18, 28],
+    [19, 28], [19, 29], [20, 29], [21, 29], [21, 30], [22, 30],
+    [22, 31], [23, 31], [23, 32], [24, 32], [24, 33],
+    // Below eyes
+    [25, 26], [26, 27], [27, 28], [28, 29], [29, 30], [30, 31],
+    [31, 32], [32, 33],
+    // Below-eyes to nose/cheeks
+    [25, 34], [25, 35], [26, 35], [27, 35], [27, 36], [28, 36],
+    [29, 36], [29, 37], [29, 38], [30, 38], [31, 38], [31, 39],
+    [32, 39], [33, 39], [33, 40],
+    // Nose/cheeks
+    [34, 35], [35, 36], [36, 37], [37, 38], [38, 39], [39, 40],
+    // Nose/cheeks to nose-tip row
+    [34, 41], [34, 42], [35, 42], [36, 42], [36, 43], [37, 43],
+    [37, 44], [37, 45], [38, 45], [38, 46], [39, 46], [40, 46],
+    [40, 47],
+    // Nose tip row
+    [41, 42], [42, 43], [43, 44], [44, 45], [45, 46], [46, 47],
+    // To upper lip row
+    [41, 48], [41, 49], [42, 49], [43, 49], [43, 50], [44, 50],
+    [44, 51], [44, 52], [45, 52], [45, 53], [46, 53], [47, 53],
+    [47, 54],
+    // Upper lip row
+    [48, 49], [49, 50], [50, 51], [51, 52], [52, 53], [53, 54],
+    // To mouth row
+    [48, 55], [48, 56], [49, 56], [50, 56], [50, 57], [51, 57],
+    [51, 58], [51, 59], [52, 59], [52, 60], [53, 60], [54, 60],
+    [54, 61],
+    // Mouth row
+    [55, 56], [56, 57], [57, 58], [58, 59], [59, 60], [60, 61],
+    // To below mouth
+    [55, 62], [55, 63], [56, 63], [57, 63], [57, 64], [58, 64],
+    [58, 65], [58, 66], [59, 66], [59, 67], [60, 67], [61, 67],
+    [61, 68],
+    // Below mouth row
+    [62, 63], [63, 64], [64, 65], [65, 66], [66, 67], [67, 68],
+    // To jaw
+    [62, 69], [63, 69], [63, 70], [64, 70], [65, 70], [65, 71],
+    [65, 72], [66, 72], [67, 72], [67, 73], [68, 73],
+    // Jaw
+    [69, 70], [70, 71], [71, 72], [72, 73],
+    // To lower jaw
+    [69, 74], [70, 74], [70, 75], [71, 75], [72, 75], [72, 76],
+    [73, 76],
+    // Lower jaw
+    [74, 75], [75, 76],
+    // To chin
+    [74, 77], [75, 77], [75, 78], [75, 79], [76, 79],
+    // Chin
+    [77, 78], [78, 79],
+  ];
+  
+  final double scanLineY;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // Convert relative vertices to actual pixel positions
+    final points = _v
+        .map((v) => Offset(v[0] * w, v[1] * h))
+        .toList(growable: false);
+
+    // Compute per-vertex proximity to scan line (0.0 = far, 1.0 = on the line)
+    final scanProximity = <double>[];
+    for (final v in _v) {
+      final dist = (v[1] - scanLineY).abs();
+      // Highlight zone is ~12% of height band around scan line
+      scanProximity.add((1.0 - (dist / 0.12)).clamp(0.0, 1.0));
+    }
+
+    _drawEdges(canvas, points, scanProximity);
+    _drawScanLine(canvas, w, h);
+    _drawNodes(canvas, points, scanProximity);
+  }
+
+  void _drawScanLine(Canvas canvas, double w, double h) {
+    // Only draw when scan line is in visible range
+    if (scanLineY < 0.0 || scanLineY > 1.0) return;
+
+    final y = scanLineY * h;
+    final centerX = w * 0.5;
+
+    // Main scan line — wide, soft glow
+    final scanPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          _scanLineColor.withValues(alpha: 0.0),
+          _scanLineColor.withValues(alpha: 0.35),
+          _scanLineColor.withValues(alpha: 0.50),
+          _scanLineColor.withValues(alpha: 0.35),
+          _scanLineColor.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+      ).createShader(Rect.fromCenter(
+        center: Offset(centerX, y),
+        width: w * 0.8,
+        height: 1,
+      ))
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(
+      Offset(w * 0.12, y),
+      Offset(w * 0.88, y),
+      scanPaint,
+    );
+
+    // Soft glow band around scan line
+    final glowBandPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _scanLineColor.withValues(alpha: 0.0),
+          _scanLineColor.withValues(alpha: 0.06),
+          _scanLineColor.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromLTWH(0, y - 20, w, 40));
+    canvas.drawRect(Rect.fromLTWH(0, y - 20, w, 40), glowBandPaint);
+  }
+
+  void _drawEdges(Canvas canvas, List<Offset> points, List<double> scanProximity) {
+    for (final edge in _edges) {
+      final a = edge[0];
+      final b = edge[1];
+
+      // Average proximity of both endpoints to scan line
+      final proximity = (scanProximity[a] + scanProximity[b]) / 2.0;
+
+      // Base alpha + boost near scan line
+      final baseAlpha = 0.25 + 0.10 * glowValue;
+      final highlightBoost = proximity * 0.50;
+      final alpha = (baseAlpha + highlightBoost).clamp(0.0, 1.0);
+
+      // Interpolate color toward highlight near scan line
+      final color = Color.lerp(_lineColor, _lineHighlightColor, proximity)!;
+
+      final paint = Paint()
+        ..color = color.withValues(alpha: alpha)
+        ..strokeWidth = 0.7 + proximity * 0.8
+        ..style = PaintingStyle.stroke;
+
+      // Add glow to edges near scan line
+      if (proximity > 0.3) {
+        final glowEdgePaint = Paint()
+          ..color = _glowColor.withValues(alpha: (proximity * 0.15).clamp(0.0, 1.0))
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+        canvas.drawLine(points[a], points[b], glowEdgePaint);
+      }
+
+      canvas.drawLine(points[a], points[b], paint);
+    }
+  }
+
+  void _drawNodes(Canvas canvas, List<Offset> points, List<double> scanProximity) {
+    for (int i = 0; i < points.length; i++) {
+      final p = points[i];
+      final proximity = scanProximity[i];
+
+      // Staggered pulse per node
+      final phase = (glowValue + i * 0.013) % 1.0;
+      final pulse = math.sin(phase * math.pi);
+
+      // Base visibility + scan line boost
+      final baseAlpha = 0.40 + 0.25 * pulse;
+      final scanBoost = proximity * 0.45;
+      final nodeAlpha = (baseAlpha + scanBoost).clamp(0.0, 1.0);
+
+      // Radius grows near scan line
+      final baseRadius = 1.8 + 0.5 * pulse;
+      final radius = baseRadius + proximity * 1.8;
+
+      // Pick color — bright highlight near scan line
+      final nodeCol = Color.lerp(_nodeColor, _nodeHighlightColor, proximity)!;
+
+      // Outer glow halo — bigger near scan line
+      final glowRadius = radius + 2.0 + proximity * 3.0;
+      final glowAlpha = (nodeAlpha * (0.25 + proximity * 0.25)).clamp(0.0, 1.0);
+      final glowPaint = Paint()
+        ..color = _glowColor.withValues(alpha: glowAlpha)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3.0 + proximity * 3.0);
+      canvas.drawCircle(p, glowRadius, glowPaint);
+
+      // Solid bright dot
+      final dotPaint = Paint()
+        ..color = nodeCol.withValues(alpha: nodeAlpha);
+      canvas.drawCircle(p, radius, dotPaint);
+
+      // Extra bright center for nodes near scan line
+      if (proximity > 0.5) {
+        final brightCenter = Paint()
+          ..color = Colors.white.withValues(alpha: (proximity * 0.5).clamp(0.0, 1.0));
+        canvas.drawCircle(p, radius * 0.4, brightCenter);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FaceMeshPainter oldDelegate) => true;
+}
+
 // ======================================================
-// DOT
+// VALUE CARD — soft tinted background, rounded, no border
 // ======================================================
 
-Widget dot({required bool isActive}) {
-  return AnimatedContainer(
-    duration: Duration(milliseconds: 200),
-    width: isActive ? 20 : 6,
-    height: 6,
-    decoration: BoxDecoration(
-      color: isActive ? Color(0xFF510808) : Colors.white.withOpacity(0.6),
-      borderRadius: BorderRadius.circular(3),
-    ),
-  );
+class _OnboardingValueCard extends StatelessWidget {
+  const _OnboardingValueCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.hookLine,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final String? hookLine;
+
+  @override
+  Widget build(BuildContext context) {
+    const Color titleColor = Color(0xFF3A2A22);
+    const Color descColor = Color(0xFF8A7A72);
+    const Color iconColor = Color(0xFF8A7A72);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD79096).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 18, color: iconColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.lora(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: titleColor,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: GoogleFonts.lora(
+                    fontSize: 11,
+                    height: 1.4,
+                    color: descColor,
+                  ),
+                ),
+                if (hookLine != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    hookLine!,
+                    style: GoogleFonts.lora(
+                      fontSize: 10.5,
+                      fontStyle: FontStyle.italic,
+                      height: 1.35,
+                      color: const Color(0xFFA89B93),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+
