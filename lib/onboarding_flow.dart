@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
+import 'package:skin_analysis_app/screens/LoginPage.dart';
+import 'package:skin_analysis_app/screens/already_login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingFlow extends StatelessWidget {
   const OnboardingFlow({super.key});
@@ -39,28 +42,28 @@ class _PostIntroExplanationScreenState
   void initState() {
     super.initState();
 
-    // Glow pulse — 3s cycle
+    // Glow pulse — 1s cycle (faster)
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
     _glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
 
-    // Shimmer scan — 4s cycle
+    // Shimmer scan — 1.2s cycle (faster)
     _shimmerController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4000),
+      duration: const Duration(milliseconds: 1200),
     )..repeat();
     _shimmerAnim = Tween<double>(begin: -0.3, end: 1.3).animate(
       CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
     );
 
-    // Scan line sweep — 3.5s cycle, sweeps top to bottom
+    // Scan line sweep — 1s cycle (faster)
     _scanController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3500),
+      duration: const Duration(milliseconds: 1000),
     )..repeat();
     _scanAnim = Tween<double>(begin: -0.1, end: 1.1).animate(
       CurvedAnimation(parent: _scanController, curve: Curves.linear),
@@ -75,10 +78,26 @@ class _PostIntroExplanationScreenState
     super.dispose();
   }
 
-  void _navigateToAnalysis() {
-    Navigator.of(context).push(
+  Future<void> _navigateToAnalysis() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
+    if (!isLoggedIn) {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+      if (result == true) {
+        _goToAnalysisType();
+      }
+    } else {
+      _goToAnalysisType();
+    }
+  }
+
+  void _goToAnalysisType() {
+    Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 200),
+        transitionDuration: const Duration(milliseconds: 80),
         pageBuilder: (_, __, ___) => const AnalysisTypeScreen(),
         transitionsBuilder: (_, animation, __, child) {
           final tween = Tween(
@@ -140,7 +159,7 @@ class _PostIntroExplanationScreenState
 
                 // ── 2. HEADLINE (bigger, more breathing room) ──
                 Text(
-                  'Understand what your skin\nand facial structure reveal.',
+                  'Understand what is happening beneath your skin',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.lora(
                     fontSize: 26,
@@ -180,22 +199,26 @@ class _PostIntroExplanationScreenState
                 const Spacer(flex: 3),
 
                 // ── 5. VALUE BLOCKS (soft card style) ──
-                const _OnboardingValueCard(
+                _OnboardingValueCard(
                   icon: Icons.health_and_safety_outlined,
                   title: 'Skin Health Index',
                   description:
-                      'A structured visual analysis of hydration, pigmentation, acne activity, pore visibility, and visible aging patterns',
+                    'A structured visual analysis of hydration, pigmentation, acne activity, pore visibility, and visible aging patterns',
                   hookLine:
-                      'See where your skin stands today \u2014 and what may need attention.',
+                    'See where your skin stands today \u2014 and what may need attention.',
+                  backgroundColor: null,
+                  titleColor: const Color(0xFFD79096),
                 ),
                 SizedBox(height: h * 0.012),
-                const _OnboardingValueCard(
+                _OnboardingValueCard(
                   icon: Icons.balance_outlined,
                   title: 'Facial Symmetry Mapping',
                   description:
-                      'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
+                    'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
                   hookLine:
-                      'Discover how your natural proportions compare to ideal structural ratios.',
+                    'Discover how your natural proportions compare to ideal structural ratios.',
+                  backgroundColor: null,
+                  titleColor: const Color(0xFFD79096),
                 ),
 
                 const Spacer(flex: 3),
@@ -266,19 +289,7 @@ class _PostIntroExplanationScreenState
                 const Spacer(flex: 1),
 
                 // ── 8. SECONDARY LINK ──
-                GestureDetector(
-                  onTap: () {
-                    // Wire to existing retrieve-report flow when ready
-                  },
-                  child: Text(
-                    'Already logged in?',
-                    style: GoogleFonts.lora(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: lowMutedText,
-                    ),
-                  ),
-                ),
+                // ...existing code...
 
                 const Spacer(flex: 3),
               ],
@@ -711,23 +722,26 @@ class _OnboardingValueCard extends StatelessWidget {
     required this.title,
     required this.description,
     this.hookLine,
+    this.backgroundColor,
+    this.titleColor,
   });
 
   final IconData icon;
   final String title;
   final String description;
   final String? hookLine;
+  final Color? backgroundColor;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
-    const Color titleColor = Color(0xFF3A2A22);
     const Color descColor = Color(0xFF8A7A72);
     const Color iconColor = Color(0xFF8A7A72);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFD79096).withValues(alpha: 0.06),
+        color: backgroundColor ?? const Color(0xFFD79096).withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -747,7 +761,7 @@ class _OnboardingValueCard extends StatelessWidget {
                   style: GoogleFonts.lora(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: titleColor,
+                    color: titleColor ?? const Color(0xFF3A2A22),
                   ),
                 ),
                 const SizedBox(height: 3),

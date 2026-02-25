@@ -245,25 +245,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
   // NEW: Function to handle send report with login check
   Future<void> _handleSendReport() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    final isLoggedIn = prefs.getBool('isLogin') ?? false;
-
-    if (!isLoggedIn) {
-      // Show login page
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-      );
-
-      // If login successful, send report
-      if (result == true) {
-        await _sendDetailedReport();
-      }
-    } else {
-      // User already logged in, send report directly
-      await _sendDetailedReport();
-    }
+    await _sendDetailedReport();
   }
 
   @override
@@ -1100,30 +1082,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           IconButton(
             tooltip: 'Before & After',
             icon: const Icon(Icons.compare),
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              if (!context.mounted) return;
-              final isLoggedIn = prefs.getBool('isLogin') ?? false;
-
-              if (!isLoggedIn) {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-                if (!context.mounted) return;
-
-                if (result == true) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BeforeAfterScreen()),
-                  );
-                }
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BeforeAfterScreen()),
-                );
-              }
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BeforeAfterScreen()),
+              );
             },
           ),
         ],

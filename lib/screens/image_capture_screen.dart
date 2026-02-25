@@ -30,14 +30,17 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   SharedPreferences? prefs;
   bool _isLoggedIn = false;
   String _userName = '';
+  // bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showInstructionsDialog();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (mounted) {
+        _showInstructionsDialog();
+      }
     });
   }
 
@@ -307,99 +310,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
               ],
             )
           : null,
-      body: SafeArea(
-        child: Center(
-          child: Padding(   // ✅ FIX: removed maxWidth constraint
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(15),
-                    onTap: _showInstructionsDialog,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6B3E3E),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: const ListTile(
-                        leading: Icon(
-                          Icons.lightbulb_outline,
-                          color: Colors.white,
-                        ),
-                        title: Text(
-                          "How to take a great shot",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                Text(
-                  widget.isHair
-                      ? 'Start your personalized hair scan'
-                      : 'Start your personalized facial scan',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-
-                const SizedBox(height: 40),
-
-                _buildPrimaryButton(
-                  icon: Icons.camera_alt,
-                  label: 'Open Camera',
-                  onTap: _takePhoto,
-                ),
-
-                const SizedBox(height: 20),
-
-                _buildSecondaryButton(
-                  icon: Icons.photo_library,
-                  label: 'Upload from device',
-                  onTap: _uploadFromDevice,
-                ),
-
-                const Spacer(),
-
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.info_outline, color: Colors.blue),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          widget.isHair
-                              ? '• Use even, diffuse lighting\n• Part or lift hair to expose the scalp\n• Remove hats/clips that cover the scalp'
-                              : '• Ensure good lighting\n• Remove hair from face',
-                          style: const TextStyle(color: Colors.blue),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      body: _buildBody(context),
     );
   }
 
@@ -479,6 +390,8 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
       ),
     );
   }
+  
+  Widget? _buildBody(BuildContext context) {}
 }
 
 class _TipItem extends StatelessWidget {
