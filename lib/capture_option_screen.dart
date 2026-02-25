@@ -1,79 +1,175 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class CaptureOptionScreen extends StatelessWidget {
-  const CaptureOptionScreen({super.key});
+import 'screens/image_capture_screen.dart';
+import 'screens/before_after_screen.dart';
+import 'screens/LoginPage.dart';   // <-- change this to your actual login file name
+
+class CaptureOptionScreen extends StatefulWidget {
+  final bool isHair;
+
+  const CaptureOptionScreen({
+    super.key,
+    this.isHair = false,
+  });
+
+  @override
+  State<CaptureOptionScreen> createState() => _CaptureOptionScreenState();
+}
+
+class _CaptureOptionScreenState extends State<CaptureOptionScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showTipsPopup();
+    });
+  }
+
+  void _showTipsPopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            "Tips for getting the best results",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: () {
+              final tips = widget.isHair
+                  ? [
+                      '• Use even, diffuse lighting (avoid harsh backlight)',
+                      '• Part or lift hair to expose the scalp for clearer analysis',
+                      '• Remove hats, clips or accessories that hide the scalp',
+                    ]
+                  : [
+                      '• Ensure good lighting',
+                      '• Remove hair from face',
+                    ];
+
+              return tips
+                  .map((t) => Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(t),
+                          const SizedBox(height: 8),
+                        ],
+                      ))
+                  .toList();
+            }(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Got it"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ===== LOGIN CHECK BEFORE CAMERA =====
+  void _goToCamera() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            ImageCaptureScreen(isHair: widget.isHair),
+      ),
+    );
+  }
+
+  // ===== BEFORE/AFTER CAN BE VIEWED (it already checks login internally) =====
+  void _goToBeforeAfter() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const BeforeAfterScreen(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
 
+    const cardColor = Color(0xFF6B3A3A);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFDEDED), // soft pink background
+      backgroundColor: const Color(0xFFFDEDED),
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: W * 0.07),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(height: H * 0.05),
 
-              /// ---- Top "How to take a great shot" Card ----
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(
-                  vertical: H * 0.018,
-                  horizontal: W * 0.03,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF510808),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    /// left tiny box
-                    Container(
-                      width: W * 0.11,
-                      height: W * 0.11,
-                      decoration: BoxDecoration(
-                        color: Colors.white54,
-                        borderRadius: BorderRadius.circular(10),
+              // Tips card
+              GestureDetector(
+                onTap: _showTipsPopup,
+                child: Container(
+                  height: H * 0.09,
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(horizontal: W * 0.04),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.white,
+                        size: W * 0.065,
                       ),
-                    ),
-
-                    SizedBox(width: W * 0.04),
-
-                    /// Main text
-                    Expanded(
-                      child: Text(
-                        "How to take a great shot",
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: W * 0.045,
-                          fontWeight: FontWeight.w600,
+                      SizedBox(width: W * 0.03),
+                      Expanded(
+                        child: Text(
+                          "Tips for getting the best results",
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: W * 0.042,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-
-                    /// Arrow icon
-                    Icon(
-                      Icons.arrow_forward_outlined,
-                      color: Colors.white,
-                      size: W * 0.07,
-                    ),
-                  ],
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                        size: W * 0.045,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
-              SizedBox(height: H * 0.14),
+              SizedBox(height: H * 0.08),
 
-              /// ---- Middle Title ----
               Text(
-                "Select the capture option",
+                "Start your personalized facial scan",
+                textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                  fontSize: W * 0.055,
+                  fontSize: W * 0.05,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
@@ -81,74 +177,194 @@ class CaptureOptionScreen extends StatelessWidget {
 
               SizedBox(height: H * 0.06),
 
-              /// ---- Take a Photo Button ----
+              // OPEN CAMERA (WITH LOGIN CHECK)
               GestureDetector(
-                onTap: () {},
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(
-                    vertical: H * 0.022,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF510808),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt_outlined,
-                          color: Colors.white, size: W * 0.07),
-                      SizedBox(width: W * 0.03),
-                      Text(
-                        "Take a photo",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: W * 0.05,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                onTap: _goToCamera,
+                child: _PrimaryActionButton(
+                  icon: Icons.camera_alt_outlined,
+                  label: "Open Camera",
+                  color: cardColor,
+                  W: W,
+                  H: H,
                 ),
               ),
 
-              SizedBox(height: H * 0.04),
+              SizedBox(height: H * 0.03),
 
-              /// ---- Upload from device Button ----
+              // BEFORE & AFTER
               GestureDetector(
-                onTap: () {},
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(
-                    vertical: H * 0.022,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF510808),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.image_outlined,
-                          color: Colors.white, size: W * 0.07),
-                      SizedBox(width: W * 0.03),
-                      Text(
-                        "Upload from device",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: W * 0.05,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                onTap: _goToBeforeAfter,
+                child: _BeforeAfterButton(W: W, H: H),
+              ),
+
+              SizedBox(height: H * 0.03),
+
+              // UPLOAD (ALSO USES CAMERA SCREEN)
+              GestureDetector(
+                onTap: _goToCamera,
+                child: _SecondaryActionButton(
+                  icon: Icons.image_outlined,
+                  label: "Upload from device",
+                  color: cardColor,
+                  W: W,
+                  H: H,
                 ),
               ),
 
               const Spacer(),
+
+              Container(
+                padding: EdgeInsets.all(W * 0.035),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.blue),
+                    SizedBox(width: W * 0.03),
+                    Expanded(
+                      child: Text(
+                        widget.isHair
+                            ? '• Use even, diffuse lighting\n• Part or lift hair to expose the scalp\n• Remove hats/clips that cover the scalp'
+                            : '• Ensure good lighting\n• Remove hair from face',
+                        style: GoogleFonts.poppins(
+                          fontSize: W * 0.035,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: H * 0.03),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---- UI BUTTONS (UNCHANGED) ----
+class _PrimaryActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final double W;
+  final double H;
+
+  const _PrimaryActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.W,
+    required this.H,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: H * 0.028),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: W * 0.07),
+          SizedBox(width: W * 0.03),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: W * 0.048,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BeforeAfterButton extends StatelessWidget {
+  final double W;
+  final double H;
+
+  const _BeforeAfterButton({required this.W, required this.H});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: H * 0.025),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF6B3A3A), width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.compare, color: Color(0xFF6B3A3A)),
+          SizedBox(width: W * 0.03),
+          Text(
+            "View Before & After",
+            style: GoogleFonts.poppins(
+              color: const Color(0xFF6B3A3A),
+              fontSize: W * 0.045,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecondaryActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final double W;
+  final double H;
+
+  const _SecondaryActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.W,
+    required this.H,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: W * 0.75,
+      padding: EdgeInsets.symmetric(vertical: H * 0.020),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: W * 0.06),
+          SizedBox(width: W * 0.03),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              color: color,
+              fontSize: W * 0.042,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
