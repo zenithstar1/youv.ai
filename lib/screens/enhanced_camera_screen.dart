@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
+import 'dart:typed_data';
 import '../Models/head_pose_calculator.dart';
 import '../widgets/auto_capture_guide_widget.dart';
 import '../services/face_detection_service.dart';
+import 'image_preview_screen.dart';
 
 /// AutoCaptureController manages the auto-capture logic for the camera screen
 class AutoCaptureController {
@@ -196,10 +198,10 @@ class AutoCaptureController {
   /// True when best-angle has remained stable for enough duration.
   bool get isBestAngleStable => _isCaptureReady;
 
-  /// Sets callbacks for auto-capture
+  /// Sets callbacks for auto-capture (nullable to allow clearing)
   void setCallbacks({
-    required VoidCallback onCapture,
-    required VoidCallback onStateChange,
+    VoidCallback? onCapture,
+    VoidCallback? onStateChange,
   }) {
     _onCapture = onCapture;
     _onStateChange = onStateChange;
@@ -616,14 +618,16 @@ class AutoCaptureController {
 class EnhancedCameraScreen extends StatefulWidget {
   /// Callback when image is captured
   final Function(Uint8List imageBytes, String fileName) onImageCaptured;
-  
   /// Whether this is for hair analysis
   final bool isHair;
+  /// Disable auto-capture feature
+  final bool disableAutoCapture;
 
   const EnhancedCameraScreen({
     super.key,
     required this.onImageCaptured,
     this.isHair = false,
+    this.disableAutoCapture = false,
   });
 
   @override
@@ -639,6 +643,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   StreamSubscription<FaceDetectionFrame>? _landmarksSubscription;
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
+  bool _isDisposed = false;
+  bool _hasNavigated = false;
 
   double _calculateGuideSize(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -686,7 +692,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
       minPoseQualityForCapture: widget.isHair ? 0.66 : 0.70,
       captureQualityRelaxation: widget.isHair ? 0.00 : 0.12,
       smoothingFactor: widget.isHair ? 0.32 : 0.25,
-      useFaceFillCapture: widget.isHair,
+      useFaceFillCapture: widget.isHair && !widget.disableAutoCapture,
       minFaceFillRatio: widget.isHair ? 0.26 : 0.40,
       maxFaceFillRatio: widget.isHair ? 0.98 : 0.82,
       targetFaceFillRatio: widget.isHair ? 0.60 : 0.56,
@@ -783,12 +789,13 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   /// Handles auto-capture trigger
   void _handleAutoCapture() {
+    if (!mounted || _isDisposed || _hasNavigated) return;
     _takePicture();
   }
 
   /// Takes a picture from the camera
   Future<void> _takePicture() async {
-    if (_isCapturing) return;
+    if (_isCapturing || _isDisposed || _hasNavigated) return;
     _isCapturing = true;
 
     bool shouldRestartStream = false;
@@ -798,9 +805,19 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         return;
       }
 
+      // Double-check we're still mounted before async operations
+      if (!mounted || _isDisposed || _hasNavigated) {
+        return;
+      }
+
       if (_cameraController!.value.isStreamingImages) {
         shouldRestartStream = true;
         await _cameraController!.stopImageStream();
+      }
+
+      // Check again after async operation
+      if (!mounted || _isDisposed || _hasNavigated) {
+        return;
       }
 
       // Take picture
@@ -809,32 +826,50 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
       shouldRestartStream = false;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✓ ${widget.isHair ? 'Hair' : 'Skin'} photo captured! Processing...',
-            ),
-            duration: const Duration(milliseconds: 500),
-            backgroundColor: Colors.green.shade700,
-          ),
-        );
-
-        // Call the callback with the captured image
-        widget.onImageCaptured(imageBytes, picture.name);
+      // Final check before navigating
+      if (!mounted || _isDisposed || _hasNavigated) {
+        return;
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error capturing image: $e'),
-            backgroundColor: Colors.red.shade700,
+
+      // Mark as navigated to prevent multiple navigations
+      _hasNavigated = true;
+
+      // Navigate directly using this widget's context (which is still valid)
+      if (mounted && context.mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ImagePreviewScreen(
+              imageBytes: imageBytes,
+              fileName: picture.name,
+              isHair: widget.isHair,
+            ),
           ),
         );
+      }
+      
+      // Exit immediately after navigation
+      return;
+    } catch (e) {
+      // Only show error if we haven't navigated away
+      if (mounted && !_isDisposed && !_hasNavigated && context.mounted) {
+        try {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Capture failed: ${e.toString()}'),
+              backgroundColor: Colors.red.shade700,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } catch (_) {
+          // Ignore SnackBar errors if context is gone
+        }
       }
     } finally {
       if (shouldRestartStream &&
           mounted &&
+          !_isDisposed &&
+          !_hasNavigated &&
           _cameraController != null &&
           _cameraController!.value.isInitialized &&
           !_cameraController!.value.isStreamingImages) {
@@ -858,6 +893,14 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    
+    // Clear callbacks to prevent posthumous calls
+    _autoCaptureController.setCallbacks(
+      onCapture: null,
+      onStateChange: null,
+    );
+    
     _landmarksSubscription?.cancel();
     _autoCaptureController.dispose();
     _cameraController?.dispose();

@@ -9,6 +9,7 @@ import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
 import 'analysis_type_screen.dart';
+import 'package:skin_analysis_app/screens/already_login_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -219,7 +220,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9F0EC),
+        backgroundColor: const Color(0xFFF5E6E8),
         resizeToAvoidBottomInset: true,
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -949,7 +950,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     return Scaffold(
-      backgroundColor: const Color(0xFFFDEDED),
+      backgroundColor: const Color(0xFFF5E6E8),
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: W * 0.07, vertical: 40),

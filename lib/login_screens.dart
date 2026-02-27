@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         Expanded(
                           child: TextField(
-                            controller: loginPhoneController,   // ADDED
+                            controller: loginPhoneController,
                             keyboardType: TextInputType.number,
                             maxLength: 10,
                             decoration: const InputDecoration(
@@ -117,7 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        // VALIDATE PHONE NUMBER
                         if (loginPhoneController.text.length != 10) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -129,8 +128,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                           return;
                         }
-
-                        // GO TO OTP SCREEN WITH REAL NUMBER
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -272,3 +269,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

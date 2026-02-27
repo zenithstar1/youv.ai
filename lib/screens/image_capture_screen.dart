@@ -1,16 +1,17 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'image_preview_screen.dart';
 import 'enhanced_camera_screen.dart';
 import 'standard_camera_screen.dart';
-import '../widgets/web_camera_widget.dart';
+// ...existing code...
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_event.dart';
 
@@ -28,183 +29,107 @@ class ImageCaptureScreen extends StatefulWidget {
 
 class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   SharedPreferences? prefs;
+
+  bool _instructionsShown = false;
+  bool _showLoading = true;
+  bool _navigated = false;
+
   bool _isLoggedIn = false;
   String _userName = '';
-  // bool _loading = true;
+
+  // ================= INIT =================
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(const Duration(milliseconds: 250));
-      if (mounted) {
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _loadUserInfo();
+
+    if (!mounted) return;
+
+    /// wait until first frame renders
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_instructionsShown && !_navigated) {
+        _instructionsShown = true;
         _showInstructionsDialog();
       }
     });
   }
 
+  // ================= USER =================
+
   Future<void> _loadUserInfo() async {
     prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _isLoggedIn = prefs?.getBool('isLogin') ?? false;
       if (_isLoggedIn) {
-        final userInfoJson = prefs?.getString('userInfo');
-        if (userInfoJson != null && userInfoJson.isNotEmpty) {
-          final userInfo = jsonDecode(userInfoJson);
-          _userName = userInfo['name'] ?? 'User';
+        final json = prefs?.getString('userInfo');
+        if (json != null) {
+          _userName = jsonDecode(json)['name'] ?? 'User';
         }
       }
     });
   }
 
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await prefs?.clear();
-      if (!mounted) return;
-      context.read<AuthBloc>().add(LogoutRequested());
-      setState(() {
-        _isLoggedIn = false;
-        _userName = '';
-      });
-    }
-  }
+  // ================= CAMERA FLOW =================
 
   Future<void> _takePhoto() async {
-    // Show positioning guide first
+    if (!mounted || _navigated) return;
+
+    setState(() => _navigated = true);
+
+    /// prevents white overlay
+    await Future.delayed(const Duration(milliseconds: 60));
+
     if (!mounted) return;
-    // Directly proceed to camera — positioning overlay removed per request.
     _proceedToCamera();
   }
 
   Future<void> _proceedToCamera() async {
-    if (kIsWeb) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => WebCameraWidget(
-            isHair: widget.isHair,
-            onImageCaptured: (bytes, fileName) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ImagePreviewScreen(
-                    imageBytes: bytes,
-                    fileName: fileName,
-                    isHair: widget.isHair,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      );
-      return;
-    }
-
-    // For hair analysis, automatically use enhanced camera with auto-capture
+    // Only use mobile camera screens, never web widget
     if (widget.isHair) {
-      if (!mounted) return;
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => EnhancedCameraScreen(
+          builder: (_) => EnhancedCameraScreen(
             isHair: widget.isHair,
-            onImageCaptured: (bytes, fileName) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ImagePreviewScreen(
-                    imageBytes: bytes,
-                    fileName: fileName,
-                    isHair: widget.isHair,
-                  ),
-                ),
-              );
-            },
+            onImageCaptured: (_, __) {}, // Camera screens handle navigation directly
           ),
         ),
       );
       return;
     }
-
-    // Skin analysis uses standard camera flow only (no auto-align mode)
-    if (!mounted) return;
-    
-    final cameraDevice = await showDialog<CameraDevice>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Camera'),
-        content: const Text('Choose which camera to use:'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, CameraDevice.front),
-            child: const Text('Front Camera'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, CameraDevice.rear),
-            child: const Text('Back Camera'),
-          ),
-        ],
-      ),
-    );
-
-    if (cameraDevice == null) return;
-
-    if (!mounted) return;
-    final lensDirection = cameraDevice == CameraDevice.front
-        ? CameraLensDirection.front
-        : CameraLensDirection.back;
-
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => StandardCameraScreen(
-          lensDirection: lensDirection,
-          onImageCaptured: (bytes, fileName) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ImagePreviewScreen(
-                  imageBytes: bytes,
-                  fileName: fileName,
-                  isHair: widget.isHair,
-                ),
-              ),
-            );
-          },
+        builder: (_) => StandardCameraScreen(
+          lensDirection: CameraLensDirection.front,
+          isHair: widget.isHair, // Pass isHair for navigation
         ),
       ),
     );
+    // No web widget usage
+    // ...existing code...
   }
 
+  // ================= UPLOAD =================
+
   Future<void> _uploadFromDevice() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    final result =
+        await FilePicker.platform.pickFiles(type: FileType.image);
+
     if (result != null && mounted) {
       final file = result.files.first;
+
       if (file.bytes != null) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ImagePreviewScreen(
+            builder: (_) => ImagePreviewScreen(
               imageBytes: file.bytes!,
               fileName: file.name,
               isHair: widget.isHair,
@@ -215,79 +140,64 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
     }
   }
 
+  // ================= INSTRUCTIONS =================
+
   void _showInstructionsDialog() {
+    /// prevents duplicate dialogs
+    if (!mounted ||
+        _navigated ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+      builder: (_) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.lightbulb_outline, color: Color(0xFF6B3E3E)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "How to take a great shot",
+                style: TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 18),
+              ),
+            ),
+          ],
         ),
-        title: Row(
-  crossAxisAlignment: CrossAxisAlignment.center,
-  children: [
-    const Icon(Icons.lightbulb_outline, color: Color(0xFF6B3E3E)),
-    const SizedBox(width: 10),
-
-    // 👇 THIS STOPS THE 13px OVERFLOW
-    const Expanded(
-      child: Text(
-        "How to take a great shot",
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-        ),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-  ],
-),
-
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: () {
-            final skinTips = [
-              {'icon': Icons.camera_alt_outlined, 'text': 'Allow camera access when prompted'},
-              {'icon': Icons.wb_sunny_outlined, 'text': 'Use natural lighting or bright room light'},
-              {'icon': Icons.face, 'text': 'Face the camera directly'},
-              {'icon': Icons.center_focus_strong, 'text': 'Keep your face centered in the frame'},
-              {'icon': Icons.sentiment_neutral, 'text': 'Use a neutral expression'},
-              {'icon': Icons.no_photography_outlined, 'text': 'Remove makeup for accurate analysis'},
-            ];
-
-            final hairTips = [
-              {'icon': Icons.camera_alt_outlined, 'text': 'Allow camera access when prompted'},
-              {'icon': Icons.wb_sunny_outlined, 'text': 'Use even, diffuse lighting (avoid harsh backlight)'},
-              {'icon': Icons.content_cut, 'text': 'Part or lift hair to expose the scalp clearly'},
-              {'icon': Icons.center_focus_strong, 'text': 'Keep the head centered and steady'},
-              {'icon': Icons.no_photography_outlined, 'text': 'Remove hats, clips or accessories that hide the scalp'},
-              {'icon': Icons.water_drop, 'text': 'Capture dry hair (avoid wet or oily hair)'} ,
-            ];
-
-            final tips = widget.isHair ? hairTips : skinTips;
-
-            return tips
-                .map((t) => Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _TipItem(icon: t['icon'] as IconData, text: t['text'] as String),
-                        const SizedBox(height: 8),
-                      ],
-                    ))
-                .toList();
-          }(),
+          children: widget.isHair
+              ? const [
+                  _TipItem(icon: Icons.wb_sunny_outlined, text: 'Use even lighting'),
+                  _TipItem(icon: Icons.content_cut, text: 'Expose scalp clearly'),
+                  _TipItem(icon: Icons.center_focus_strong, text: 'Keep head centered'),
+                  _TipItem(icon: Icons.water_drop, text: 'Hair should be dry'),
+                ]
+              : const [
+                  _TipItem(icon: Icons.face, text: 'Face camera directly'),
+                  _TipItem(icon: Icons.wb_sunny_outlined, text: 'Use bright lighting'),
+                  _TipItem(icon: Icons.sentiment_neutral, text: 'Neutral expression'),
+                  _TipItem(icon: Icons.no_photography_outlined, text: 'Remove makeup'),
+                ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _showLoading = false);
+              _takePhoto();
+            },
             child: const Text(
               "Got it!",
               style: TextStyle(
-                color: Color(0xFF6B3E3E),
-                fontWeight: FontWeight.w600,
-              ),
+                  color: Color(0xFF6B3E3E),
+                  fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -295,128 +205,96 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
     );
   }
 
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6E8),
-      appBar: _isLoggedIn
-          ? AppBar(
-              title: Text('Welcome, $_userName'),
-              actions: [
-                IconButton(
-                  onPressed: _logout,
-                  icon: const Icon(Icons.logout),
-                )
-              ],
-            )
-          : null,
-      body: _buildBody(context),
+      /// prevents white layer during navigation
+      backgroundColor:
+          _navigated ? Colors.black : const Color(0xFFF5E6E8),
+      body: _showLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBody(),
     );
   }
 
-  Widget _buildPrimaryButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
+  Widget _buildBody() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Spacer(),
+
+          Icon(
+            widget.isHair ? Icons.content_cut : Icons.face,
+            size: 80,
             color: const Color(0xFF6B3E3E),
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildSecondaryButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,   // ✅ FIXED (was 300)
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFF6B3E3E)),
+          const SizedBox(height: 20),
+
+          Text(
+            widget.isHair
+                ? "Capture Hair Image"
+                : "Capture Face Image",
+            style: GoogleFonts.lora(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A2A22),
+            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: const Color(0xFF6B3E3E)),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF6B3E3E),
-                  fontSize: 16,
-                ),
-              ),
-            ],
+
+          const SizedBox(height: 40),
+
+          ElevatedButton.icon(
+            onPressed: _takePhoto,
+            icon: const Icon(Icons.camera_alt),
+            label: const Text("Take Photo"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6B3E3E),
+              minimumSize: const Size(double.infinity, 55),
+            ),
           ),
-        ),
+
+          const SizedBox(height: 16),
+
+          OutlinedButton.icon(
+            onPressed: _uploadFromDevice,
+            icon: const Icon(Icons.upload),
+            label: const Text("Upload from Device"),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50),
+              foregroundColor: const Color(0xFF6B3E3E),
+              side: const BorderSide(color: Color(0xFF6B3E3E)),
+            ),
+          ),
+
+          const Spacer(flex: 2),
+        ],
       ),
     );
   }
-  
-  Widget? _buildBody(BuildContext context) {}
 }
 
 class _TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _TipItem({
-    required this.icon,
-    required this.text,
-  });
+  const _TipItem({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: const Color(0xFF6B3E3E)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 14),
-          ),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF6B3E3E)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
+      ),
     );
   }
 }

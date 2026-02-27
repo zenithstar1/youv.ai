@@ -78,22 +78,32 @@ class _PostIntroExplanationScreenState
     super.dispose();
   }
 
-  Future<void> _navigateToAnalysis() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLogin') ?? false;
-    if (!isLoggedIn) {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => LoginPage()),
-      );
-      if (result == true) {
-        _goToAnalysisType();
-      }
-    } else {
+Future<void> _navigateToAnalysis() async {
+  /// STOP animations BEFORE navigation
+  _glowController.stop();
+  _shimmerController.stop();
+  _scanController.stop();
+
+  setState(() => _ctaPressed = false);
+
+  await Future.delayed(const Duration(milliseconds: 80));
+
+  final prefs = await SharedPreferences.getInstance();
+  final isLoggedIn = prefs.getBool('isLogin') ?? false;
+
+  if (!isLoggedIn) {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+    );
+
+    if (result == true) {
       _goToAnalysisType();
     }
+  } else {
+    _goToAnalysisType();
   }
-
+}
   void _goToAnalysisType() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -123,176 +133,142 @@ class _PostIntroExplanationScreenState
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F0EC),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF5E6E0),
-              Color(0xFFF9F0EC),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                const Spacer(flex: 3),
-
-                // ── 1. MICRO LABEL ──
-                Text(
-                  'AI FACIAL ANALYSIS',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.lora(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2.0,
-                    color: lowMutedText,
-                  ),
-                ),
-
-                const Spacer(flex: 2),
-
-                // ── 2. HEADLINE (bigger, more breathing room) ──
-                Text(
-                  'Understand what is happening beneath your skin',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.lora(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                    color: headlineText,
-                  ),
-                ),
-
-                const Spacer(flex: 1),
-
-                // ── 3. SUBTEXT (lower opacity, tighter) ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'Your personalized report includes clinically referenced '
-                    'skin indicators and facial proportion analysis.',
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.vertical - 48,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 24),
+                  Text(
+                    'AI FACIAL ANALYSIS',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.lora(
-                      fontSize: 12.5,
-                      height: 1.4,
-                      color: mutedText.withValues(alpha: 0.70),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.0,
+                      color: lowMutedText,
                     ),
                   ),
-                ),
-
-                const Spacer(flex: 3),
-
-                // ── 4. ANIMATED FACE IMAGE ──
-                _AnimatedFaceImage(
-                  height: h * 0.36,
-                  glowAnim: _glowAnim,
-                  shimmerAnim: _shimmerAnim,
-                  scanAnim: _scanAnim,
-                ),
-
-                const Spacer(flex: 3),
-
-                // ── 5. VALUE BLOCKS (soft card style) ──
-                _OnboardingValueCard(
-                  icon: Icons.health_and_safety_outlined,
-                  title: 'Skin Health Index',
-                  description:
-                    'A structured visual analysis of hydration, pigmentation, acne activity, pore visibility, and visible aging patterns',
-                  hookLine:
-                    'See where your skin stands today \u2014 and what may need attention.',
-                  backgroundColor: null,
-                  titleColor: const Color(0xFFD79096),
-                ),
-                SizedBox(height: h * 0.012),
-                _OnboardingValueCard(
-                  icon: Icons.balance_outlined,
-                  title: 'Facial Symmetry Mapping',
-                  description:
-                    'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
-                  hookLine:
-                    'Discover how your natural proportions compare to ideal structural ratios.',
-                  backgroundColor: null,
-                  titleColor: const Color(0xFFD79096),
-                ),
-
-                const Spacer(flex: 3),
-
-                const Spacer(flex: 2),
-
-                // ── 7. CTA BUTTON (deeper rose, glow halo, tap scale) ──
-                GestureDetector(
-                  onTapDown: (_) => setState(() => _ctaPressed = true),
-                  onTapUp: (_) {
-                    setState(() => _ctaPressed = false);
-                    _navigateToAnalysis();
-                  },
-                  onTapCancel: () => setState(() => _ctaPressed = false),
-                  child: AnimatedScale(
-                    scale: _ctaPressed ? 0.96 : 1.0,
-                    duration: const Duration(milliseconds: 120),
-                    curve: Curves.easeOut,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE4B3B8),
-                        borderRadius: BorderRadius.circular(40),
-                        border: Border.all(
-                          color: const Color(0xFFE0B5BA),
-                          width: 0.6,
-                        ),
-                        boxShadow: [
-                          // Outer glow halo
-                          BoxShadow(
-                            color: const Color(0xFFD79096).withValues(alpha: 0.10),
-                            blurRadius: 14,
-                            spreadRadius: 1,
+                  const SizedBox(height: 18),
+                  Text(
+                    'Understand what is happening beneath your skin',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.lora(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: headlineText,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'Your personalized report includes clinically referenced skin indicators and facial proportion analysis.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lora(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: mutedText.withValues(alpha: 0.70),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _AnimatedFaceImage(
+                    height: h * 0.36,
+                    glowAnim: _glowAnim,
+                    shimmerAnim: _shimmerAnim,
+                    scanAnim: _scanAnim,
+                  ),
+                  const SizedBox(height: 24),
+                  _OnboardingValueCard(
+                    icon: Icons.health_and_safety_outlined,
+                    title: 'Skin Health Index',
+                    description:
+                        'A structured visual analysis of hydration, pigmentation, acne activity, pore visibility, and visible aging patterns',
+                    hookLine:
+                        'See where your skin stands today \u2014 and what may need attention.',
+                    backgroundColor: null,
+                    titleColor: const Color(0xFFD79096),
+                  ),
+                  SizedBox(height: h * 0.012),
+                  _OnboardingValueCard(
+                    icon: Icons.balance_outlined,
+                    title: 'Facial Symmetry Mapping',
+                    description:
+                        'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
+                    hookLine:
+                        'Discover how your natural proportions compare to ideal structural ratios.',
+                    backgroundColor: null,
+                    titleColor: const Color(0xFFD79096),
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTapDown: (_) => setState(() => _ctaPressed = true),
+                    onTapUp: (_) {
+                      setState(() => _ctaPressed = false);
+                      _navigateToAnalysis();
+                    },
+                    onTapCancel: () => setState(() => _ctaPressed = false),
+                    child: AnimatedScale(
+                      scale: _ctaPressed ? 0.96 : 1.0,
+                      duration: const Duration(milliseconds: 120),
+                      curve: Curves.easeOut,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE4B3B8),
+                          borderRadius: BorderRadius.circular(40),
+                          border: Border.all(
+                            color: const Color(0xFFE0B5BA),
+                            width: 0.6,
                           ),
-                          // Drop shadow
-                          const BoxShadow(
-                            color: Color(0x14A6553F),
-                            offset: Offset(0, 3),
-                            blurRadius: 8,
-                          ),
-                        ],
-                        // Inset-like highlight via gradient
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0xFFF2D5D8), // softer top
-                            Color(0xFFEAC0C5), // softer bottom
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFD79096).withValues(alpha: 0.10),
+                              blurRadius: 14,
+                              spreadRadius: 1,
+                            ),
+                            const BoxShadow(
+                              color: Color(0x14A6553F),
+                              offset: Offset(0, 3),
+                              blurRadius: 8,
+                            ),
                           ],
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFFF2D5D8),
+                              Color(0xFFEAC0C5),
+                            ],
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Create My Analysis Profile',
-                          style: GoogleFonts.lora(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                            color: const Color(0xFF7A3030),
+                        child: Center(
+                          child: Text(
+                            'Create My Analysis Profile',
+                            style: GoogleFonts.lora(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                              color: const Color(0xFF7A3030),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-
-                const Spacer(flex: 1),
-
-                // ── 8. SECONDARY LINK ──
-                // ...existing code...
-
-                const Spacer(flex: 3),
-              ],
+                  const SizedBox(height: 24),
+                  // ...existing code for secondary link...
+                ],
+              ),
             ),
           ),
         ),
@@ -338,17 +314,18 @@ class _AnimatedFaceImage extends StatelessWidget {
                 fit: BoxFit.contain,
               ),
 
-              // Triangulated face mesh on top
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _FaceMeshPainter(
-                    glowValue: glowAnim.value,
-                    pulseValue: shimmerAnim.value,
-                    scanLineY: scanAnim.value,
-                  ),
-                ),
-              ),
-            ],
+Positioned.fill(
+  child: RepaintBoundary(
+    child: CustomPaint(
+      painter: _FaceMeshPainter(
+        glowValue: glowAnim.value,
+        pulseValue: shimmerAnim.value,
+        scanLineY: scanAnim.value,
+      ),
+    ),
+  ),
+),
+            ]
           ),
         );
       },
@@ -708,8 +685,12 @@ class _FaceMeshPainter extends CustomPainter {
     }
   }
 
-  @override
-  bool shouldRepaint(covariant _FaceMeshPainter oldDelegate) => true;
+@override
+bool shouldRepaint(covariant _FaceMeshPainter oldDelegate) {
+  return oldDelegate.glowValue != glowValue ||
+         oldDelegate.pulseValue != pulseValue ||
+         oldDelegate.scanLineY != scanLineY;
+}
 }
 
 // ======================================================
