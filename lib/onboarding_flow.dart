@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:skin_analysis_app/screens/LoginPage.dart';
-import 'package:skin_analysis_app/screens/already_login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingFlow extends StatelessWidget {
@@ -27,68 +25,28 @@ class _PostIntroExplanationScreen extends StatefulWidget {
       _PostIntroExplanationScreenState();
 }
 
-class _PostIntroExplanationScreenState
-    extends State<_PostIntroExplanationScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController _glowController;
-  late final AnimationController _shimmerController;
-  late final AnimationController _scanController;
-  late final Animation<double> _glowAnim;
-  late final Animation<double> _shimmerAnim;
-  late final Animation<double> _scanAnim;
+class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen> {
   bool _ctaPressed = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Glow pulse — 1s cycle (faster)
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
-    _glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-    );
-
-    // Shimmer scan — 1.2s cycle (faster)
-    _shimmerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-    _shimmerAnim = Tween<double>(begin: -0.3, end: 1.3).animate(
-      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
-    );
-
-    // Scan line sweep — 1s cycle (faster)
-    _scanController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat();
-    _scanAnim = Tween<double>(begin: -0.1, end: 1.1).animate(
-      CurvedAnimation(parent: _scanController, curve: Curves.linear),
-    );
+    // Warm image cache after first frame to reduce route-transition jank.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheImage(const AssetImage('assets/images/face_outline.png'), context);
+    });
   }
 
-  @override
-  void dispose() {
-    _glowController.dispose();
-    _shimmerController.dispose();
-    _scanController.dispose();
-    super.dispose();
-  }
-
-Future<void> _navigateToAnalysis() async {
-  /// STOP animations BEFORE navigation
-  _glowController.stop();
-  _shimmerController.stop();
-  _scanController.stop();
+  Future<void> _navigateToAnalysis() async {
 
   setState(() => _ctaPressed = false);
 
   await Future.delayed(const Duration(milliseconds: 80));
+  if (!mounted) return;
 
   final prefs = await SharedPreferences.getInstance();
+  if (!mounted) return;
   final isLoggedIn = prefs.getBool('isLogin') ?? false;
 
   if (!isLoggedIn) {
@@ -96,6 +54,7 @@ Future<void> _navigateToAnalysis() async {
       context,
       MaterialPageRoute(builder: (_) => const LoginPage()),
     );
+    if (!mounted) return;
 
     if (result == true) {
       _goToAnalysisType();
@@ -125,8 +84,6 @@ Future<void> _navigateToAnalysis() async {
 
   @override
   Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
-
     const Color lowMutedText = Color(0xFFA89B93);
     const Color headlineText = Color(0xFF3A2A22);
     const Color mutedText = Color(0xFF8A7A72);
@@ -134,59 +91,61 @@ Future<void> _navigateToAnalysis() async {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F0EC),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.vertical - 48,
-            ),
-            child: IntrinsicHeight(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final availableHeight = constraints.maxHeight;
+            final compactScale =
+                (availableHeight / 820.0).clamp(0.78, 1.0).toDouble();
+            final imageHeight = (availableHeight * 0.30).clamp(180.0, 320.0);
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: 24 * compactScale,
+                vertical: 20 * compactScale,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 24),
+                  SizedBox(height: 14 * compactScale),
                   Text(
                     'AI FACIAL ANALYSIS',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.lora(
-                      fontSize: 11,
+                      fontSize: 11 * compactScale,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 2.0,
                       color: lowMutedText,
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  SizedBox(height: 12 * compactScale),
                   Text(
                     'Understand what is happening beneath your skin',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.lora(
-                      fontSize: 26,
+                      fontSize: 24 * compactScale,
                       fontWeight: FontWeight.w600,
                       height: 1.3,
                       color: headlineText,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 10 * compactScale),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 12 * compactScale),
                     child: Text(
                       'Your personalized report includes clinically referenced skin indicators and facial proportion analysis.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lora(
-                        fontSize: 12.5,
+                        fontSize: 12.5 * compactScale,
                         height: 1.4,
                         color: mutedText.withValues(alpha: 0.70),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 16 * compactScale),
                   _AnimatedFaceImage(
-                    height: h * 0.36,
-                    glowAnim: _glowAnim,
-                    shimmerAnim: _shimmerAnim,
-                    scanAnim: _scanAnim,
+                    height: imageHeight,
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 16 * compactScale),
                   _OnboardingValueCard(
                     icon: Icons.health_and_safety_outlined,
                     title: 'Skin Health Index',
@@ -197,7 +156,7 @@ Future<void> _navigateToAnalysis() async {
                     backgroundColor: null,
                     titleColor: const Color(0xFFD79096),
                   ),
-                  SizedBox(height: h * 0.012),
+                  SizedBox(height: 10 * compactScale),
                   _OnboardingValueCard(
                     icon: Icons.balance_outlined,
                     title: 'Facial Symmetry Mapping',
@@ -208,7 +167,7 @@ Future<void> _navigateToAnalysis() async {
                     backgroundColor: null,
                     titleColor: const Color(0xFFD79096),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 16 * compactScale),
                   GestureDetector(
                     onTapDown: (_) => setState(() => _ctaPressed = true),
                     onTapUp: (_) {
@@ -222,7 +181,9 @@ Future<void> _navigateToAnalysis() async {
                       curve: Curves.easeOut,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          vertical: 12 * compactScale,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE4B3B8),
                           borderRadius: BorderRadius.circular(40),
@@ -255,7 +216,7 @@ Future<void> _navigateToAnalysis() async {
                           child: Text(
                             'Create My Analysis Profile',
                             style: GoogleFonts.lora(
-                              fontSize: 15,
+                              fontSize: 15 * compactScale,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.4,
                               color: const Color(0xFF7A3030),
@@ -265,12 +226,12 @@ Future<void> _navigateToAnalysis() async {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 16 * compactScale),
                   // ...existing code for secondary link...
                 ],
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -281,51 +242,75 @@ Future<void> _navigateToAnalysis() async {
 // ANIMATED FACE IMAGE — triangulated face mesh overlay
 // ======================================================
 
-class _AnimatedFaceImage extends StatelessWidget {
+class _AnimatedFaceImage extends StatefulWidget {
   const _AnimatedFaceImage({
     required this.height,
-    required this.glowAnim,
-    required this.shimmerAnim,
-    required this.scanAnim,
   });
 
   final double height;
-  final Animation<double> glowAnim;
-  final Animation<double> shimmerAnim;
-  final Animation<double> scanAnim;
+
+  @override
+  State<_AnimatedFaceImage> createState() => _AnimatedFaceImageState();
+}
+
+class _AnimatedFaceImageState extends State<_AnimatedFaceImage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _glowController;
+  late final Animation<double> _glowAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _glowController.repeat(reverse: true);
+      }
+    });
+    _glowAnim = CurvedAnimation(
+      parent: _glowController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _glowController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double frameW = height * 0.78;
+    final double frameW = widget.height * 0.78;
+    final image = Image.asset(
+      'assets/images/face_outline.png',
+      height: widget.height * 0.92,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.low,
+    );
 
     return AnimatedBuilder(
-      animation: Listenable.merge([glowAnim, shimmerAnim, scanAnim]),
-      builder: (context, _) {
+      animation: _glowAnim,
+      child: image,
+      builder: (context, child) {
         return SizedBox(
-          height: height,
+          height: widget.height,
           width: frameW + 32,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Face image underneath
-              Image.asset(
-                'assets/images/face_outline.png',
-                height: height * 0.92,
-                fit: BoxFit.contain,
+              child!,
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _FaceMeshPainter(glowValue: _glowAnim.value),
+                  ),
+                ),
               ),
-
-Positioned.fill(
-  child: RepaintBoundary(
-    child: CustomPaint(
-      painter: _FaceMeshPainter(
-        glowValue: glowAnim.value,
-        pulseValue: shimmerAnim.value,
-        scanLineY: scanAnim.value,
-      ),
-    ),
-  ),
-),
-            ]
+            ],
           ),
         );
       },
@@ -333,24 +318,14 @@ Positioned.fill(
   }
 }
 
-// ── Triangulated face mesh painter ──
 class _FaceMeshPainter extends CustomPainter {
-  _FaceMeshPainter({
-    required this.glowValue,
-    required this.pulseValue,
-    required this.scanLineY,
-  });
+  const _FaceMeshPainter({required this.glowValue});
 
   final double glowValue;
-  final double pulseValue;
 
-  // Brighter mesh colors for better visibility
-  static const Color _lineColor = Color(0xFFD4A59E);
-  static const Color _lineHighlightColor = Color(0xFFF5C8BF);
-  static const Color _nodeColor = Color(0xFFF0DDD6);
-  static const Color _nodeHighlightColor = Color(0xFFFFEDE8);
-  static const Color _glowColor = Color(0xFFE8C8BE);
-  static const Color _scanLineColor = Color(0xFFD4A59E);
+  static const Color _lineColor = Color(0xFFDDA4B4);
+  static const Color _lineHighlightColor = Color(0xFFF7CDD8);
+  static const Color _glowColor = Color(0xFFF3B8C8);
 
   // All vertex positions as [relX, relY] within the painted area.
   // Coordinates: 0.5 = center X, 0.0 = top, 1.0 = bottom.
@@ -535,164 +510,68 @@ class _FaceMeshPainter extends CustomPainter {
     // Chin
     [77, 78], [78, 79],
   ];
-  
-  final double scanLineY;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // Convert relative vertices to actual pixel positions
     final points = _v
         .map((v) => Offset(v[0] * w, v[1] * h))
         .toList(growable: false);
 
-    // Compute per-vertex proximity to scan line (0.0 = far, 1.0 = on the line)
-    final scanProximity = <double>[];
-    for (final v in _v) {
-      final dist = (v[1] - scanLineY).abs();
-      // Highlight zone is ~12% of height band around scan line
-      scanProximity.add((1.0 - (dist / 0.12)).clamp(0.0, 1.0));
-    }
+    // Uniform glow across full mesh so whole net lights up together.
+    final glowProximity = List<double>.filled(points.length, 1.0);
 
-    _drawEdges(canvas, points, scanProximity);
-    _drawScanLine(canvas, w, h);
-    _drawNodes(canvas, points, scanProximity);
+    // Keep mesh strictly over face region.
+    final faceClip = Path()
+      ..addOval(
+        Rect.fromCenter(
+          center: Offset(w * 0.5, h * 0.47),
+          width: w * 0.60,
+          height: h * 0.82,
+        ),
+      );
+    canvas.save();
+    canvas.clipPath(faceClip);
+    _drawEdges(canvas, points, glowProximity);
+    canvas.restore();
   }
 
-  void _drawScanLine(Canvas canvas, double w, double h) {
-    // Only draw when scan line is in visible range
-    if (scanLineY < 0.0 || scanLineY > 1.0) return;
-
-    final y = scanLineY * h;
-    final centerX = w * 0.5;
-
-    // Main scan line — wide, soft glow
-    final scanPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          _scanLineColor.withValues(alpha: 0.0),
-          _scanLineColor.withValues(alpha: 0.35),
-          _scanLineColor.withValues(alpha: 0.50),
-          _scanLineColor.withValues(alpha: 0.35),
-          _scanLineColor.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
-      ).createShader(Rect.fromCenter(
-        center: Offset(centerX, y),
-        width: w * 0.8,
-        height: 1,
-      ))
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(
-      Offset(w * 0.12, y),
-      Offset(w * 0.88, y),
-      scanPaint,
-    );
-
-    // Soft glow band around scan line
-    final glowBandPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          _scanLineColor.withValues(alpha: 0.0),
-          _scanLineColor.withValues(alpha: 0.06),
-          _scanLineColor.withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, y - 20, w, 40));
-    canvas.drawRect(Rect.fromLTWH(0, y - 20, w, 40), glowBandPaint);
-  }
-
-  void _drawEdges(Canvas canvas, List<Offset> points, List<double> scanProximity) {
+  void _drawEdges(Canvas canvas, List<Offset> points, List<double> glowProximity) {
     for (final edge in _edges) {
       final a = edge[0];
       final b = edge[1];
+      final proximity = (glowProximity[a] + glowProximity[b]) / 2.0;
 
-      // Average proximity of both endpoints to scan line
-      final proximity = (scanProximity[a] + scanProximity[b]) / 2.0;
-
-      // Base alpha + boost near scan line
-      final baseAlpha = 0.25 + 0.10 * glowValue;
-      final highlightBoost = proximity * 0.50;
+      final baseAlpha = 0.20 + (0.14 * glowValue);
+      final highlightBoost = proximity * (0.18 + 0.10 * glowValue);
       final alpha = (baseAlpha + highlightBoost).clamp(0.0, 1.0);
 
-      // Interpolate color toward highlight near scan line
       final color = Color.lerp(_lineColor, _lineHighlightColor, proximity)!;
-
       final paint = Paint()
         ..color = color.withValues(alpha: alpha)
-        ..strokeWidth = 0.7 + proximity * 0.8
+        ..strokeWidth = 0.75 + proximity * 0.9
         ..style = PaintingStyle.stroke;
 
-      // Add glow to edges near scan line
-      if (proximity > 0.3) {
-        final glowEdgePaint = Paint()
-          ..color = _glowColor.withValues(alpha: (proximity * 0.15).clamp(0.0, 1.0))
-          ..strokeWidth = 2.5
-          ..style = PaintingStyle.stroke
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-        canvas.drawLine(points[a], points[b], glowEdgePaint);
-      }
+      final glowEdgePaint = Paint()
+        ..color = _glowColor.withValues(
+          alpha: (0.06 + 0.10 * glowValue).clamp(0.0, 1.0),
+        )
+        ..strokeWidth = 1.6 + 0.5 * glowValue
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
+      canvas.drawLine(points[a], points[b], glowEdgePaint);
 
       canvas.drawLine(points[a], points[b], paint);
     }
   }
 
-  void _drawNodes(Canvas canvas, List<Offset> points, List<double> scanProximity) {
-    for (int i = 0; i < points.length; i++) {
-      final p = points[i];
-      final proximity = scanProximity[i];
-
-      // Staggered pulse per node
-      final phase = (glowValue + i * 0.013) % 1.0;
-      final pulse = math.sin(phase * math.pi);
-
-      // Base visibility + scan line boost
-      final baseAlpha = 0.40 + 0.25 * pulse;
-      final scanBoost = proximity * 0.45;
-      final nodeAlpha = (baseAlpha + scanBoost).clamp(0.0, 1.0);
-
-      // Radius grows near scan line
-      final baseRadius = 1.8 + 0.5 * pulse;
-      final radius = baseRadius + proximity * 1.8;
-
-      // Pick color — bright highlight near scan line
-      final nodeCol = Color.lerp(_nodeColor, _nodeHighlightColor, proximity)!;
-
-      // Outer glow halo — bigger near scan line
-      final glowRadius = radius + 2.0 + proximity * 3.0;
-      final glowAlpha = (nodeAlpha * (0.25 + proximity * 0.25)).clamp(0.0, 1.0);
-      final glowPaint = Paint()
-        ..color = _glowColor.withValues(alpha: glowAlpha)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3.0 + proximity * 3.0);
-      canvas.drawCircle(p, glowRadius, glowPaint);
-
-      // Solid bright dot
-      final dotPaint = Paint()
-        ..color = nodeCol.withValues(alpha: nodeAlpha);
-      canvas.drawCircle(p, radius, dotPaint);
-
-      // Extra bright center for nodes near scan line
-      if (proximity > 0.5) {
-        final brightCenter = Paint()
-          ..color = Colors.white.withValues(alpha: (proximity * 0.5).clamp(0.0, 1.0));
-        canvas.drawCircle(p, radius * 0.4, brightCenter);
-      }
-    }
+  @override
+  bool shouldRepaint(covariant _FaceMeshPainter oldDelegate) {
+    return oldDelegate.glowValue != glowValue;
   }
-
-@override
-bool shouldRepaint(covariant _FaceMeshPainter oldDelegate) {
-  return oldDelegate.glowValue != glowValue ||
-         oldDelegate.pulseValue != pulseValue ||
-         oldDelegate.scanLineY != scanLineY;
 }
-}
-
 // ======================================================
 // VALUE CARD — soft tinted background, rounded, no border
 // ======================================================
@@ -774,5 +653,7 @@ class _OnboardingValueCard extends StatelessWidget {
     );
   }
 }
+
+
 
 

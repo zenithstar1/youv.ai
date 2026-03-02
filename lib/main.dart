@@ -194,7 +194,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => OnboardingFlow()),
+                            MaterialPageRoute(builder: (_) => const OnboardingFlow()),
                           );
                         },
                         child: AnimatedBuilder(

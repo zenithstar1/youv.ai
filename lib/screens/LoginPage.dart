@@ -203,77 +203,96 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
-    final horizontalPadding = W * 0.07;
-    final topSpacing = H < 650 ? H * 0.08 : H * 0.10;
-    final betweenLabelHeading = H * 0.025;
-    final betweenHeadingSub = H * 0.02;
-    final betweenSubCard = H * 0.055;
-    final cardPadding = W * 0.045;
+    final compactScale = (H / 900.0).clamp(0.90, 1.0).toDouble();
+    final horizontalPadding = (W * 0.06 * compactScale).clamp(16.0, 24.0).toDouble();
+    final topSpacing = (H * 0.05 * compactScale).clamp(14.0, 34.0).toDouble();
+    final betweenLabelHeading = (H * 0.018 * compactScale).clamp(8.0, 16.0).toDouble();
+    final betweenHeadingSub = (H * 0.012 * compactScale).clamp(6.0, 12.0).toDouble();
+    final betweenSubCard = (H * 0.026 * compactScale).clamp(10.0, 20.0).toDouble();
+    final cardPadding = (W * 0.04 * compactScale).clamp(10.0, 16.0).toDouble();
     final cardRadius = W * 0.05;
-    final fieldSpacing = H * 0.027;
-    final labelInputGap = H * 0.01;
-    final inputHeight = H * 0.065;
-    final consentSpacing = H * 0.035;
-    final buttonSpacing = H * 0.035;
-    final buttonHeight = H * 0.07;
+    final fieldSpacing = (H * 0.015 * compactScale).clamp(8.0, 14.0).toDouble();
+    final labelInputGap = (H * 0.007 * compactScale).clamp(4.0, 9.0).toDouble();
+    final inputHeight = (H * 0.056 * compactScale).clamp(38.0, 50.0).toDouble();
+    final consentSpacing = (H * 0.018 * compactScale).clamp(8.0, 14.0).toDouble();
+    final buttonSpacing = (H * 0.018 * compactScale).clamp(8.0, 14.0).toDouble();
+    final buttonHeight = (H * 0.058 * compactScale).clamp(42.0, 52.0).toDouble();
     final checkboxSize = W * 0.045 > 18 ? W * 0.045 : 18.0;
 
     return SafeArea(
       child: Scaffold(
         backgroundColor: const Color(0xFFF5E6E8),
         resizeToAvoidBottomInset: true,
-        body: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: FadeTransition(
-                  opacity: _fadeAnim,
-                  child: SlideTransition(
-                    position: _slideAnim,
-                    child: Column(
+        body: LayoutBuilder(
+          builder: (context, viewport) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: viewport.maxHeight),
+                child: IntrinsicHeight(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: FadeTransition(
+                          opacity: _fadeAnim,
+                          child: SlideTransition(
+                            position: _slideAnim,
+                            child: Column(
+                      mainAxisSize: MainAxisSize.max,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        SizedBox(height: topSpacing * 0.5),
-                        Text(
-                          'AI FACIAL ANALYSIS',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lora(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 2.0,
-                            color: lowMutedText ?? const Color(0xFFA89B93),
-                          ),
-                        ),
-                        SizedBox(height: betweenLabelHeading),
-                        Text(
-                          'Create Your Analysis Profile',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lora(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w600,
-                            height: 1.3,
-                            color: headlineText,
-                          ),
-                        ),
-                        SizedBox(height: betweenHeadingSub),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Text(
-                            'Your personalized report will be securely stored under this profile.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: W * 0.040,
-                              color: const Color(0xFFB0B0B0),
-                              fontWeight: FontWeight.w400,
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              top: topSpacing,
+                              bottom: betweenSubCard,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'AI FACIAL ANALYSIS',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.lora(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 2.0,
+                                    color: lowMutedText ?? const Color(0xFFA89B93),
+                                  ),
+                                ),
+                                SizedBox(height: betweenLabelHeading),
+                                Text(
+                                  'Create Your Analysis Profile',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.lora(
+                                    fontSize: (27 * compactScale).clamp(22.0, 30.0).toDouble(),
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.3,
+                                    color: headlineText,
+                                  ),
+                                ),
+                                SizedBox(height: betweenHeadingSub),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: Text(
+                                    'Your personalized report will be securely stored under this profile.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: (W * 0.039 * compactScale).clamp(13.0, 16.5).toDouble(),
+                                      color: const Color(0xFFB0B0B0),
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    maxLines: 2,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        SizedBox(height: betweenSubCard),
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
@@ -294,30 +313,38 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               // Full Name Card
                               Container(
                                 margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(12),
+                                padding: EdgeInsets.all(8 * compactScale),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(14),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black12,
-                                      blurRadius: 6,
-                                      offset: Offset(0, 2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
                                     ),
                                   ],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Full Name', style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: 8),
+                                    Text('Full Name', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
+                                    SizedBox(height: labelInputGap),
                                     TextField(
                                       controller: _nameController,
+                                      style: TextStyle(
+                                        fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
+                                      ),
                                       decoration: InputDecoration(
                                         hintText: 'Enter your name',
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
+                                        ),
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Color(0xFFE6E2DD)),
+                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
                                         ),
                                         filled: true,
                                         fillColor: Colors.white,
@@ -329,61 +356,69 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               // Mobile Number Card
                               Container(
                                 margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(12),
+                                padding: EdgeInsets.all(8 * compactScale),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(14),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black12,
-                                      blurRadius: 6,
-                                      offset: Offset(0, 2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
                                     ),
                                   ],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Mobile Number', style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: 8),
+                                    Text('Mobile Number', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
+                                    SizedBox(height: labelInputGap),
                                     TextField(
                                       controller: _phoneController,
                                       keyboardType: TextInputType.phone,
+                                      style: TextStyle(
+                                        fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
+                                      ),
                                       decoration: InputDecoration(
                                         hintText: 'Enter your mobile number',
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
+                                        ),
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Color(0xFFE6E2DD)),
+                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
                                         ),
                                         filled: true,
                                         fillColor: Colors.white,
                                       ),
                                     ),
-                                    SizedBox(height: 4),
-                                    Text('OTP verification required.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                    SizedBox(height: (3 * compactScale).clamp(2.0, 4.0)),
+                                    Text('OTP verification required.', style: TextStyle(fontSize: (12 * compactScale).clamp(10.5, 13.0).toDouble(), color: Colors.black54)),
                                   ],
                                 ),
                               ),
                               // City Card with Dropdown
                               Container(
                                 margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(12),
+                                padding: EdgeInsets.all(8 * compactScale),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(14),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black12,
-                                      blurRadius: 6,
-                                      offset: Offset(0, 2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
                                     ),
                                   ],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('City', style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: 8),
+                                    Text('City', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
+                                    SizedBox(height: labelInputGap),
                                     DropdownButtonFormField<String>(
                                       value: _selectedCity,
                                       items: _cities.map((city) => DropdownMenuItem(
@@ -398,9 +433,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                       },
                                       decoration: InputDecoration(
                                         hintText: 'Select your city',
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
+                                        ),
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(12),
-                                          borderSide: BorderSide(color: Color(0xFFE6E2DD)),
+                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
                                         ),
                                         filled: true,
                                         fillColor: Colors.white,
@@ -436,7 +476,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                         Text(
                                           'I agree to the ',
                                           style: TextStyle(
-                                            fontSize: W * 0.032,
+                                            fontSize: (W * 0.030 * compactScale).clamp(11.0, 13.0).toDouble(),
+                                            
                                             color: const Color(0xFF8C8C8C),
                                           ),
                                         ),
@@ -450,7 +491,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                           child: Text(
                                             'Terms',
                                             style: TextStyle(
-                                              fontSize: W * 0.032,
+                                              fontSize: (W * 0.033 * compactScale).clamp(11.5, 14.0).toDouble(),
                                               color: const Color(0xFFE8B4BA),
                                               decoration: TextDecoration.underline,
                                             ),
@@ -459,7 +500,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                         Text(
                                           ' & ',
                                           style: TextStyle(
-                                            fontSize: W * 0.032,
+                                            fontSize: (W * 0.033 * compactScale).clamp(11.5, 14.0).toDouble(),
                                             color: const Color(0xFF8C8C8C),
                                           ),
                                         ),
@@ -473,7 +514,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                           child: Text(
                                             'Privacy Policy',
                                             style: TextStyle(
-                                              fontSize: W * 0.032,
+                                              fontSize: (W * 0.033 * compactScale).clamp(11.5, 14.0).toDouble(),
                                               color: const Color(0xFFE8B4BA),
                                               decoration: TextDecoration.underline,
                                             ),
@@ -529,11 +570,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(24),
                                           ),
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          minimumSize: Size(double.infinity, buttonHeight),
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: (10 * compactScale).clamp(8.0, 12.0).toDouble(),
+                                          ),
                                         ),
-                                        child: Text('Verify & Start Scan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                        child: Text('Verify & Start Scan', style: TextStyle(fontSize: (16.5 * compactScale).clamp(14.0, 17.5).toDouble(), fontWeight: FontWeight.w600)),
                                       ),
-                                      const SizedBox(height: 12),
+                                      SizedBox(height: (8 * compactScale).clamp(6.0, 10.0)),
                                       Center(
                                         child: GestureDetector(
                                           onTap: () {
@@ -547,7 +591,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                             'Already registered user?',
                                             style: TextStyle(
                                               color: Colors.blueGrey.shade700,
-                                              fontSize: 15,
+                                              fontSize: (15 * compactScale).clamp(12.5, 16.0).toDouble(),
                                               fontWeight: FontWeight.w500,
                                               decoration: TextDecoration.underline,
                                             ),
@@ -561,13 +605,18 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                             ],
                           ),
                         ),
+                        SizedBox(height: (H * 0.02).clamp(8.0, 16.0)),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

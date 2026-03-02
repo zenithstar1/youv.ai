@@ -49,27 +49,36 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
-    final horizontalPadding = W * 0.07;
-    final topSpacing = H < 650 ? H * 0.08 : H * 0.10;
-    final betweenLabelHeading = H * 0.025;
-    final betweenHeadingSub = H * 0.02;
-    final betweenSubCard = H * 0.055;
-    final cardPadding = W * 0.045;
-    final cardRadius = W * 0.05;
-    final fieldSpacing = H * 0.027;
-    final labelInputGap = H * 0.01;
-    final inputHeight = H * 0.065;
-    final consentSpacing = H * 0.035;
-    final buttonSpacing = H * 0.035;
-    final buttonHeight = H * 0.07;
-    final checkboxSize = W * 0.045 > 18 ? W * 0.045 : 18.0;
+    final compactScale = (H / 850.0).clamp(0.78, 1.0).toDouble();
+    final horizontalPadding = (W * 0.07).clamp(16.0, 28.0).toDouble();
+    final topSpacing = (H * 0.045 * compactScale).clamp(12.0, 40.0).toDouble();
+    final betweenLabelHeading =
+        (H * 0.018 * compactScale).clamp(8.0, 18.0).toDouble();
+    final betweenHeadingSub =
+        (H * 0.014 * compactScale).clamp(8.0, 16.0).toDouble();
+    final betweenSubCard =
+        (H * 0.018 * compactScale).clamp(8.0, 16.0).toDouble();
+    final cardPadding = (W * 0.034 * compactScale).clamp(10.0, 14.0).toDouble();
+    final cardRadius = (W * 0.05).clamp(14.0, 22.0).toDouble();
+    final fieldSpacing = (H * 0.012 * compactScale).clamp(6.0, 12.0).toDouble();
+    final labelInputGap =
+        (H * 0.008 * compactScale).clamp(4.0, 10.0).toDouble();
+    final inputHeight = (H * 0.045 * compactScale).clamp(32.0, 42.0).toDouble();
+    final consentSpacing =
+        (H * 0.014 * compactScale).clamp(6.0, 12.0).toDouble();
+    final buttonSpacing =
+        (H * 0.014 * compactScale).clamp(6.0, 12.0).toDouble();
+    final buttonHeight = (H * 0.048 * compactScale).clamp(38.0, 46.0).toDouble();
+    final checkboxSize = (W * 0.045).clamp(18.0, 22.0).toDouble();
 
-    return SafeArea(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: kIvory,
         resizeToAvoidBottomInset: true,
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
@@ -86,7 +95,9 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
                         Text(
                           "AI FACIAL ANALYSIS",
                           style: TextStyle(
-                            fontSize: W * 0.030,
+                            fontSize: (W * 0.030 * compactScale)
+                                .clamp(10.0, 13.0)
+                                .toDouble(),
                             color: kGrey,
                             letterSpacing: 2.2,
                             fontWeight: FontWeight.w500,
@@ -98,7 +109,8 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Serif',
-                            fontSize: W * 0.07 > 32 ? 32 : W * 0.07,
+                            fontSize:
+                                (W * 0.066 * compactScale).clamp(24.0, 32.0).toDouble(),
                             color: Colors.black87,
                             fontWeight: FontWeight.w400,
                             height: 1.18,
@@ -109,12 +121,11 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
                           "Your personalized report will be securely stored under this profile.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: W * 0.040,
+                            fontSize:
+                                (W * 0.038 * compactScale).clamp(12.0, 16.0).toDouble(),
                             color: kGrey,
                             fontWeight: FontWeight.w400,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: betweenSubCard),
                         Container(
@@ -248,7 +259,8 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
                             child: Text(
                               "Already have a profile? Login",
                               style: TextStyle(
-                                fontSize: W * 0.032,
+                                fontSize:
+                                    (W * 0.032 * compactScale).clamp(11.0, 14.0).toDouble(),
                                 color: kMutedGrey,
                                 fontWeight: FontWeight.w400,
                                 decoration: TextDecoration.none,
@@ -256,7 +268,7 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
                             ),
                           ),
                         ),
-                        SizedBox(height: H * 0.03),
+                        SizedBox(height: (H * 0.02 * compactScale).clamp(8.0, 20.0)),
                       ],
                     ),
                   ),
@@ -265,8 +277,7 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

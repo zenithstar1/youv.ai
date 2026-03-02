@@ -13,7 +13,7 @@ Widget build(BuildContext context) {
   final H = MediaQuery.of(context).size.height;
 
   return Scaffold(
-    backgroundColor: const Color(0xFFF4ECE7),
+    backgroundColor: const Color(0xFFFDEDED),
     body: SafeArea(
       child: Column(
         children: [
