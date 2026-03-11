@@ -26,7 +26,6 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   SharedPreferences? prefs;
 
   bool _instructionsShown = false;
-  bool _showLoading = true;
   bool _navigated = false;
 
   bool _isLoggedIn = false;
@@ -46,12 +45,16 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
     if (!mounted) return;
 
     /// wait until first frame renders
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_instructionsShown && !_navigated) {
-        _instructionsShown = true;
-        _showInstructionsDialog();
-      }
-    });
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (_navigated) return;
+
+  if (widget.isHair) {
+    _instructionsShown = true;
+    _showInstructionsDialog();
+  } else {
+    _takePhoto(); // open camera immediately for face
+  }
+});
   }
 
   // ================= USER =================
@@ -183,11 +186,10 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => _showLoading = false);
-              _takePhoto();
-            },
+           onPressed: () {
+  Navigator.pop(context);
+  _takePhoto();
+},
             child: const Text(
               "Got it!",
               style: TextStyle(
@@ -203,16 +205,12 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   // ================= UI =================
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      /// prevents white layer during navigation
-      backgroundColor:
-          _navigated ? Colors.black : const Color(0xFFF5E6E8),
-      body: _showLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
-    );
-  }
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: _navigated ? Colors.black : const Color(0xFFF5E6E8),
+    body: _buildBody(),
+  );
+}
 
   Widget _buildBody() {
     return Padding(

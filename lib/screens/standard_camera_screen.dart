@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'image_preview_screen.dart';
 import 'dart:html' as html;
 import 'dart:js_util' as js_util;
+import 'dart:ui' as ui;
 
 /// =================================================
 /// COLORS
@@ -19,6 +20,18 @@ const _kRoseAccent = Color(0xFFD79096);
 const _kSoftGreen = Color(0xFF7BAF6E);
 const _kValidGreenBg = Color(0xFFE8F5E4);
 const _kDarkText = Color(0xFF3A2A22);
+const List<String> _skinFacts = [
+  "Your skin renews itself roughly every 28 days.",
+  "Skin is the body’s largest organ.",
+  "Hydration helps maintain skin elasticity.",
+  "UV exposure accelerates skin aging.",
+  "Collagen keeps skin firm and smooth.",
+  "Sleep helps repair skin cells.",
+  "Stress can trigger acne flare-ups.",
+  "Healthy skin contains billions of microbes.",
+  "Water intake supports skin barrier function.",
+  "Skin protects your body from bacteria and pollution."
+];
 
 /// =================================================
 /// SCAN PHASE ENUM
@@ -80,6 +93,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   String _scanText = '';
   int _highlightIndex = -1; // for skin marker highlighting
   double _ringProgress = 0.0;
+  String _getRandomSkinFact() {
+  final facts = List<String>.from(_skinFacts);
+  facts.shuffle();
+  return facts.first;
+}
 
   /// =================================================
   /// INIT
@@ -93,7 +111,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     _autoRingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 3500),
     );
 
     _startEngagementTimer();
@@ -234,6 +252,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       _countdown = 3;
       _holdSteady = false;
     });
+    _autoRingController?.forward(from: 0.0);
 
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -385,49 +404,56 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    // PHASE 2: Analyzing (2s) — sequential highlights
+    // PHASE 2: Analyzing (2s) — sequential highlights with micro-label cycling
     setState(() {
       _phase = ScanPhase.analyzing;
       _scanText = 'Analyzing visible skin markers…';
     });
-    final markers = ['Hydration', 'Pigmentation', 'Pore Visibility', 'Acne Activity'];
-    for (int i = 0; i < 5; i++) {
+    const microLabels = ['Hydration', 'Pigmentation', 'Pore Visibility', 'Acne Activity'];
+    for (int i = 0; i < 6; i++) {
       if (!mounted || _isDisposed || _hasNavigated) return;
-      setState(() => _highlightIndex = i);
-      await Future.delayed(const Duration(milliseconds: 400));
-    }
-    // Cycle micro-labels
-    for (int i = 0; i < markers.length; i++) {
-      if (!mounted || _isDisposed || _hasNavigated) return;
-      // Don't actually show text labels over the image — keep _scanText
+      setState(() {
+        _highlightIndex = i;
+        _scanText = microLabels[i % microLabels.length];
+      });
+      await Future.delayed(const Duration(milliseconds: 380));
     }
     if (!mounted || _isDisposed || _hasNavigated) return;
-
-    // PHASE 3: Calculating (1.5s)
-    setState(() {
-      _phase = ScanPhase.calculating;
-      _scanText = 'Calculating Skin Health Index…';
-      _ringProgress = 0;
-    });
-    // Animate ring from 0 to 0.85 over 1s
-    const ringSteps = 20;
-    for (int i = 1; i <= ringSteps; i++) {
-      await Future.delayed(const Duration(milliseconds: 50));
-      if (!mounted || _isDisposed || _hasNavigated) return;
-      setState(() => _ringProgress = 0.85 * (i / ringSteps));
-    }
+    setState(() => _scanText = 'Analyzing visible skin markers…');
     await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    setState(() => _scanText = 'Generating personalized report…');
-    await Future.delayed(const Duration(milliseconds: 500));
+    // PHASE 3: Calculating with random skin facts
+setState(() {
+  _phase = ScanPhase.calculating;
+  _scanText = _getRandomSkinFact();
+  _ringProgress = 0;
+});
+
+const ringSteps = 20;
+
+for (int i = 1; i <= ringSteps; i++) {
+  await Future.delayed(const Duration(milliseconds: 50));
+
+  if (!mounted || _isDisposed || _hasNavigated) return;
+
+  setState(() {
+    _ringProgress = i / ringSteps;
+
+    // change fact every few steps
+    if (i % 5 == 0) {
+      _scanText = _getRandomSkinFact();
+    }
+  });
+}
+
+await Future.delayed(const Duration(milliseconds: 350));
+if (!mounted || _isDisposed || _hasNavigated) return;
+    // Animate ring from 0 to 0.85 over 1s
+   
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    setState(() {
-      _phase = ScanPhase.complete;
-      _scanText = 'Analysis Complete.';
-    });
-    await Future.delayed(const Duration(milliseconds: 350));
+    
     if (!mounted || _isDisposed || _hasNavigated) return;
 
     // Navigate
@@ -537,6 +563,17 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
+          // ── BLUR OVERLAY (freeze only) ──
+          if (_phase == ScanPhase.freeze)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+
           // ── SOFT GRADIENT (live only) ──
           if (isLive)
             Positioned.fill(
@@ -594,17 +631,22 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
           // ── FACE GUIDE OVERLAY (live + freeze) ──
           if (_phase == ScanPhase.live || _phase == ScanPhase.freeze)
-            const Align(
-              alignment: Alignment(0, -0.08),
-              child: IgnorePointer(child: _FaceGuideOverlay()),
+            Align(
+              alignment: const Alignment(0, -0.08),
+              child: IgnorePointer(
+                child: _FaceGuideOverlay(faceDetected: _faceDetected),
+              ),
             ),
 
           // ── VALIDATION CHIPS (live) ──
           if (isLive)
             Positioned(
-              right: 12,
-              top: topPadding + 100,
-              child: _ValidationChips(faceDetected: _faceDetected),
+              top: topPadding + 96,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: _ValidationChips(faceDetected: _faceDetected),
+              ),
             ),
 
           // ── FACE DETECTED PILL / COUNTDOWN / HOLD STEADY (live) ──
@@ -696,6 +738,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                 enabled: _initialized && !_capturing && _controller != null && _controller!.value.isInitialized && (widget.isHair || _faceDetected),
                 faceDetected: _faceDetected,
                 autoRingController: _autoRingController,
+                subLabel: (_countdown > 0 || _holdSteady)
+                    ? 'Hold still…'
+                    : _faceDetected
+                        ? 'Auto-capturing…'
+                        : 'Position your face in frame',
                 onTap: (_initialized && !_capturing && _controller != null && _controller!.value.isInitialized && (widget.isHair || _faceDetected))
                     ? _capture
                     : null,
@@ -783,8 +830,8 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
             // Ring progress (Phase 3)
             if (_phase == ScanPhase.calculating || _phase == ScanPhase.complete)
               SizedBox(
-                width: 100,
-                height: 100,
+                width: 120,
+                height: 120,
                 child: CustomPaint(
                   painter: _RingProgressPainter(
                     progress: _ringProgress,
@@ -794,7 +841,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                     child: Text(
                       '${(_ringProgress * 100).toInt()}',
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 32,
                         fontFamily: 'serif',
                         color: _kIvory.withOpacity(0.9),
                         fontWeight: FontWeight.w600,
@@ -836,13 +883,13 @@ class _ValidationChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         _Chip(label: "Face aligned", valid: faceDetected),
-        const SizedBox(height: 6),
+        const SizedBox(width: 6),
         _Chip(label: "Good lighting", valid: faceDetected),
-        const SizedBox(height: 6),
+        const SizedBox(width: 6),
         _Chip(label: "Neutral expression", valid: faceDetected),
       ],
     );
@@ -895,10 +942,12 @@ class _CaptureButton extends StatelessWidget {
   final bool faceDetected;
   final AnimationController? autoRingController;
   final VoidCallback? onTap;
+  final String subLabel;
 
   const _CaptureButton({
     required this.enabled,
     required this.faceDetected,
+    required this.subLabel,
     this.autoRingController,
     this.onTap,
   });
@@ -918,6 +967,22 @@ class _CaptureButton extends StatelessWidget {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
+                  // Outer glow ring when face detected
+                  if (faceDetected)
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _kBlush.withOpacity(0.35),
+                            blurRadius: 18,
+                            spreadRadius: 3,
+                          ),
+                        ],
+                      ),
+                    ),
                   // Auto-ring progress
                   if (autoRingController != null && faceDetected)
                     AnimatedBuilder(
@@ -979,7 +1044,7 @@ class _CaptureButton extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          faceDetected ? "Auto-capturing…" : "Position your face in frame",
+          subLabel,
           style: TextStyle(
             fontFamily: 'serif',
             fontSize: 13,
@@ -1025,7 +1090,8 @@ class _AutoRingPainter extends CustomPainter {
 /// FACE GUIDE OVERLAY
 /// =================================================
 class _FaceGuideOverlay extends StatelessWidget {
-  const _FaceGuideOverlay();
+  final bool faceDetected;
+  const _FaceGuideOverlay({required this.faceDetected});
 
   @override
   Widget build(BuildContext context) {
@@ -1034,27 +1100,42 @@ class _FaceGuideOverlay extends StatelessWidget {
       child: SizedBox(
         width: width,
         height: width * 1.30,
-        child: CustomPaint(painter: _FacePainter()),
+        child: CustomPaint(painter: _FacePainter(faceDetected: faceDetected)),
       ),
     );
   }
 }
 
 class _FacePainter extends CustomPainter {
+  final bool faceDetected;
+  const _FacePainter({required this.faceDetected});
+
   @override
   void paint(Canvas canvas, Size size) {
-    final ovalColor = const Color(0xFFFDF8F3).withOpacity(0.6);
+    final ovalColor = faceDetected
+        ? _kBlush.withOpacity(0.85)
+        : const Color(0xFFFDF8F3).withOpacity(0.6);
+
+    // Glow aura when face detected
+    if (faceDetected) {
+      final glowPaint = Paint()
+        ..color = _kBlush.withOpacity(0.22)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8.0
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
+      canvas.drawOval(Offset.zero & size, glowPaint);
+    }
 
     // Oval
     final ovalPaint = Paint()
       ..color = ovalColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = faceDetected ? 2.0 : 1.5;
     canvas.drawOval(Offset.zero & size, ovalPaint);
 
     // Vertical center line
     final linePaint = Paint()
-      ..color = ovalColor.withOpacity(0.35)
+      ..color = ovalColor.withOpacity(0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
 
@@ -1092,7 +1173,7 @@ class _FacePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(_FacePainter old) => old.faceDetected != faceDetected;
 }
 
 /// =================================================
@@ -1151,11 +1232,12 @@ class _SkinMarkerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 5 zones: forehead, left cheek, right cheek, under-eye, chin
     final zones = [
-      Offset(size.width * 0.5, size.height * 0.18),  // forehead
-      Offset(size.width * 0.28, size.height * 0.50),  // left cheek
-      Offset(size.width * 0.72, size.height * 0.50),  // right cheek
-      Offset(size.width * 0.5, size.height * 0.60),   // T-zone
-      Offset(size.width * 0.5, size.height * 0.82),   // chin
+      Offset(size.width * 0.50, size.height * 0.15),  // forehead
+      Offset(size.width * 0.25, size.height * 0.48),  // left cheek
+      Offset(size.width * 0.75, size.height * 0.48),  // right cheek
+      Offset(size.width * 0.50, size.height * 0.40),  // under-eye
+      Offset(size.width * 0.50, size.height * 0.58),  // T-zone
+      Offset(size.width * 0.50, size.height * 0.80),  // chin
     ];
 
     for (int i = 0; i < zones.length; i++) {
