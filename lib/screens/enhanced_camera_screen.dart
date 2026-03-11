@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
-import 'dart:typed_data';
 import '../Models/head_pose_calculator.dart';
 import '../widgets/auto_capture_guide_widget.dart';
 import '../services/face_detection_service.dart';

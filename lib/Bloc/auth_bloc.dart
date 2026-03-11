@@ -145,18 +145,92 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> sendOtp(SendOtpRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
+      final rawDigits = event.phone.replaceAll(RegExp(r'[^0-9]'), '');
+      final normalizedPhone = rawDigits.length > 10
+          ? rawDigits.substring(rawDigits.length - 10)
+          : rawDigits;
+
+      if (normalizedPhone.length != 10) {
+        emit(AuthError('Please enter a valid 10-digit mobile number'));
+        return;
+      }
+
       final response = await http.post(
         Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/send-otp',
         ),
-        body: {'mobile': event.phone},
+        body: {
+          'mobile': normalizedPhone,
+          'flow': event.flow,
+          'type': event.flow,
+        },
       );
+      print('sendOtp flow=${event.flow} status=${response.statusCode}');
       print(response.body);
 
-      if (response.statusCode == 200) {
-        emit(AuthMessage("OTP sent successfully!"));
+      Map<String, dynamic>? responseData;
+      String backendMessage = '';
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map) {
+          responseData = Map<String, dynamic>.from(decoded);
+          backendMessage = (responseData['message'] ?? '').toString();
+          if (backendMessage.isEmpty && responseData['error'] != null) {
+            backendMessage = responseData['error'].toString();
+          }
+          if (backendMessage.isEmpty && responseData['data'] is Map) {
+            final nestedData = Map<String, dynamic>.from(responseData['data']);
+            backendMessage = (nestedData['message'] ?? '').toString();
+          }
+        }
+      } catch (_) {}
+
+      final lowerMessage = backendMessage.toLowerCase();
+      final businessFailure =
+          responseData != null && responseData['success'] == false;
+      final indicatesAlreadyExists =
+          lowerMessage.contains('already') ||
+          lowerMessage.contains('exist') ||
+          lowerMessage.contains('registered') ||
+          lowerMessage.contains('duplicate');
+      final indicatesNotFound =
+          lowerMessage.contains('not found') ||
+          lowerMessage.contains('not registered') ||
+          lowerMessage.contains('does not exist') ||
+          lowerMessage.contains('no account') ||
+          lowerMessage.contains('no user');
+
+      if (event.flow == 'signup' &&
+          (response.statusCode == 409 || indicatesAlreadyExists)) {
+        emit(
+          AuthError(
+            'This mobile number is already registered. Please login.',
+          ),
+        );
+        return;
+      }
+
+      if (event.flow == 'login' && indicatesNotFound) {
+        emit(
+          AuthError(
+            'This mobile number is not registered. Please sign up first.',
+          ),
+        );
+        return;
+      }
+
+      if (response.statusCode == 200 && !businessFailure) {
+        emit(AuthMessage(
+          backendMessage.isNotEmpty ? backendMessage : "OTP sent successfully!",
+        ));
       } else {
-        emit(AuthError('Failed to send OTP: ${response.body}'));
+        emit(
+          AuthError(
+            backendMessage.isNotEmpty
+                ? backendMessage
+                : 'Failed to send OTP: ${response.body}',
+          ),
+        );
       }
     } catch (e) {
       emit(AuthError('Failed to send OTP: $e'));
@@ -201,7 +275,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           emit(AuthError('Invalid response format'));
         }
       } else {
-        emit(AuthError('Mobile verification failed: ${response.body}'));
+        String backendMessage = response.body;
+        try {
+          final decoded = json.decode(response.body);
+          if (decoded is Map && decoded['message'] != null) {
+            backendMessage = decoded['message'].toString();
+          }
+        } catch (_) {}
+        emit(AuthError('Mobile verification failed: $backendMessage'));
       }
     } catch (e) {
       emit(AuthError('Mobile verification failed: $e'));

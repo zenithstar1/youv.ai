@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,10 +8,9 @@ import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
 import 'analysis_type_screen.dart';
-import 'package:skin_analysis_app/screens/already_login_screen.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -162,13 +160,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final TextEditingController _phoneController = TextEditingController(text: '+91');
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _citySearchController = TextEditingController();
-  List<String> _cities = [
+  final List<String> _cities = [
     'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune',
     'Hyderabad', 'Ahmedabad', 'Jaipur', 'Lucknow'
   ];
   String? _selectedCity;
-  bool _showCitySearch = false;
+  final bool _showCitySearch = false;
   bool _consent = false;
+  bool _isSendingOtp = false;
+  late final AuthBloc _authBloc;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -180,6 +180,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    _authBloc = AuthBloc();
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -192,11 +193,34 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
+    _authBloc.close();
     _animController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _cityController.dispose();
     super.dispose();
+  }
+
+  String _normalizedPhone() {
+    final digits = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 10) {
+      return digits.substring(digits.length - 10);
+    }
+    return digits;
+  }
+
+  void _requestOtpForSignup() {
+    final phone = _normalizedPhone();
+    if (phone.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+      );
+      return;
+    }
+
+    _authBloc.add(
+      SendOtpRequested(phone: phone, flow: 'signup'),
+    );
   }
 
   @override
@@ -219,8 +243,41 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final buttonHeight = (H * 0.058 * compactScale).clamp(42.0, 52.0).toDouble();
     final checkboxSize = W * 0.045 > 18 ? W * 0.045 : 18.0;
 
-    return SafeArea(
-      child: Scaffold(
+    return BlocProvider.value(
+      value: _authBloc,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoading) {
+            if (!_isSendingOtp) {
+              setState(() => _isSendingOtp = true);
+            }
+          } else {
+            if (_isSendingOtp) {
+              setState(() => _isSendingOtp = false);
+            }
+          }
+
+          if (state is AuthMessage) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider.value(
+                  value: _authBloc,
+                  child: OTPVerificationScreen(
+                    phone: _normalizedPhone(),
+                    name: _nameController.text.trim(),
+                    city: _selectedCity ?? '',
+                  ),
+                ),
+              ),
+            );
+          } else if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.error)),
+            );
+          }
+        },
+        child: SafeArea(
+          child: Scaffold(
         backgroundColor: const Color(0xFFF5E6E8),
         resizeToAvoidBottomInset: true,
         body: LayoutBuilder(
@@ -420,7 +477,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     Text('City', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
                                     SizedBox(height: labelInputGap),
                                     DropdownButtonFormField<String>(
-                                      value: _selectedCity,
+                                      initialValue: _selectedCity,
                                       items: _cities.map((city) => DropdownMenuItem(
                                         value: city,
                                         child: Text(city),
@@ -539,27 +596,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       ElevatedButton(
-                                        onPressed: allFilled
-                                            ? () async {
-                                                // Add verification logic here if needed
-                                                // Navigate to skin/hair analysis page
-                                                Navigator.of(context).push(
-                                                  PageRouteBuilder(
-                                                    transitionDuration: const Duration(milliseconds: 80),
-                                                    pageBuilder: (_, __, ___) => AnalysisTypeScreen(),
-                                                    transitionsBuilder: (_, animation, __, child) {
-                                                      final tween = Tween(
-                                                        begin: const Offset(1.0, 0.0),
-                                                        end: Offset.zero,
-                                                      ).chain(CurveTween(curve: Curves.easeInOut));
-                                                      return SlideTransition(
-                                                        position: animation.drive(tween),
-                                                        child: child,
-                                                      );
-                                                    },
-                                                  ),
-                                                );
-                                              }
+                                        onPressed: (allFilled && !_isSendingOtp)
+                                            ? _requestOtpForSignup
                                             : null,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: allFilled
@@ -575,7 +613,16 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                             vertical: (10 * compactScale).clamp(8.0, 12.0).toDouble(),
                                           ),
                                         ),
-                                        child: Text('Verify & Start Scan', style: TextStyle(fontSize: (16.5 * compactScale).clamp(14.0, 17.5).toDouble(), fontWeight: FontWeight.w600)),
+                                        child: _isSendingOtp
+                                            ? const SizedBox(
+                                                height: 22,
+                                                width: 22,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : Text('Verify & Start Scan', style: TextStyle(fontSize: (16.5 * compactScale).clamp(14.0, 17.5).toDouble(), fontWeight: FontWeight.w600)),
                                       ),
                                       SizedBox(height: (8 * compactScale).clamp(6.0, 10.0)),
                                       Center(
@@ -617,6 +664,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               ),
             );
           },
+        ),
+          ),
         ),
       ),
     );
@@ -743,7 +792,7 @@ class AdaptiveInputField extends StatelessWidget {
   final String? microText;
 
   const AdaptiveInputField({
-    Key? key,
+    super.key,
     required this.label,
     required this.controller,
     required this.keyboardType,
@@ -752,7 +801,7 @@ class AdaptiveInputField extends StatelessWidget {
     this.prefixText,
     this.isPhone = false,
     this.microText,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -797,13 +846,13 @@ class UnderlineTextField extends StatefulWidget {
   final bool isPhone;
 
   const UnderlineTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.keyboardType,
     required this.inputHeight,
     this.prefixText,
     this.isPhone = false,
-  }) : super(key: key);
+  });
 
   @override
   State<UnderlineTextField> createState() => _UnderlineTextFieldState();
@@ -909,12 +958,12 @@ class PrimaryCTAButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   const PrimaryCTAButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.enabled,
     required this.height,
     this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -953,14 +1002,22 @@ class PrimaryCTAButton extends StatelessWidget {
 
 class OTPVerificationScreen extends StatefulWidget {
   final String phone;
-  const OTPVerificationScreen({required this.phone});
+  final String name;
+  final String city;
+
+  const OTPVerificationScreen({
+    super.key,
+    required this.phone,
+    required this.name,
+    required this.city,
+  });
 
   @override
   State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
   bool _loading = false;
   String _error = '';
   int _timer = 30;
@@ -981,26 +1038,63 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _verifyOtp() {
+    final otp = _otpControllers.map((c) => c.text).join();
+    if (otp.length != 6) {
+      setState(() => _error = 'Please enter the 6-digit OTP');
+      return;
+    }
+
     setState(() { _loading = true; });
-    // Simulate verification
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() { _loading = false; });
-      // Add your verification logic here
-    });
+    context.read<AuthBloc>().add(
+      VerifyLoginMobile(
+        phone: widget.phone,
+        name: widget.name,
+        email: '',
+        password: '',
+        otp: otp,
+      ),
+    );
   }
 
   void _resendCode() {
     setState(() { _timer = 30; });
     _startTimer();
-    // Add resend logic here
+    context.read<AuthBloc>().add(
+      SendOtpRequested(phone: widget.phone, flow: 'signup'),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5E6E8),
-      body: SafeArea(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthLoading) {
+          setState(() {
+            _loading = true;
+            _error = '';
+          });
+        } else if (state is AuthAuthenticated) {
+          setState(() => _loading = false);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => AnalysisTypeScreen()),
+          );
+        } else if (state is AuthMessage) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        } else if (state is AuthError) {
+          setState(() {
+            _loading = false;
+            _error = state.error;
+          });
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5E6E8),
+        body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: W * 0.07, vertical: 40),
           child: Column(
@@ -1015,16 +1109,20 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 ),
               ),
               SizedBox(height: 12),
-              Text('Enter the 4-digit code sent to +91 ${widget.phone}',
+              Text('Enter the 6-digit code sent to +91 ${widget.phone}',
                 style: GoogleFonts.poppins(
                   fontSize: W * 0.035,
                   color: Colors.black54,
                 ),
               ),
               SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(4, (i) => _buildOtpBox(i, W)),
+              Center(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: List.generate(6, (i) => _buildOtpBox(i)),
+                ),
               ),
               if (_error.isNotEmpty)
                 Padding(
@@ -1036,7 +1134,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 children: [
                   TextButton(
                     onPressed: _timer == 0 ? _resendCode : null,
-                    child: Text(_timer == 0 ? 'Resend Code' : 'Resend in $_timer s'),
+                    child: Text(
+                      _timer == 0 ? 'Resend Code' : 'Resend in $_timer s',
+                      style: GoogleFonts.poppins(
+                        fontSize: W * 0.032,
+                        color: Colors.black,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1065,28 +1169,44 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             ],
           ),
         ),
+        ),
       ),
     );
   }
 
-  Widget _buildOtpBox(int i, double W) {
+  Widget _buildOtpBox(int i) {
     return SizedBox(
-      width: W * 0.13,
+      width: 44,
       child: TextField(
         controller: _otpControllers[i],
         keyboardType: TextInputType.number,
         maxLength: 1,
         textAlign: TextAlign.center,
-        style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600),
+        style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           counterText: '',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: const Color(0xFFE6E2DD))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: const Color(0xFF6B3A3A), width: 2)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: const Color(0xFFE6E2DD))),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF6B3A3A), width: 1.8),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
+          ),
         ),
         onChanged: (v) {
-          if (v.isNotEmpty && i < 3) {
+          if (v.isNotEmpty && i < 5) {
             FocusScope.of(context).nextFocus();
+          } else if (v.isEmpty && i > 0) {
+            FocusScope.of(context).previousFocus();
           }
           if (_otpControllers.every((c) => c.text.isNotEmpty)) {
             _verifyOtp();

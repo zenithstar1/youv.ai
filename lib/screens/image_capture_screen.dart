@@ -1,19 +1,14 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'image_preview_screen.dart';
 import 'enhanced_camera_screen.dart';
 import 'standard_camera_screen.dart';
 // ...existing code...
-import '../Bloc/auth_bloc.dart';
-import '../Bloc/auth_event.dart';
 
 class ImageCaptureScreen extends StatefulWidget {
   final bool isHair;

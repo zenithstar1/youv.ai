@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
+import 'package:skin_analysis_app/Bloc/auth_event.dart';
+import 'package:skin_analysis_app/Bloc/auth_state.dart';
 import 'terms_and_conditions.dart';
 import 'package:flutter/gestures.dart';
 import 'otp_screen.dart';
@@ -16,19 +20,55 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final ValueNotifier<bool> agreeTerms = ValueNotifier(false);
 
   final TextEditingController phoneController = TextEditingController();
+  late final AuthBloc _authBloc;
+  bool _isSendingOtp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authBloc = AuthBloc();
+  }
 
   @override
   void dispose() {
+    _authBloc.close();
     phoneController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFCE7E7),
-      body: Stack(
-        children: [
+    return BlocProvider.value(
+      value: _authBloc,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoading) {
+            setState(() => _isSendingOtp = true);
+          } else {
+            if (_isSendingOtp) {
+              setState(() => _isSendingOtp = false);
+            }
+          }
+
+          if (state is AuthMessage) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OtpScreen(
+                  phoneNumber: "+91${phoneController.text.trim()}",
+                ),
+              ),
+            );
+          } else if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.error, style: GoogleFonts.lora())),
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFFFCE7E7),
+          body: Stack(
+            children: [
           // BACK ARROW
           Positioned(
             top: 60,
@@ -208,7 +248,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   // SIGN UP BUTTON
                   Center(
                     child: GestureDetector(
-                      onTap: () {
+                      onTap: _isSendingOtp ? null : () {
                         // VALIDATE TERMS
                         if (!agreeTerms.value) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -235,14 +275,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           return;
                         }
 
-                        // NAVIGATE TO OTP SCREEN
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OtpScreen(
-                              phoneNumber: "+91${phoneController.text}",
-                            ),
-                          ),
+                        context.read<AuthBloc>().add(
+                          SendOtpRequested(phone: phoneController.text.trim()),
                         );
                       },
                       child: Container(
@@ -262,14 +296,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ],
                         ),
                         child: Center(
-                          child: Text(
-                            "Sign Up",
-                            style: GoogleFonts.lora(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
+                          child: _isSendingOtp
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : Text(
+                                  "Sign Up",
+                                  style: GoogleFonts.lora(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -370,6 +413,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }

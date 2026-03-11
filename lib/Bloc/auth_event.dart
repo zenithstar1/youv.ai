@@ -44,8 +44,9 @@ class GoogleLoginRequested extends AuthEvent {
 
 class SendOtpRequested extends AuthEvent {
   final String phone;
+  final String flow;
 
-  SendOtpRequested({required this.phone});
+  SendOtpRequested({required this.phone, this.flow = 'generic'});
 }
 
 class VerifyLoginMobile extends AuthEvent {

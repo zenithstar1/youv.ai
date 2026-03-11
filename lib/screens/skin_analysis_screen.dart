@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'package:skin_analysis_app/Models/FaceRatioLine.dart';
-import 'package:skin_analysis_app/screens/LoginPage.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import 'package:skin_analysis_app/widgets/analysis_point.dart';
 import '../models/skin_analysis_model.dart';

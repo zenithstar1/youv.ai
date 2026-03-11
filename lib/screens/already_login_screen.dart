@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../Bloc/auth_bloc.dart';
+import '../Bloc/auth_event.dart';
+import '../Bloc/auth_state.dart';
 import 'LoginPage.dart';
 import 'analysis_type_screen.dart';
 
@@ -19,14 +23,33 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
   bool _otpSent = false;
   bool _loading = false;
   String _error = '';
+  int _timer = 0;
+  late final AuthBloc _authBloc;
 
   /// rebuild UI while typing
   @override
   void initState() {
     super.initState();
+    _authBloc = AuthBloc();
     _mobileController.addListener(() {
       setState(() {});
     });
+  }
+
+  @override
+  void dispose() {
+    _authBloc.close();
+    _mobileController.dispose();
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  String _normalizedPhone() {
+    final digits = _mobileController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 10) {
+      return digits.substring(digits.length - 10);
+    }
+    return digits;
   }
 
   /// validation getter (single source of truth)
@@ -38,41 +61,55 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
 
   /// send OTP
   void _sendOtp() async {
-    setState(() {
-      _loading = true;
-      _error = '';
-    });
+    final phone = _normalizedPhone();
+    if (phone.length != 10) {
+      setState(() => _error = 'Please enter a valid 10-digit mobile number');
+      return;
+    }
 
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() => _timer = 30);
+    _startTimer();
 
-    setState(() {
-      _otpSent = true;
-      _loading = false;
+    _authBloc.add(
+      SendOtpRequested(phone: phone, flow: 'login'),
+    );
+  }
+
+  void _startTimer() {
+    Future.delayed(const Duration(seconds: 1), () {
+      if (_timer > 0 && mounted) {
+        setState(() => _timer--);
+        _startTimer();
+      }
     });
+  }
+
+  /// resend OTP
+  void _resendOtp() {
+    setState(() => _timer = 30);
+    _startTimer();
+    _authBloc.add(
+      SendOtpRequested(phone: _normalizedPhone(), flow: 'login'),
+    );
   }
 
   /// verify OTP
   void _verifyOtp() async {
-    setState(() {
-      _loading = true;
-      _error = '';
-    });
-
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (_otpController.text == "123456") {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const AnalysisTypeScreen(),
-        ),
-      );
-    } else {
-      setState(() {
-        _error = "Invalid OTP";
-        _loading = false;
-      });
+    final phone = _normalizedPhone();
+    if (_otpController.text.trim().isEmpty) {
+      setState(() => _error = 'Please enter OTP');
+      return;
     }
+
+    _authBloc.add(
+      VerifyLoginMobile(
+        phone: phone,
+        name: '',
+        email: '',
+        password: '',
+        otp: _otpController.text.trim(),
+      ),
+    );
   }
 
   @override
@@ -80,9 +117,41 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDEDED),
-      body: SafeArea(
+    return BlocProvider.value(
+      value: _authBloc,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoading) {
+            setState(() {
+              _loading = true;
+              _error = '';
+            });
+          } else if (state is AuthMessage) {
+            setState(() {
+              _loading = false;
+              _otpSent = true;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
+          } else if (state is AuthAuthenticated) {
+            setState(() => _loading = false);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AnalysisTypeScreen(),
+              ),
+            );
+          } else if (state is AuthError) {
+            setState(() {
+              _loading = false;
+              _error = state.error;
+            });
+          }
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFFFDEDED),
+          body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -232,6 +301,20 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: _timer == 0 ? _resendOtp : null,
+                            child: Text(
+                              _timer == 0 ? 'Resend OTP' : 'Resend in $_timer s',
+                              style: GoogleFonts.poppins(
+                                fontSize: W * 0.032,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
 
                       /// ERROR TEXT
@@ -309,6 +392,8 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
 
               SizedBox(height: H * 0.05),
             ],
+          ),
+        ),
           ),
         ),
       ),

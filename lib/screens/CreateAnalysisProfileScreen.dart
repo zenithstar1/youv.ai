@@ -7,7 +7,7 @@ const Color kGrey = Color(0xFFB0B0B0);
 const Color kMutedGrey = Color(0xFF8C8C8C);
 
 class CreateAnalysisProfileScreen extends StatefulWidget {
-  const CreateAnalysisProfileScreen({Key? key}) : super(key: key);
+  const CreateAnalysisProfileScreen({super.key});
 
   @override
   State<CreateAnalysisProfileScreen> createState() => _CreateAnalysisProfileScreenState();
@@ -292,7 +292,7 @@ class AdaptiveInputField extends StatelessWidget {
   final String? microText;
 
   const AdaptiveInputField({
-    Key? key,
+    super.key,
     required this.label,
     required this.controller,
     required this.keyboardType,
@@ -301,7 +301,7 @@ class AdaptiveInputField extends StatelessWidget {
     this.prefixText,
     this.isPhone = false,
     this.microText,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -351,13 +351,13 @@ class UnderlineTextField extends StatefulWidget {
   final bool isPhone;
 
   const UnderlineTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.keyboardType,
     required this.inputHeight,
     this.prefixText,
     this.isPhone = false,
-  }) : super(key: key);
+  });
 
   @override
   State<UnderlineTextField> createState() => _UnderlineTextFieldState();
@@ -460,12 +460,12 @@ class PrimaryCTAButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   const PrimaryCTAButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.enabled,
     required this.height,
     this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

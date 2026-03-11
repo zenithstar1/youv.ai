@@ -7,24 +7,21 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Skin Analysis Application">
 
-  <!-- IMPORTANT: Full width, no gutter -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-  <!-- Camera Permissions -->
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=()">
   <meta name="referrer" content="no-referrer">
 
-  <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Skin Analysis">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Razorpay Checkout Script -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
   <title>Skin Analysis</title>
+
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="favicon.png"/>
 
@@ -34,7 +31,7 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      overflow: hidden; /* <-- removes right gutter */
+      overflow: hidden;
       background-color: #F5E6E8;
     }
 
@@ -83,16 +80,13 @@
 
 <body>
 
-  <!-- Loading Screen -->
   <div id="loading">
     <div class="loader"></div>
     <div class="loading-text">Loading Skin Analysis...</div>
   </div>
 
-  <!-- FLUTTER ROOT (important) -->
   <div id="flutter_host"></div>
 
-  <!-- Clear Service Worker, Cache, and Local/Session Storage -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -114,10 +108,13 @@
     sessionStorage.clear();
   </script>
 
-  <!-- Flutter bootstrap -->
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- MediaPipe Face Mesh -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <!-- face_detector.js (uses requestAnimationFrame, no Camera util needed) -->
+  <script src="face_detector.js"></script>
 
-  <!-- Razorpay Payment Handler -->
+  <!-- Flutter LAST -->
+<script src="flutter_bootstrap.js"></script>
   <script>
     function openRazorpayCheckout(orderId, key, amount, name, email, number) {
       console.log('Opening Razorpay Checkout...');
@@ -129,7 +126,6 @@
         name: "Skin Analysis",
         description: "Unlock Full Skin Analysis Report",
         handler: function (response) {
-
           if (window.flutterPaymentSuccess) {
             window.flutterPaymentSuccess(response.razorpay_payment_id);
           }

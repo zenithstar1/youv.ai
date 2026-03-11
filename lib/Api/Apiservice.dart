@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser;
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/skin_analysis_model.dart';
@@ -31,6 +32,10 @@ class ApiService {
     Exception? lastException;
     Duration nextRetryDelay = retryDelay;
     Uint8List uploadBytes = _optimizeInitialUpload(imageBytes);
+    const List<String> multipartFieldCandidates = ['file[]', 'file', 'file[0]'];
+
+    final effectiveFileName =
+      fileName.trim().isEmpty ? 'capture.jpg' : fileName.trim();
 
     while (attemptCount < maxRetries) {
       attemptCount++;
@@ -42,15 +47,25 @@ class ApiService {
           Uri.parse(skinAnalyzeEndpoint),
         );
 
+        final currentFieldName = multipartFieldCandidates[
+          (attemptCount - 1).clamp(0, multipartFieldCandidates.length - 1)
+        ];
+
         // Add image file from bytes
         request.files.add(
-          http.MultipartFile.fromBytes('file', uploadBytes, filename: fileName),
+          http.MultipartFile.fromBytes(
+            currentFieldName,
+            uploadBytes,
+            filename: effectiveFileName,
+            contentType: http_parser.MediaType('image', 'jpeg'),
+          ),
         );
 
         request.headers.addAll({'Accept': 'application/json'});
 
         print('Sending request to: $skinAnalyzeEndpoint');
-        print('File name: $fileName');
+        print('Multipart field: $currentFieldName');
+        print('File name: $effectiveFileName');
         print('File size: ${uploadBytes.length} bytes');
 
         var streamedResponse = await request.send().timeout(
@@ -151,16 +166,25 @@ class ApiService {
   }
 
   Uint8List _optimizeInitialUpload(Uint8List originalBytes) {
-    if (originalBytes.length <= preferredUploadBytes) {
-      return originalBytes;
+    final normalizedBytes = _normalizeToJpeg(originalBytes);
+    if (normalizedBytes.length <= preferredUploadBytes) {
+      return normalizedBytes;
     }
     return _compressJpegToTarget(
-      originalBytes,
+      normalizedBytes,
       targetBytes: preferredUploadBytes,
       maxWidth: 1280,
       startQuality: 85,
       minQuality: 55,
     );
+  }
+
+  Uint8List _normalizeToJpeg(Uint8List sourceBytes) {
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) {
+      return sourceBytes;
+    }
+    return Uint8List.fromList(img.encodeJpg(decoded, quality: 90));
   }
 
   Uint8List _compressForRetry(Uint8List currentBytes) {

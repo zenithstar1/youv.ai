@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
+import 'package:skin_analysis_app/Bloc/auth_event.dart';
+import 'package:skin_analysis_app/Bloc/auth_state.dart';
 import 'signup_screens.dart';
 import 'otp_screen.dart';
 
@@ -12,9 +16,18 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController loginPhoneController = TextEditingController();
+  late final AuthBloc _authBloc;
+  bool _isSendingOtp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authBloc = AuthBloc();
+  }
 
   @override
   void dispose() {
+    _authBloc.close();
     loginPhoneController.dispose();
     super.dispose();
   }
@@ -30,10 +43,37 @@ class _LoginScreenState extends State<LoginScreen> {
     final btnHeight = H * 0.065;    // 6.5% of screen height
     final btnRadius = btnWidth * 0.45;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFCE7E7),
-      body: Stack(
-        children: [
+    return BlocProvider.value(
+      value: _authBloc,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoading) {
+            setState(() => _isSendingOtp = true);
+          } else {
+            if (_isSendingOtp) {
+              setState(() => _isSendingOtp = false);
+            }
+          }
+
+          if (state is AuthMessage) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OtpScreen(
+                  phoneNumber: "+91${loginPhoneController.text.trim()}",
+                ),
+              ),
+            );
+          } else if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.error, style: GoogleFonts.lora())),
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFFFCE7E7),
+          body: Stack(
+            children: [
           // BACK ARROW
           Positioned(
             top: H * 0.07,
@@ -116,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // LOGIN BUTTON
                   Center(
                     child: GestureDetector(
-                      onTap: () {
+                      onTap: _isSendingOtp ? null : () {
                         if (loginPhoneController.text.length != 10) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -128,12 +168,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                           return;
                         }
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OtpScreen(
-                              phoneNumber: "+91${loginPhoneController.text}",
-                            ),
+                        context.read<AuthBloc>().add(
+                          SendOtpRequested(
+                            phone: loginPhoneController.text.trim(),
                           ),
                         );
                       },
@@ -153,14 +190,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         child: Center(
-                          child: Text(
-                            "Log In",
-                            style: GoogleFonts.lora(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
+                          child: _isSendingOtp
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : Text(
+                                  "Log In",
+                                  style: GoogleFonts.lora(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -265,6 +311,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }
