@@ -240,17 +240,16 @@ Widget build(BuildContext context) {
                       isPrimary: false,
                       icon: Icons.content_cut,
                       title: "Hair Health Overview",
+                      statusText: "Coming Soon",
                       subtitle:
                           "Density • Thinning • Scalp",
                       description:
                           "Scalp and hair density screening.",
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const ImageCaptureScreen(
-                                    isHair: true),
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Hair Health Overview is coming soon.'),
+                            duration: Duration(seconds: 2),
                           ),
                         );
                       },
@@ -272,6 +271,7 @@ Widget build(BuildContext context) {
 class _AnalysisCard extends StatefulWidget {
   final IconData icon;
   final String title;
+  final String? statusText;
   final String subtitle;
   final String description;
   final bool isPrimary;
@@ -280,6 +280,7 @@ class _AnalysisCard extends StatefulWidget {
   const _AnalysisCard({
     required this.icon,
     required this.title,
+    this.statusText,
     required this.subtitle,
     required this.description,
     required this.isPrimary,
@@ -367,6 +368,17 @@ class _AnalysisCardState extends State<_AnalysisCard> {
                         height: 1.2,
                       ),
                     ),
+                    if (widget.statusText != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        widget.statusText!,
+                        style: GoogleFonts.lora(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFD79096),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Text(
                       widget.subtitle,

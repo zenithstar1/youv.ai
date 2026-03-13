@@ -29,6 +29,21 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final shortestSide = media.size.shortestSide;
+        final maxScale = shortestSide >= 600 ? 1.18 : 1.10;
+
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: media.textScaler.clamp(
+              minScaleFactor: 0.90,
+              maxScaleFactor: maxScale,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const OnboardingScreen(),
     );
   }

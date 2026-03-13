@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'screens/image_capture_screen.dart';
-import 'screens/before_after_screen.dart';
 import 'screens/LoginPage.dart';   // <-- change this to your actual login file name
 
 class CaptureOptionScreen extends StatefulWidget {
@@ -98,30 +97,29 @@ class _CaptureOptionScreenState extends State<CaptureOptionScreen> {
     );
   }
 
-  // ===== BEFORE/AFTER CAN BE VIEWED (it already checks login internally) =====
-  void _goToBeforeAfter() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const BeforeAfterScreen(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
 
     const cardColor = Color(0xFF6B3A3A);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFDEDED),
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: W * 0.07),
-          child: Column(
-            children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: W * 0.07),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isTablet ? 560 : double.infinity,
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: Column(
+                    children: [
               SizedBox(height: H * 0.05),
 
               // Tips card
@@ -191,14 +189,6 @@ class _CaptureOptionScreenState extends State<CaptureOptionScreen> {
 
               SizedBox(height: H * 0.03),
 
-              // BEFORE & AFTER
-              GestureDetector(
-                onTap: _goToBeforeAfter,
-                child: _BeforeAfterButton(W: W, H: H),
-              ),
-
-              SizedBox(height: H * 0.03),
-
               // UPLOAD (ALSO USES CAMERA SCREEN)
               GestureDetector(
                 onTap: _goToCamera,
@@ -211,7 +201,7 @@ class _CaptureOptionScreenState extends State<CaptureOptionScreen> {
                 ),
               ),
 
-              const Spacer(),
+              SizedBox(height: H * 0.04),
 
               Container(
                 padding: EdgeInsets.all(W * 0.035),
@@ -239,9 +229,13 @@ class _CaptureOptionScreenState extends State<CaptureOptionScreen> {
               ),
 
               SizedBox(height: H * 0.03),
-            ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
           ),
-        ),
       ),
     );
   }
@@ -282,41 +276,6 @@ class _PrimaryActionButton extends StatelessWidget {
             style: GoogleFonts.poppins(
               color: Colors.white,
               fontSize: W * 0.048,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BeforeAfterButton extends StatelessWidget {
-  final double W;
-  final double H;
-
-  const _BeforeAfterButton({required this.W, required this.H});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(vertical: H * 0.025),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF6B3A3A), width: 1.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.compare, color: Color(0xFF6B3A3A)),
-          SizedBox(width: W * 0.03),
-          Text(
-            "View Before & After",
-            style: GoogleFonts.poppins(
-              color: const Color(0xFF6B3A3A),
-              fontSize: W * 0.045,
               fontWeight: FontWeight.w600,
             ),
           ),

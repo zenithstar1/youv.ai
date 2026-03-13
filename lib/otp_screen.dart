@@ -44,6 +44,12 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
+    final H = MediaQuery.of(context).size.height;
+    final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
+    final otpBoxWidth = (W * 0.11).clamp(36.0, 58.0);
+    final otpBoxHeight = (otpBoxWidth * 1.2).clamp(48.0, 64.0);
+    final otpGap = (W * 0.012).clamp(3.0, 8.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFCE7E7),
@@ -51,8 +57,8 @@ class _OtpScreenState extends State<OtpScreen> {
         children: [
           // Back arrow
           Positioned(
-            top: 60,
-            left: 25,
+            top: topInset + 16,
+            left: (W * 0.06).clamp(16.0, 36.0),
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: const Icon(Icons.arrow_back, size: 28, color: Colors.black),
@@ -61,9 +67,14 @@ class _OtpScreenState extends State<OtpScreen> {
 
           // Main content
           Positioned.fill(
-            top: 120,
-            child: Column(
-              children: [
+            top: (topInset + (isTablet ? 92 : 82)).clamp(72.0, 160.0),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: (W * 0.08).clamp(16.0, 40.0)),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    children: [
                 Text(
                   "Verify Code",
                   style: GoogleFonts.lora(
@@ -91,9 +102,9 @@ class _OtpScreenState extends State<OtpScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(6, (i) {
                     return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 5),
-                      width: 45,
-                      height: 55,
+                      margin: EdgeInsets.symmetric(horizontal: otpGap),
+                      width: otpBoxWidth,
+                      height: otpBoxHeight,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -107,7 +118,7 @@ class _OtpScreenState extends State<OtpScreen> {
                           counterText: "",
                           border: InputBorder.none,
                         ),
-                        style: GoogleFonts.lora(fontSize: 22),
+                        style: GoogleFonts.lora(fontSize: isTablet ? 24 : 20),
                         onChanged: (value) {
                           if (value.isNotEmpty) {
                             otp[i] = value;
@@ -207,7 +218,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     );
                   },
                   child: Container(
-                    width: W * 0.42,
+                    width: (W * (isTablet ? 0.34 : 0.5)).clamp(180.0, 280.0),
                     height: 50,
                     decoration: BoxDecoration(
                       color: const Color(0xFFD79096),
@@ -233,7 +244,11 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                   ),
                 ),
-              ],
+                    SizedBox(height: H * 0.04),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],

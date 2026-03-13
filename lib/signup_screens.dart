@@ -38,6 +38,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final W = MediaQuery.of(context).size.width;
+    final H = MediaQuery.of(context).size.height;
+    final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
+    final actionWidth = (W * 0.82).clamp(230.0, 420.0);
+
     return BlocProvider.value(
       value: _authBloc,
       child: BlocListener<AuthBloc, AuthState>(
@@ -71,8 +77,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             children: [
           // BACK ARROW
           Positioned(
-            top: 60,
-            left: 25,
+            top: topInset + 16,
+            left: (W * 0.06).clamp(16.0, 36.0),
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: const Icon(Icons.arrow_back, size: 28, color: Colors.black),
@@ -81,12 +87,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
           // MAIN CONTENT
           Positioned.fill(
-            top: 120,
+            top: (topInset + (isTablet ? 92 : 82)).clamp(72.0, 160.0),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              padding: EdgeInsets.symmetric(horizontal: (W * 0.08).clamp(16.0, 40.0)),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // TITLE
                   Text(
                     "Create Account",
@@ -276,11 +285,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         }
 
                         context.read<AuthBloc>().add(
-                          SendOtpRequested(phone: phoneController.text.trim()),
+                          SendOtpRequested(
+                            phone: phoneController.text.trim(),
+                            flow: 'signup',
+                          ),
                         );
                       },
                       child: Container(
-                        width: 286,
+                        width: actionWidth,
                         height: 53,
                         decoration: BoxDecoration(
                           color: const Color(0xFFD79096),
@@ -334,7 +346,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   // CONTINUE WITH GOOGLE BUTTON
                   Center(
                     child: Container(
-                      width: 286,
+                      width: actionWidth,
                       height: 53,
                       decoration: BoxDecoration(
                         color: const Color(0xFFD79096),
@@ -362,12 +374,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Text(
-                            "Continue with Google",
-                            style: GoogleFonts.lora(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                          Flexible(
+                            child: Text(
+                              "Continue with Google",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.lora(
+                                fontSize: isTablet ? 20 : 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                         ],
@@ -408,7 +424,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
 
                   const SizedBox(height: 50),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

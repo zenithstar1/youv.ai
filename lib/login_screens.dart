@@ -37,11 +37,14 @@ class _LoginScreenState extends State<LoginScreen> {
     // RESPONSIVE VALUES
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
+    final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
 
     // BUTTON SIZING (hybrid scaling like onboarding)
-    final btnWidth = W * 0.50;      // 50% of screen width
+    final btnWidth = (W * (isTablet ? 0.42 : 0.56)).clamp(220.0, 360.0);
     final btnHeight = H * 0.065;    // 6.5% of screen height
     final btnRadius = btnWidth * 0.45;
+    final actionWidth = (W * 0.82).clamp(230.0, 420.0);
 
     return BlocProvider.value(
       value: _authBloc,
@@ -76,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
           // BACK ARROW
           Positioned(
-            top: H * 0.07,
+            top: topInset + 16,
             left: W * 0.06,
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
@@ -86,12 +89,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // MAIN CONTENT AREA
           Positioned.fill(
-            top: H * 0.12,
+            top: (topInset + (isTablet ? 92 : 82)).clamp(72.0, 160.0),
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(horizontal: W * 0.08),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // TITLE
                   Text(
                     "Welcome Back!",
@@ -171,6 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         context.read<AuthBloc>().add(
                           SendOtpRequested(
                             phone: loginPhoneController.text.trim(),
+                            flow: 'login',
                           ),
                         );
                       },
@@ -230,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // CONTINUE WITH GOOGLE BUTTON
                   Center(
                     child: Container(
-                      width: 286,
+                      width: actionWidth,
                       height: 53,
                       decoration: BoxDecoration(
                         color: const Color(0xFFD79096),
@@ -257,12 +264,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Text(
-                            "Continue with Google",
-                            style: GoogleFonts.lora(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                          Flexible(
+                            child: Text(
+                              "Continue with Google",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.lora(
+                                fontSize: isTablet ? 20 : 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                         ],
@@ -306,7 +317,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   SizedBox(height: H * 0.05),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

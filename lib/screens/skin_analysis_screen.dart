@@ -7,7 +7,6 @@ import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import 'package:skin_analysis_app/widgets/analysis_point.dart';
 import '../models/skin_analysis_model.dart';
 import '../widgets/score_card.dart';
-import 'before_after_screen.dart';
 
 class SkinAnalysisScreen extends StatefulWidget {
   final SkinAnalysisModel? analysisData;
@@ -314,7 +313,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       final token = prefs.getString('_token') ?? '';
       prefs.setBool('isSubscribe', true);
       final uri = Uri.parse(
-        'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store',
+        'http://127.0.0.1:8000/api/payment/store',
       );
       await http.post(
         uri,
@@ -359,7 +358,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
       final uri = Uri.parse(
-        'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store',
+        'http://127.0.0.1:8000/api/payment/store',
       );
       await http.post(
         uri,
@@ -1077,18 +1076,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         title: const Text('Complete Skin Analysis'),
         backgroundColor: const Color(0xFFD4999F),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            tooltip: 'Before & After',
-            icon: const Icon(Icons.compare),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const BeforeAfterScreen()),
-              );
-            },
-          ),
-        ],
         elevation: 0,
       ),
       body: SafeArea(

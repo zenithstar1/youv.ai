@@ -7,9 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/skin_analysis_model.dart';
 
 class ApiService {
+  // Use live backend endpoints.
   static const String baseUrl =
-      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
-  static const String skinAnalyzeEndpoint = '$baseUrl/secondary-analyze-skin';
+    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  static const String localBaseUrl = baseUrl;
+  static const String liveReportBaseUrl =
+    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  // static const String skinAnalyzeEndpoint =
+  //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+  static const String skinAnalyzeEndpoint =
+      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
   static const int maxRetries = 3;
   static const Duration retryDelay = Duration(seconds: 2);
   static const Duration requestTimeout = Duration(seconds: 120);
@@ -355,7 +362,7 @@ class ApiService {
       print('Generating PDF for analysis_id: $analysisId');
 
       final response = await http.post(
-        Uri.parse('$baseUrl/generate-pdf-from-analysis/$analysisId'),
+        Uri.parse('$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -388,8 +395,8 @@ class ApiService {
     }
   }
 
-  /// Send detailed analysis report via email after payment
-  /// First generates PDF, then sends it
+  /// Send detailed analysis report via email after payment.
+  /// Uses user-compatible endpoint (no admin role required).
   static Future<Map<String, dynamic>> sendDetailedReport(
     String analysisId,
   ) async {
@@ -401,33 +408,19 @@ class ApiService {
         throw Exception('User not authenticated');
       }
 
-      print(
-        'Starting report generation and sending process for analysis_id: $analysisId',
-      );
+      print('Starting report send process for analysis_id: $analysisId');
 
-      // Step 1: Generate PDF first
-      print('Step 1: Generating PDF.. .');
-      final generateResult = await generatePdfFromAnalysis(analysisId);
+      final liveSendUrl = '$liveReportBaseUrl/analysis/$analysisId/send-both';
+      print('Send report URL: $liveSendUrl');
 
-      if (generateResult['success'] != true) {
-        print('❌ PDF generation failed: ${generateResult['message']}');
-        return {
-          'success': false,
-          'message': 'Failed to generate report:  ${generateResult['message']}',
-        };
-      }
-
-      print('✅ PDF generated successfully');
-
-      // Step 2: Send the report via email/WhatsApp
-      print('Step 2: Sending report to email/WhatsApp...');
-      final response = await http.post(
-        Uri.parse('$baseUrl/analysis/$analysisId/send-both'),
+      http.Response response = await http.post(
+        Uri.parse(liveSendUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        body: jsonEncode({'analysis_id': analysisId}),
       );
 
       print('Send report response status: ${response.statusCode}');
@@ -435,36 +428,16 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-
-        // Extract email and WhatsApp results
-        final results = responseData['results'];
-        final emailSent = results?['email']?['sent'] ?? false;
-        final emailMessage = results?['email']?['message'] ?? '';
-        final whatsappSent = results?['whatsapp']?['sent'] ?? false;
-        final whatsappMessage = results?['whatsapp']?['message'] ?? '';
-
-        // Build user-friendly message
-        String userMessage =
+        final userMessage =
             responseData['message'] ?? 'Report sent successfully';
-
-        if (emailSent && whatsappSent) {
-          userMessage = 'PDF sent to Email and WhatsApp\n$emailMessage';
-        } else if (emailSent) {
-          userMessage = 'PDF sent to Email\n$emailMessage';
-        } else if (whatsappSent) {
-          userMessage = 'PDF sent to WhatsApp\n$whatsappMessage';
-        } else {
-          userMessage =
-              'Report generated but delivery failed.  Please contact support.';
-        }
 
         print('✅ Report sent successfully');
 
         return {
           'success': true,
           'message': userMessage,
-          'email_sent': emailSent,
-          'whatsapp_sent': whatsappSent,
+          'email_sent': responseData['results']?['email']?['sent'] ?? false,
+          'whatsapp_sent': responseData['results']?['whatsapp']?['sent'] ?? false,
           'data': responseData,
         };
       } else {

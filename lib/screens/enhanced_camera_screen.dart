@@ -7,6 +7,12 @@ import '../widgets/auto_capture_guide_widget.dart';
 import '../services/face_detection_service.dart';
 import 'image_preview_screen.dart';
 
+const _kBurgundy = Color(0xFF6B3A3A);
+const _kIvory = Color(0xFFFDF8F3);
+const _kBlush = Color(0xFFE8B4BA);
+const _kSoftPink = Color(0xFFF3C7CF);
+const _kRosePink = Color(0xFFDFA1AE);
+
 /// AutoCaptureController manages the auto-capture logic for the camera screen
 class AutoCaptureController {
   static bool _hasGlobalHairReference = false;
@@ -77,6 +83,9 @@ class AutoCaptureController {
   /// Hair-mode capture based on filling the guide circle and centering face.
   final bool useFaceFillCapture;
 
+  /// Whether timer-based auto capture is enabled.
+  final bool enableAutoCapture;
+
   /// Target normalized face fill (max of width/height ratio in frame).
   final double targetFaceFillRatio;
   final double minFaceFillRatio;
@@ -131,6 +140,7 @@ class AutoCaptureController {
     this.captureQualityRelaxation = 0.12,
     this.smoothingFactor = 0.28,
     this.useFaceFillCapture = false,
+    this.enableAutoCapture = true,
     this.targetFaceFillRatio = 0.58,
     this.minFaceFillRatio = 0.42,
     this.maxFaceFillRatio = 0.78,
@@ -411,8 +421,12 @@ class AutoCaptureController {
 
     // Always check for best-angle stable state changes (entering/leaving capture-ready zone)
     if (wasCaptureReady != isCaptureReadyNow) {
-      if (isCaptureReadyNow) {
-        _startCaptureTimer();
+      if (enableAutoCapture) {
+        if (isCaptureReadyNow) {
+          _startCaptureTimer();
+        } else {
+          _stopCaptureTimer();
+        }
       } else {
         _stopCaptureTimer();
       }
@@ -464,6 +478,10 @@ class AutoCaptureController {
 
   /// Starts the auto-capture timer
   void _startCaptureTimer() {
+    if (!enableAutoCapture) {
+      return;
+    }
+
     if (_captureTimer != null && _captureTimer!.isActive) {
       return; // Timer already running
     }
@@ -637,6 +655,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   late AutoCaptureController _autoCaptureController;
 
   // Real camera and face detection
+  List<CameraDescription> _availableCameras = const [];
+  CameraLensDirection _activeLensDirection = CameraLensDirection.front;
   CameraController? _cameraController;
   FaceDetectionService? _faceDetectionService;
   StreamSubscription<FaceDetectionFrame>? _landmarksSubscription;
@@ -670,6 +690,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   @override
   void initState() {
     super.initState();
+    final disableAutoCaptureForHair = widget.isHair;
     
     // Hair-density profile:
     // - Slight forward tilt to expose scalp density without extreme chin tuck.
@@ -692,6 +713,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
       captureQualityRelaxation: widget.isHair ? 0.00 : 0.12,
       smoothingFactor: widget.isHair ? 0.32 : 0.25,
       useFaceFillCapture: widget.isHair && !widget.disableAutoCapture,
+      enableAutoCapture: disableAutoCaptureForHair ? false : !widget.disableAutoCapture,
       minFaceFillRatio: widget.isHair ? 0.26 : 0.40,
       maxFaceFillRatio: widget.isHair ? 0.98 : 0.82,
       targetFaceFillRatio: widget.isHair ? 0.60 : 0.56,
@@ -717,56 +739,69 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   /// Initializes camera and face detection.
   Future<void> _initializeHairAnalysisCamera() async {
     try {
+      _isCameraInitialized = false;
 
-      // Initialize face detection service
-      _faceDetectionService = FaceDetectionService();
-      await _faceDetectionService!.initialize();
-
-      // Get available cameras
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
+      // Get and cache available cameras
+      if (_availableCameras.isEmpty) {
+        _availableCameras = await availableCameras();
+      }
+      if (_availableCameras.isEmpty) {
         throw Exception('No cameras available on this device');
       }
 
-      final frontCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
+      final selectedCamera = _availableCameras.firstWhere(
+        (camera) => camera.lensDirection == _activeLensDirection,
+        orElse: () => _availableCameras.first,
       );
 
-      // Configure ML Kit image rotation based on camera sensor orientation.
-      _faceDetectionService!.setSensorRotation(frontCamera.sensorOrientation);
+      _activeLensDirection = selectedCamera.lensDirection;
+
+      await _landmarksSubscription?.cancel();
+      _landmarksSubscription = null;
+      await _cameraController?.dispose();
+      _cameraController = null;
+
+      if (!widget.isHair) {
+        // Initialize face detection service only for auto-capture mode.
+        _faceDetectionService ??= FaceDetectionService();
+        await _faceDetectionService!.initialize();
+        // Configure ML Kit image rotation based on camera sensor orientation.
+        _faceDetectionService!.setSensorRotation(selectedCamera.sensorOrientation);
+      }
 
       // Initialize camera controller
       _cameraController = CameraController(
-        frontCamera,
+        selectedCamera,
         ResolutionPreset.high,
         enableAudio: false,
       );
 
       await _cameraController!.initialize();
 
-      // Listen to face detection landmarks
-      _landmarksSubscription = _faceDetectionService!.landmarksStream.listen(
-        (frame) {
-          _autoCaptureController.updateFaceDetection(
-            frame.landmarks,
-            headEulerAngleX: frame.headEulerAngleX,
-            headEulerAngleY: frame.headEulerAngleY,
-            headEulerAngleZ: frame.headEulerAngleZ,
-            hasFace: frame.hasFace,
-            faceWidthRatio: frame.faceWidthRatio,
-            faceHeightRatio: frame.faceHeightRatio,
-            faceCenterOffsetX: frame.faceCenterOffsetX,
-            faceCenterOffsetY: frame.faceCenterOffsetY,
-            faceCenterYRatio: frame.faceCenterYRatio,
-          );
-        },
-        onError: (error) {
-        },
-      );
+      if (!widget.isHair && _faceDetectionService != null) {
+        // Listen to face detection landmarks in non-hair flow.
+        _landmarksSubscription = _faceDetectionService!.landmarksStream.listen(
+          (frame) {
+            _autoCaptureController.updateFaceDetection(
+              frame.landmarks,
+              headEulerAngleX: frame.headEulerAngleX,
+              headEulerAngleY: frame.headEulerAngleY,
+              headEulerAngleZ: frame.headEulerAngleZ,
+              hasFace: frame.hasFace,
+              faceWidthRatio: frame.faceWidthRatio,
+              faceHeightRatio: frame.faceHeightRatio,
+              faceCenterOffsetX: frame.faceCenterOffsetX,
+              faceCenterOffsetY: frame.faceCenterOffsetY,
+              faceCenterYRatio: frame.faceCenterYRatio,
+            );
+          },
+          onError: (error) {
+          },
+        );
 
-      // Start image stream for face detection
-      await _startFaceDetectionImageStream();
+        // Start image stream for face detection
+        await _startFaceDetectionImageStream();
+      }
 
       if (mounted) {
         setState(() {
@@ -784,6 +819,24 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         );
       }
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_isCapturing || _availableCameras.length < 2) {
+      return;
+    }
+
+    final nextLens = _activeLensDirection == CameraLensDirection.front
+        ? CameraLensDirection.back
+        : CameraLensDirection.front;
+
+    if (mounted) {
+      setState(() {
+        _activeLensDirection = nextLens;
+      });
+    }
+
+    await _initializeHairAnalysisCamera();
   }
 
   /// Handles auto-capture trigger
@@ -934,62 +987,26 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                    valueColor: AlwaysStoppedAnimation<Color>(_kBurgundy),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    _isCameraInitialized ? '📷 Camera ready...' : '⏳ Initializing camera & face detection...',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
+                  if (!widget.isHair) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      _isCameraInitialized ? '📷 Camera ready...' : '⏳ Initializing camera & face detection...',
+                      style: const TextStyle(
+                        color: _kIvory,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  // DEBUG INFO
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      border: Border.all(color: Colors.yellow),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '🐛 DEBUG INFO',
-                          style: const TextStyle(
-                            color: Colors.yellow,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'isHair: ${widget.isHair}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                        Text(
-                          'Initialized: $_isCameraInitialized',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                        Text(
-                          'Controller: ${_cameraController != null ? 'OK' : 'NULL'}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                        Text(
-                          'FaceDetection: ${_faceDetectionService != null ? 'OK' : 'NULL'}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
           ),
         _buildStatusIndicator(),
-        _buildGuidanceOverlay(),
+        if (!widget.isHair) _buildGuidanceOverlay(),
         _buildManualCaptureButton(),
+        if (widget.isHair) _buildCameraSwitchButton(),
         _buildBackButton(),
       ],
     );
@@ -1028,6 +1045,40 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   /// Build the status indicator
   Widget _buildStatusIndicator() {
+    if (widget.isHair) {
+      return Positioned(
+        top: 26,
+        left: 0,
+        right: 0,
+        child: IgnorePointer(
+          child: Column(
+            children: [
+              Text(
+                'HAIR ANALYSIS',
+                style: TextStyle(
+                  letterSpacing: 3,
+                  color: _kIvory.withValues(alpha: 0.9),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Capture your scalp\nfor best results',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontSize: 22,
+                  color: _kIvory.withValues(alpha: 0.95),
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Positioned(
       top: 20,
       left: 16,
@@ -1135,6 +1186,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   /// Build the manual capture button
   Widget _buildManualCaptureButton() {
+    final isHairManualMode = widget.isHair;
+
     return Positioned(
       bottom: 40,
       left: 0,
@@ -1143,72 +1196,144 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Capture button with ring effect
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _autoCaptureController.isBestAngle
-                      ? Colors.green.withValues(alpha: 0.3)
-                      : Colors.white.withValues(alpha: 0.1),
-                  blurRadius: 12,
-                  spreadRadius: 2,
+          if (widget.isHair)
+            GestureDetector(
+              onTap: () async {
+                await _takePicture();
+              },
+              child: Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _kSoftPink.withValues(alpha: 0.25),
+                  border: Border.all(
+                    color: _kSoftPink.withValues(alpha: 0.9),
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _kSoftPink.withValues(alpha: 0.25),
+                      blurRadius: 14,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer ring (shows if ready to capture)
-                if (_autoCaptureController.isBestAngle)
-                  Container(
-                    width: 72,
-                    height: 72,
+                child: Center(
+                  child: Container(
+                    width: 68,
+                    height: 68,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      color: _kRosePink,
                       border: Border.all(
-                        color: Colors.green.shade400.withValues(alpha: 0.3),
-                        width: 2,
+                        color: _kIvory.withValues(alpha: 0.7),
+                        width: 1.8,
                       ),
                     ),
                   ),
-                // Main button
-                FloatingActionButton(
-                  backgroundColor: _autoCaptureController.isBestAngle
-                      ? Colors.green.shade400
-                      : Colors.grey.shade700,
-                  elevation: _autoCaptureController.isBestAngle ? 8 : 4,
-                  onPressed: () async {
-                    _autoCaptureController.registerManualCaptureReference();
-                    await _takePicture();
-                  },
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 28,
-                    color: _autoCaptureController.isBestAngle
-                        ? Colors.white
-                        : Colors.white70,
-                  ),
                 ),
-              ],
+              ),
+            )
+          else
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _autoCaptureController.isBestAngle
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.white.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (_autoCaptureController.isBestAngle)
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.green.shade400.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  FloatingActionButton(
+                    backgroundColor: _autoCaptureController.isBestAngle || isHairManualMode
+                        ? _kBurgundy
+                        : Colors.grey.shade700,
+                    elevation: _autoCaptureController.isBestAngle || isHairManualMode ? 8 : 4,
+                    onPressed: () async {
+                      _autoCaptureController.registerManualCaptureReference();
+                      await _takePicture();
+                    },
+                    child: Icon(
+                      Icons.camera_alt,
+                      size: 28,
+                      color: _autoCaptureController.isBestAngle || isHairManualMode
+                          ? _kIvory
+                          : Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           const SizedBox(height: 12),
           // Info text
           Text(
-            _autoCaptureController.isBestAngle
-                ? 'Tap or wait for auto-capture'
-                : 'Adjust position for auto-capture',
+            widget.isHair
+                ? 'Tap shutter to capture'
+                : (_autoCaptureController.isBestAngle
+                    ? 'Tap or wait for auto-capture'
+                    : 'Adjust position for auto-capture'),
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: widget.isHair
+                  ? _kSoftPink.withValues(alpha: 0.95)
+                  : _kIvory.withValues(alpha: 0.72),
               fontSize: 11,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.2,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCameraSwitchButton() {
+    return Positioned(
+      bottom: 48,
+      right: 24,
+      child: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            color: widget.isHair
+                ? _kRosePink.withValues(alpha: 0.9)
+                : _kBurgundy.withValues(alpha: 0.88),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: widget.isHair
+                  ? _kSoftPink.withValues(alpha: 0.95)
+                  : _kIvory.withValues(alpha: 0.35),
+            ),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.cameraswitch,
+              color: widget.isHair ? _kIvory : _kIvory,
+              size: 26,
+            ),
+            onPressed: _availableCameras.length >= 2 ? _switchCamera : null,
+          ),
+        ),
       ),
     );
   }
@@ -1221,11 +1346,18 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
       child: SafeArea(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black54,
+            color: widget.isHair
+                ? _kRosePink.withValues(alpha: 0.9)
+                : _kBurgundy.withValues(alpha: 0.88),
             shape: BoxShape.circle,
+            border: Border.all(
+              color: widget.isHair
+                  ? _kSoftPink.withValues(alpha: 0.95)
+                  : _kIvory.withValues(alpha: 0.35),
+            ),
           ),
           child: IconButton(
-            icon: const Icon(Icons.close, color: Colors.white, size: 28),
+            icon: const Icon(Icons.close, color: _kIvory, size: 28),
             onPressed: () => Navigator.pop(context),
           ),
         ),

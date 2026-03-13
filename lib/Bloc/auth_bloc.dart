@@ -6,6 +6,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+// Switch between local and production backend:
+// Local (Android emulator)  → 'http://10.0.2.2:8000/api/auth'
+// Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
+// Production                → 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth'
+const String _authBaseUrl =
+  'http://127.0.0.1:8000/api/auth';
+
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
@@ -27,7 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print("login");
       final response = await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login',
+          '$_authBaseUrl/login',
         ),
         body: {'email': event.email, 'password': event.password},
       );
@@ -97,7 +104,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Replace with your actual API endpoint
       final response = await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register',
+          '$_authBaseUrl/register',
         ),
         body: {
           'name': event.name,
@@ -157,7 +164,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       final response = await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/send-otp',
+          '$_authBaseUrl/send-otp',
         ),
         body: {
           'mobile': normalizedPhone,
@@ -245,7 +252,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/mobile-login',
+          '$_authBaseUrl/mobile-login',
         ),
         body: {
           'phone': event.phone,
@@ -297,7 +304,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/google-login',
+          '$_authBaseUrl/google-login',
         ),
         body: {
           'google_id': googleLoginRequested.googleToken,
@@ -368,7 +375,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print("Logging out...");
       await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/logout',
+          '$_authBaseUrl/logout',
         ),
         headers: {
           'Authorization':
@@ -397,7 +404,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       final response = await http.post(
         Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/update-profile',
+          '$_authBaseUrl/update-profile',
         ),
         headers: {
           'Authorization': 'Bearer $token',
