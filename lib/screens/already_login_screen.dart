@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_event.dart';
 import '../Bloc/auth_state.dart';
@@ -116,6 +117,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
+    final r = Responsive(context);
 
     return BlocProvider.value(
       value: _authBloc,
@@ -248,7 +250,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 8),
+                      SizedBox(height: r.h(8)),
 
                       /// MOBILE FIELD
                       TextField(
@@ -274,7 +276,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 6),
+                      SizedBox(height: r.h(6)),
 
                       Align(
                         alignment: Alignment.centerLeft,
@@ -289,7 +291,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
 
                       /// OTP FIELD
                       if (_otpSent) ...[
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
                         TextField(
                           controller: _otpController,
                           keyboardType: TextInputType.number,
@@ -301,7 +303,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: r.h(12)),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton(
@@ -321,7 +323,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                       if (_error.isNotEmpty)
                         Padding(
                           padding:
-                              const EdgeInsets.only(top: 12),
+                              EdgeInsets.only(top: r.h(12)),
                           child: Text(
                             _error,
                             style:
@@ -336,7 +338,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                           ? const CircularProgressIndicator()
                           : SizedBox(
                               width: double.infinity,
-                              height: 48,
+                              height: r.h(48),
                               child: ElevatedButton(
                                 onPressed: !_otpSent
                                     ? (allFilled ? _sendOtp : null)
@@ -365,7 +367,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                               ),
                             ),
 
-                      const SizedBox(height: 12),
+                      SizedBox(height: r.h(12)),
 
                       /// SECONDARY ACTION
                       TextButton(

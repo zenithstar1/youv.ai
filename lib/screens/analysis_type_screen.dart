@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import 'image_capture_screen.dart';
 
 
@@ -9,6 +10,7 @@ class AnalysisTypeScreen extends StatelessWidget {
 
 @override
 Widget build(BuildContext context) {
+  final r = Responsive(context); // responsive helper
   final W = MediaQuery.of(context).size.width;
   final H = MediaQuery.of(context).size.height;
 
@@ -41,7 +43,7 @@ Widget build(BuildContext context) {
             child: SingleChildScrollView(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 24),
+                    EdgeInsets.symmetric(horizontal: r.w(24)), // responsive padding
                 child: Column(
                   children: [
 
@@ -50,32 +52,32 @@ Widget build(BuildContext context) {
                       "Choose your focus today",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lora(
-                        fontSize: 28,
+                        fontSize: r.sp(28), // responsive headline
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF3A2A22),
                       ),
                     ),
 
-                    const SizedBox(height: 10),
+                    SizedBox(height: r.h(10)),
 
                     /// SUBTEXT
                     Text(
                       "Your personalized report will be generated based on your selection.",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lora(
-                        fontSize: 14.5,
+                        fontSize: r.sp(14.5), // responsive subtext
                         height: 1.4,
                         color: const Color(0xFF8A7A72),
                       ),
                     ),
 
-                    const SizedBox(height: 14),
+                    SizedBox(height: r.h(14)),
 
                     Text(
                       "Both options take less than 60 seconds.",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.lora(
-                        fontSize: 12.5,
+                        fontSize: r.sp(12.5), // responsive italic hint
                         fontStyle: FontStyle.italic,
                         color: const Color(0xFFA89B93),
                       ),
@@ -296,6 +298,7 @@ class _AnalysisCardState extends State<_AnalysisCard> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive scaling for cards
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapCancel: () => setState(() => _pressed = false),
@@ -311,14 +314,14 @@ class _AnalysisCardState extends State<_AnalysisCard> {
           duration: const Duration(milliseconds: 180),
           width: double.infinity,
           padding: EdgeInsets.symmetric(
-            horizontal: widget.isPrimary ? 26 : 22,
-            vertical: widget.isPrimary ? 28 : 22,
+            horizontal: r.w(widget.isPrimary ? 26 : 22), // responsive card padding
+            vertical: r.h(widget.isPrimary ? 28 : 22),
           ),
           decoration: BoxDecoration(
             color: widget.isPrimary
                 ? const Color(0xFFFFFCF9)
                 : const Color(0xFFFFFBF7),
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(r.w(26)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(
@@ -332,10 +335,10 @@ class _AnalysisCardState extends State<_AnalysisCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              /// ICON
+              /// ICON — responsive container
               Container(
-                width: 56,
-                height: 56,
+                width: r.w(56),
+                height: r.w(56),
                 decoration: BoxDecoration(
                   color: widget.isPrimary
                       ? const Color(0xFFEED3D6)
@@ -344,14 +347,14 @@ class _AnalysisCardState extends State<_AnalysisCard> {
                 ),
                 child: Icon(
                   widget.icon,
-                  size: 28,
+                  size: r.w(28), // responsive icon
                   color: widget.isPrimary
                       ? const Color(0xFFD79096)
                       : const Color(0xFF9C8F87),
                 ),
               ),
 
-              const SizedBox(width: 18),
+              SizedBox(width: r.w(18)),
 
               /// TEXT
               Expanded(
@@ -362,36 +365,36 @@ class _AnalysisCardState extends State<_AnalysisCard> {
                     Text(
                       widget.title,
                       style: GoogleFonts.lora(
-                        fontSize: 19,
+                        fontSize: r.sp(19), // responsive card title
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF3A2A22),
                         height: 1.2,
                       ),
                     ),
                     if (widget.statusText != null) ...[
-                      const SizedBox(height: 6),
+                      SizedBox(height: r.h(6)),
                       Text(
                         widget.statusText!,
                         style: GoogleFonts.lora(
-                          fontSize: 12,
+                          fontSize: r.sp(12), // responsive
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFFD79096),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 6),
+                    SizedBox(height: r.h(6)),
                     Text(
                       widget.subtitle,
                       style: GoogleFonts.lora(
-                        fontSize: 13,
+                        fontSize: r.sp(13), // responsive
                         color: const Color(0xFF8A7A72),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: r.h(10)),
                     Text(
                       widget.description,
                       style: GoogleFonts.lora(
-                        fontSize: 13,
+                        fontSize: r.sp(13), // responsive
                         height: 1.45,
                         color: const Color(0xFFA89B93),
                       ),
@@ -400,12 +403,12 @@ class _AnalysisCardState extends State<_AnalysisCard> {
                 ),
               ),
 
-              const SizedBox(width: 10),
+              SizedBox(width: r.w(10)),
 
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios,
-                size: 18,
-                color: Color(0xFFB0A39A),
+                size: r.w(18), // responsive arrow icon
+                color: const Color(0xFFB0A39A),
               ),
             ],
           ),

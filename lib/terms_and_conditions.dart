@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 
 class TermsAndConditionsPage extends StatefulWidget {
   const TermsAndConditionsPage({super.key});
@@ -13,6 +14,7 @@ class _TermsAndConditionsPageState extends State<TermsAndConditionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive helper
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
     final topInset = MediaQuery.of(context).padding.top;
@@ -49,7 +51,7 @@ Positioned(
             child: Text(
               "Terms and Conditions",
               style: GoogleFonts.lora(
-                fontSize: 16,
+                fontSize: r.sp(16), // responsive tab text
                 fontWeight: selectedTab == 0 ? FontWeight.w700 : FontWeight.w500,
                 color: Colors.black,
               ),
@@ -75,7 +77,7 @@ Positioned(
             child: Text(
               "Privacy Policy",
               style: GoogleFonts.lora(
-                fontSize: 16,
+                fontSize: r.sp(16), // responsive tab text
                 fontWeight: selectedTab == 1 ? FontWeight.w700 : FontWeight.w500,
                 color: Colors.black,
               ),
@@ -110,7 +112,7 @@ Positioned(
                           ? "Put your Terms and Conditions text here.\n\nYou can write long content and it will scroll."
                           : "Put your Privacy Policy text here.\n\nYou can write long content and it will scroll.",
                       style: GoogleFonts.lora(
-                        fontSize: 16,
+                        fontSize: r.sp(16), // responsive body text
                         color: Colors.black87,
                       ),
                     ),
@@ -138,7 +140,7 @@ Positioned(
   },
   child: Container(
     width: (W * (isTablet ? 0.24 : 0.4)).clamp(130.0, 220.0),
-    height: 50,
+    height: r.h(50), // responsive button height
     decoration: BoxDecoration(
       color: const Color(0xFFD79096),
       borderRadius: BorderRadius.circular(50),
@@ -155,7 +157,7 @@ Positioned(
       child: Text(
         "Decline",
         style: GoogleFonts.lora(
-          fontSize: 17,
+          fontSize: r.sp(17), // responsive button text
           fontWeight: FontWeight.w600,
           color: Colors.black,
         ),
@@ -172,7 +174,7 @@ GestureDetector(
   },
   child: Container(
     width: (W * (isTablet ? 0.3 : 0.5)).clamp(180.0, 300.0),
-    height: 50,
+    height: r.h(50), // responsive button height
     decoration: BoxDecoration(
       color: const Color(0xFF510808),
       borderRadius: BorderRadius.circular(50),
@@ -188,7 +190,7 @@ GestureDetector(
       child: Text(
         "Agree & Continue",
         style: GoogleFonts.lora(
-          fontSize: 17,
+          fontSize: r.sp(17), // responsive button text
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -12,15 +14,15 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(r.w(16)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('App Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 12),
-              Text('• Notifications: On'),
-              SizedBox(height: 8),
-              Text('• Account: Manage your account settings'),
+            children: [
+              Text('App Settings', style: TextStyle(fontSize: r.sp(18), fontWeight: FontWeight.bold)),
+              SizedBox(height: r.h(12)),
+              const Text('• Notifications: On'),
+              SizedBox(height: r.h(8)),
+              const Text('• Account: Manage your account settings'),
             ],
           ),
         ),

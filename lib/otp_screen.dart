@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import 'start_journey_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -43,6 +44,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive helper
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
     final topInset = MediaQuery.of(context).padding.top;
@@ -78,24 +80,24 @@ class _OtpScreenState extends State<OtpScreen> {
                 Text(
                   "Verify Code",
                   style: GoogleFonts.lora(
-                    fontSize: 24,
+                    fontSize: r.sp(24), // responsive title
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                SizedBox(height: r.h(10)),
 
                 Text(
                   "Enter the 6-digit code sent to your number",
                   style: GoogleFonts.lora(
-                    fontSize: 15,
+                    fontSize: r.sp(15), // responsive subtitle
                     color: Colors.black87,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: r.h(40)),
 
                 // OTP boxes
                 Row(
@@ -138,10 +140,10 @@ class _OtpScreenState extends State<OtpScreen> {
 
                 Text(
                   expired ? "Expired" : "00:${timer.toString().padLeft(2, '0')}",
-                  style: GoogleFonts.lora(fontSize: 14),
+                  style: GoogleFonts.lora(fontSize: r.sp(14)), // responsive
                 ),
 
-                const SizedBox(height: 15),
+                SizedBox(height: r.h(15)),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -149,7 +151,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     Text(
                       "Didn't receive OTP? ",
                       style: GoogleFonts.lora(
-                        fontSize: 14,
+                        fontSize: r.sp(14), // responsive
                         color: Colors.black87,
                         fontWeight: FontWeight.w600,
                       ),
@@ -167,7 +169,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       child: Text(
                         "Resend code",
                         style: GoogleFonts.lora(
-                          fontSize: 14,
+                          fontSize: r.sp(14), // responsive
                           fontWeight: FontWeight.w600,
                           decoration: TextDecoration.underline,
                           color: Colors.black,
@@ -177,7 +179,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: r.h(40)),
 
                 // VERIFY BUTTON (UPDATED LOGIC ONLY)
                 GestureDetector(
@@ -219,7 +221,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   },
                   child: Container(
                     width: (W * (isTablet ? 0.34 : 0.5)).clamp(180.0, 280.0),
-                    height: 50,
+                    height: r.h(50), // responsive button height
                     decoration: BoxDecoration(
                       color: const Color(0xFFD79096),
                       borderRadius: BorderRadius.circular(50),
@@ -236,7 +238,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       child: Text(
                         "Verify",
                         style: GoogleFonts.lora(
-                          fontSize: 18,
+                          fontSize: r.sp(18), // responsive button text
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),

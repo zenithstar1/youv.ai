@@ -10,7 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:skin_analysis_app/Api/Apiservice.dart';
-import 'skin_analysis_screen.dart';
+import 'skin_analysis_redesigned.dart';
 import '../Models/hair_analysis_model.dart' as hair;
 import 'hair_api_service.dart';
 import 'hair_result_screen.dart';
@@ -238,7 +238,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => SkinAnalysisScreen(
+            builder: (context) => SkinAnalysisRedesigned(
               analysisData: skinAnalysisData,
               imageBytes: widget.imageBytes,
               faceRatioJson: symmetryData,

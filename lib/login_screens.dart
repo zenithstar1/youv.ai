@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
 import 'package:skin_analysis_app/Bloc/auth_event.dart';
 import 'package:skin_analysis_app/Bloc/auth_state.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import 'signup_screens.dart';
 import 'otp_screen.dart';
 
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     // RESPONSIVE VALUES
+    final r = Responsive(context);
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
     final topInset = MediaQuery.of(context).padding.top;
@@ -102,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     "Welcome Back!",
                     style: GoogleFonts.lora(
-                      fontSize: 28,
+                      fontSize: r.sp(28), // responsive title
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
@@ -114,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     "Phone Number",
                     style: GoogleFonts.lora(
-                      fontSize: 17,
+                      fontSize: r.sp(17), // responsive label
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
@@ -135,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           "+91 - ",
                           style: GoogleFonts.lora(
-                            fontSize: 18,
+                            fontSize: r.sp(18), // responsive input prefix
                             color: Colors.black,
                             fontWeight: FontWeight.w500,
                           ),
@@ -150,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               isCollapsed: true,
                               border: InputBorder.none,
                             ),
-                            style: GoogleFonts.lora(fontSize: 18),
+                            style: GoogleFonts.lora(fontSize: r.sp(18)),
                           ),
                         ),
                       ],
@@ -209,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               : Text(
                                   "Log In",
                                   style: GoogleFonts.lora(
-                                    fontSize: 20,
+                                    fontSize: r.sp(20), // responsive button text
                                     fontWeight: FontWeight.w600,
                                     color: Colors.black,
                                   ),
@@ -226,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       "or",
                       style: GoogleFonts.lora(
-                        fontSize: 16,
+                        fontSize: r.sp(16), // responsive
                         color: Colors.black87,
                       ),
                     ),
@@ -238,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: Container(
                       width: actionWidth,
-                      height: 53,
+                      height: r.h(53), // responsive button height
                       decoration: BoxDecoration(
                         color: const Color(0xFFD79096),
                         borderRadius: BorderRadius.circular(158),
@@ -258,19 +260,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(50),
                             child: Image.asset(
                               "assets/images/google_chat.png",
-                              height: 30,
-                              width: 30,
+                              height: r.w(30), // responsive icon
+                              width: r.w(30),
                               fit: BoxFit.cover,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: r.w(10)),
                           Flexible(
                             child: Text(
                               "Continue with Google",
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.lora(
-                                fontSize: isTablet ? 20 : 18,
+                                fontSize: r.sp(isTablet ? 20 : 18), // responsive
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black,
                               ),
@@ -296,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         text: TextSpan(
                           text: "Don't have an account? ",
                           style: GoogleFonts.lora(
-                            fontSize: 16,
+                            fontSize: r.sp(16), // responsive
                             fontWeight: FontWeight.w700,
                             color: Colors.black87,
                           ),
@@ -304,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextSpan(
                               text: "Sign Up!",
                               style: GoogleFonts.lora(
-                                fontSize: 16,
+                                fontSize: r.sp(16), // responsive
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF510808),
                                 decoration: TextDecoration.underline,

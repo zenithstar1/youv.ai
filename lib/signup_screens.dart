@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
 import 'package:skin_analysis_app/Bloc/auth_event.dart';
 import 'package:skin_analysis_app/Bloc/auth_state.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import 'terms_and_conditions.dart';
 import 'package:flutter/gestures.dart';
 import 'otp_screen.dart';
@@ -38,6 +39,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive scaling helper
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
     final topInset = MediaQuery.of(context).padding.top;
@@ -100,52 +102,52 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Text(
                     "Create Account",
                     style: GoogleFonts.lora(
-                      fontSize: 28,
+                      fontSize: r.sp(28), // responsive title
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  SizedBox(height: r.h(40)), // responsive spacing
 
                   // NAME LABEL
                   Text(
                     "Name",
                     style: GoogleFonts.lora(
-                      fontSize: 17,
+                      fontSize: r.sp(17), // responsive label
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  buildUnderlineField(),
+                  SizedBox(height: r.h(8)),
+                  buildUnderlineField(r),
 
-                  const SizedBox(height: 35),
+                  SizedBox(height: r.h(35)), // responsive spacing
 
                   // AGE
                   Text(
                     "Age",
                     style: GoogleFonts.lora(
-                      fontSize: 17,
+                      fontSize: r.sp(17), // responsive label
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  buildUnderlineField(),
+                  SizedBox(height: r.h(8)),
+                  buildUnderlineField(r),
 
-                  const SizedBox(height: 35),
+                  SizedBox(height: r.h(35)), // responsive spacing
 
                   // PHONE NUMBER
                   Text(
                     "Phone Number",
                     style: GoogleFonts.lora(
-                      fontSize: 17,
+                      fontSize: r.sp(17), // responsive label
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: r.h(8)),
 
                   Container(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -159,7 +161,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         Text(
                           "+91 - ",
                           style: GoogleFonts.lora(
-                            fontSize: 18,
+                            fontSize: r.sp(18), // responsive
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -173,7 +175,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               border: InputBorder.none,
                               counterText: "",
                             ),
-                            style: GoogleFonts.lora(fontSize: 18),
+                            style: GoogleFonts.lora(fontSize: r.sp(18)),
                           ),
                         ),
                       ],
@@ -191,8 +193,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           return GestureDetector(
                             onTap: () => agreeTerms.value = !value,
                             child: Container(
-                              width: 29,
-                              height: 27,
+                              width: r.w(29), // responsive checkbox
+                              height: r.w(27),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
@@ -217,12 +219,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           text: TextSpan(
                             text: "I agree with the ",
                             style: GoogleFonts.lora(
-                                fontSize: 15, color: Colors.black),
+                                fontSize: r.sp(15), color: Colors.black),
                             children: [
                               TextSpan(
                                 text: "Terms and Conditions",
                                 style: GoogleFonts.lora(
-                                  fontSize: 15,
+                                  fontSize: r.sp(15), // responsive
                                   fontWeight: FontWeight.w500,
                                   color: const Color(0xFF1976D2),
                                   decoration: TextDecoration.underline,
@@ -293,7 +295,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       },
                       child: Container(
                         width: actionWidth,
-                        height: 53,
+                        height: r.h(53), // responsive button height
                         decoration: BoxDecoration(
                           color: const Color(0xFFD79096),
                           borderRadius: BorderRadius.circular(158),
@@ -320,7 +322,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               : Text(
                                   "Sign Up",
                                   style: GoogleFonts.lora(
-                                    fontSize: 20,
+                                    fontSize: r.sp(20), // responsive
                                     fontWeight: FontWeight.w600,
                                     color: Colors.black,
                                   ),
@@ -330,24 +332,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 25),
+                  SizedBox(height: r.h(25)), // responsive spacing
 
                   // OR
                   Center(
                     child: Text(
                       "or",
                       style: GoogleFonts.lora(
-                          fontSize: 16, color: Colors.black87),
+                          fontSize: r.sp(16), color: Colors.black87), // responsive
                     ),
                   ),
 
-                  const SizedBox(height: 25),
+                  SizedBox(height: r.h(25)), // responsive spacing
 
                   // CONTINUE WITH GOOGLE BUTTON
                   Center(
                     child: Container(
                       width: actionWidth,
-                      height: 53,
+                      height: r.h(53), // responsive button height
                       decoration: BoxDecoration(
                         color: const Color(0xFFD79096),
                         borderRadius: BorderRadius.circular(158),
@@ -368,19 +370,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             borderRadius: BorderRadius.circular(50),
                             child: Image.asset(
                               "assets/images/google_chat.png",
-                              height: 30,
-                              width: 30,
+                              height: r.w(30), // responsive icon
+                              width: r.w(30),
                               fit: BoxFit.cover,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: r.w(10)),
                           Flexible(
                             child: Text(
                               "Continue with Google",
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.lora(
-                                fontSize: isTablet ? 20 : 18,
+                                fontSize: r.sp(isTablet ? 20 : 18), // responsive
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black,
                               ),
@@ -391,7 +393,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 25),
+                  SizedBox(height: r.h(25)), // responsive spacing
 
                   // Already have account
                   Center(
@@ -403,7 +405,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         text: TextSpan(
                           text: "Already have an account? ",
                           style: GoogleFonts.lora(
-                            fontSize: 16,
+                            fontSize: r.sp(16), // responsive
                             fontWeight: FontWeight.w600,
                             color: Colors.black,
                           ),
@@ -411,7 +413,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             TextSpan(
                               text: "Log In!",
                               style: GoogleFonts.lora(
-                                fontSize: 16,
+                                fontSize: r.sp(16), // responsive
                                 fontWeight: FontWeight.w600,
                                 color: Color(0xFF510808),
                                 decoration: TextDecoration.underline,
@@ -423,7 +425,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 50),
+                  SizedBox(height: r.h(50)), // responsive bottom spacing
                     ],
                   ),
                 ),
@@ -437,8 +439,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // Reusable underline field
-  Widget buildUnderlineField() {
+  // Reusable underline field with responsive font
+  Widget buildUnderlineField(Responsive r) {
     return Container(
       padding: const EdgeInsets.only(bottom: 4),
       decoration: const BoxDecoration(
@@ -447,7 +449,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
       child: TextField(
-        style: GoogleFonts.lora(fontSize: 18),
+        style: GoogleFonts.lora(fontSize: r.sp(18)), // responsive input text
         decoration: const InputDecoration(
           isCollapsed: true,
           border: InputBorder.none,
