@@ -10,12 +10,16 @@ class StartJourneyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
+    final shortestSide = MediaQuery.of(context).size.shortestSide;
+    final isTablet = shortestSide >= 600;
+    final frameWidth = isTablet ? (W * 0.62).clamp(380.0, 560.0) : W;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Container(
-          width: W,
+        child: Center(
+          child: Container(
+          width: frameWidth,
           height: H,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(40),
@@ -30,14 +34,14 @@ class StartJourneyScreen extends StatelessWidget {
               children: [
                 /// ---- HEADLINE in same visual position ----
                 Positioned(
-                  left: W * 0.10,
+                  left: frameWidth * 0.10,
                   top: H * 0.46,
                   child: SizedBox(
-                    width: W * 0.75,
+                    width: frameWidth * 0.75,
                     child: Text(
                       "Start Your\nJourney to\nHealthy Skin",
                       style: GoogleFonts.poppins(
-                        fontSize: W * 0.095, // same scale as screenshot
+                        fontSize: frameWidth * 0.095, // same scale as screenshot
                         fontWeight: FontWeight.w500,
                         fontStyle: FontStyle.italic,
                         height: 1.5,
@@ -50,7 +54,7 @@ class StartJourneyScreen extends StatelessWidget {
                 /// ---- CHECK NOW BUTTON (exact same placement) ----
                 Positioned(
   top: H * 0.76,
-  left: (W - (W * 0.63)) / 2,
+  left: (frameWidth - (frameWidth * 0.63)) / 2,
   child: GestureDetector(
     onTap: () {
       Navigator.push(
@@ -61,7 +65,7 @@ class StartJourneyScreen extends StatelessWidget {
       );
     },
     child: Container(
-      width: W * 0.63,
+      width: frameWidth * 0.63,
       height: H * 0.085,
       decoration: BoxDecoration(
         color: const Color(0xFFBC826E),
@@ -82,7 +86,7 @@ class StartJourneyScreen extends StatelessWidget {
         child: Text(
           "Check Now",
           style: GoogleFonts.lora(
-            fontSize: W * 0.07,
+            fontSize: frameWidth * 0.07,
             fontWeight: FontWeight.w700,
             color: Colors.black87,
           ),
@@ -96,7 +100,7 @@ class StartJourneyScreen extends StatelessWidget {
                 /// ---- PRIVACY ROW (same visual spot) ----
                 Positioned(
                   bottom: H * 0.085,
-                  left: W * 0.09,
+                  left: frameWidth * 0.09,
                   child: Row(
                     children: [
                       const Icon(Icons.privacy_tip_outlined,
@@ -106,7 +110,7 @@ class StartJourneyScreen extends StatelessWidget {
                         "Your Privacy Choices",
                         style: GoogleFonts.poppins(
                           color: Colors.black,
-                          fontSize: W * 0.035,
+                          fontSize: frameWidth * 0.035,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -115,7 +119,7 @@ class StartJourneyScreen extends StatelessWidget {
                         "Notice at Collection",
                         style: GoogleFonts.poppins(
                           color: Colors.black,
-                          fontSize: W * 0.035,
+                          fontSize: frameWidth * 0.035,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -132,7 +136,7 @@ class StartJourneyScreen extends StatelessWidget {
                     child: Text(
                       "Powered By YOUV.AI",
                       style: GoogleFonts.poppins(
-                        fontSize: W * 0.04,
+                        fontSize: frameWidth * 0.04,
                         color: Colors.black,
                         fontWeight: FontWeight.w600,
                       ),
@@ -141,6 +145,7 @@ class StartJourneyScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),
