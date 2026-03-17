@@ -89,7 +89,7 @@ Widget build(BuildContext context) {
                     _AnalysisCard(
                       isPrimary: true,
                       icon: Icons.face_6_outlined,
-                      title: "Comprehensive Skin Analysis",
+                      title: "Comprehensive Facial Analysis",
                       subtitle:
                           "Hydration • Acne • Pigmentation • Texture",
                       description:

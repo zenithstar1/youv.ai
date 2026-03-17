@@ -17,8 +17,8 @@ class ApiService {
   //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
   static const String skinAnalyzeEndpoint =
       'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
-  static const int maxRetries = 3;
-  static const Duration retryDelay = Duration(seconds: 2);
+  static const int maxRetries = 1;
+  static const Duration retryDelay = Duration(milliseconds: 500);
   static const Duration requestTimeout = Duration(seconds: 120);
   static const int preferredUploadBytes = 700 * 1024;
   static const int minimumUploadBytes = 250 * 1024;
@@ -39,7 +39,8 @@ class ApiService {
     Exception? lastException;
     Duration nextRetryDelay = retryDelay;
     Uint8List uploadBytes = _optimizeInitialUpload(imageBytes);
-    const List<String> multipartFieldCandidates = ['file[]', 'file', 'file[0]'];
+    // const List<String> multipartFieldCandidates = ['file[]', 'file', 'file[0]'];
+    const String currentFieldName = 'file';
 
     final effectiveFileName =
       fileName.trim().isEmpty ? 'capture.jpg' : fileName.trim();
@@ -54,9 +55,9 @@ class ApiService {
           Uri.parse(skinAnalyzeEndpoint),
         );
 
-        final currentFieldName = multipartFieldCandidates[
-          (attemptCount - 1).clamp(0, multipartFieldCandidates.length - 1)
-        ];
+        // final currentFieldName = multipartFieldCandidates[
+        //   (attemptCount - 1).clamp(0, multipartFieldCandidates.length - 1)
+        // ];
 
         // Add image file from bytes
         request.files.add(

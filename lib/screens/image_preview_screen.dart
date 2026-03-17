@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' as http_parser;
 
@@ -15,6 +16,8 @@ import '../Models/hair_analysis_model.dart' as hair;
 import 'hair_api_service.dart';
 import 'hair_result_screen.dart';
 import 'package:skin_analysis_app/models/skin_analysis_model.dart';
+import 'enhanced_camera_screen.dart';
+import 'standard_camera_screen.dart';
 
 class ImagePreviewScreen extends StatefulWidget {
   final Uint8List imageBytes;
@@ -34,7 +37,6 @@ class ImagePreviewScreen extends StatefulWidget {
 
 class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     with SingleTickerProviderStateMixin {
-
   bool _isAnalyzing = false;
   int _currentMessageIndex = 0;
   Timer? _messageTimer;
@@ -60,8 +62,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   void initState() {
     super.initState();
 
-    _loadingMessages =
-        widget.isHair ? _hairLoadingMessages : _skinLoadingMessages;
+    _loadingMessages = widget.isHair
+        ? _hairLoadingMessages
+        : _skinLoadingMessages;
 
     _scanLineController = AnimationController(
       vsync: this,
@@ -77,18 +80,15 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   }
 
   // =================== FIREBASE UPLOAD ===================
-  Future<String> _uploadImageToFirebase(
-      Uint8List bytes, String type) async {
-
+  Future<String> _uploadImageToFirebase(Uint8List bytes, String type) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // User is not logged in — skip firebase upload for now.
       return '';
     }
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child("user_images/${user.uid}/$type.jpg");
+    final ref = FirebaseStorage.instance.ref().child(
+      "user_images/${user.uid}/$type.jpg",
+    );
 
     await ref.putData(bytes);
     return await ref.getDownloadURL();
@@ -99,10 +99,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final docRef =
-        FirebaseFirestore.instance
-            .collection("users_analysis")
-            .doc(user.uid);
+    final docRef = FirebaseFirestore.instance
+        .collection("users_analysis")
+        .doc(user.uid);
 
     final doc = await docRef.get();
 
@@ -151,7 +150,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     }
   }
 
-  // =================== MAIN ANALYSIS (WITH LOGIN CHECK) ===================
+  // =================== MAIN ANALYSIS ===================
   Future<void> _sendForAnalysis() async {
     setState(() {
       _isAnalyzing = true;
@@ -161,11 +160,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     _startMessageCycling();
 
     try {
-
-      // Proceed with analysis regardless of login status. Uploads will be
-      // skipped if the user is not authenticated; login is only required
-      // when accessing before/after or requesting detailed reports.
-
       // ---- HAIR FLOW ----
       if (widget.isHair) {
         final hairResponse = await HairApiService.analyzeHair(
@@ -173,10 +167,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           fileName: widget.fileName,
         );
 
-        final hairAnalysis =
-            hair.HairAnalysisModel.fromJson(hairResponse);
+        final hairAnalysis = hair.HairAnalysisModel.fromJson(hairResponse);
 
-        // Start firebase upload/save in background; don't await it so UI proceeds
         _uploadImageToFirebase(widget.imageBytes, 'latest_scan')
             .then((url) => _saveBeforeAfterImage(url))
             .catchError((e) => print('Background upload failed: $e'));
@@ -187,9 +179,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => HairResultScreen(
-              analysis: hairAnalysis,
-            ),
+            builder: (context) => HairResultScreen(analysis: hairAnalysis),
           ),
         );
         return;
@@ -214,12 +204,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
 
       if (skinAnalysisResult is SkinAnalysisModel) {
         skinAnalysisData = skinAnalysisResult;
-      }
-      else if (skinAnalysisResult is Map<String, dynamic>) {
-        skinAnalysisData =
-            SkinAnalysisModel.fromJson(skinAnalysisResult);
-      }
-      else {
+      } else if (skinAnalysisResult is Map<String, dynamic>) {
+        skinAnalysisData = SkinAnalysisModel.fromJson(skinAnalysisResult);
+      } else {
         throw Exception("Invalid skin API response format");
       }
 
@@ -227,7 +214,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         symmetryData = symmetryResult;
       }
 
-      // Start firebase upload/save in background; don't await it so UI proceeds
       _uploadImageToFirebase(widget.imageBytes, 'latest_scan')
           .then((url) => _saveBeforeAfterImage(url))
           .catchError((e) => print('Background upload failed: $e'));
@@ -251,6 +237,23 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       setState(() => _isAnalyzing = false);
       _showErrorDialog(e.toString());
     }
+  }
+
+  void _retakePhoto() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => widget.isHair
+            ? EnhancedCameraScreen(
+                isHair: widget.isHair,
+                onImageCaptured: (_, __) {},
+              )
+            : const StandardCameraScreen(
+                lensDirection: CameraLensDirection.front,
+                isHair: false,
+              ),
+      ),
+    );
   }
 
   void _startMessageCycling() {
@@ -294,238 +297,184 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6E8),
-      body: SafeArea(
-        child: _isAnalyzing
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Background image - full screen
-                  Image.memory(
-                    widget.imageBytes,
-                    fit: BoxFit.cover,
-                  ),
-                  // Bottom analyzing panel with dark aesthetic
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.3),
-                            Colors.black.withOpacity(0.85),
-                          ],
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 40, 20, 30),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Analyzing header with icon
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  height: 40,
-                                  width: 40,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(
-                                      widget.isHair
-                                          ? Colors.amber.shade300
-                                          : Colors.pink.shade300,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Analyzing',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white70,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      // Animated message text
-                                      AnimatedSwitcher(
-                                        duration: const Duration(
-                                            milliseconds: 600),
-                                        transitionBuilder:
-                                            (child, animation) {
-                                          return FadeTransition(
-                                            opacity: animation,
-                                            child: child,
-                                          );
-                                        },
-                                        child: Text(
-                                          _loadingMessages[
-                                              _currentMessageIndex],
-                                          key: ValueKey<int>(
-                                              _currentMessageIndex),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight:
-                                                FontWeight.w600,
-                                            color: widget.isHair
-                                                ? Colors
-                                                    .amber.shade300
-                                                : Colors
-                                                    .pink.shade200,
-                                            height: 1.3,
-                                          ),
-                                          maxLines: 2,
-                                          overflow:
-                                              TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            // Progress bar
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                minHeight: 3,
-                                backgroundColor:
-                                    Colors.white.withOpacity(0.1),
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(
-                                  widget.isHair
-                                      ? Colors.amber.shade300
-                                      : Colors.pink.shade300,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Disclaimer text
-                            Text(
-                              'This analysis reflects visible features at the time of capture and is intended for awareness and education.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.white.withOpacity(0.6),
-                                height: 1.4,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 15),
-                      child: ClipRRect(
-                        borderRadius:
-                            const BorderRadius.only(
-                          bottomLeft: Radius.circular(30),
-                          bottomRight: Radius.circular(30),
-                        ),
-                        child: Image.memory(
-                          widget.imageBytes,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Transform.translate(
-                    offset: const Offset(0, -30),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE8B4BA),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30),
-                        ),
-                      ),
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 40, 20, 20),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Well done! You\'re good to go',
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 25),
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: [
-                                _buildActionButton(
-                                  'Retake',
-                                  const Color(0xFFD4999F),
-                                  Colors.white,
-                                  () => Navigator.pop(context),
-                                ),
-                                const SizedBox(width: 20),
-                                _buildActionButton(
-                                  'Send',
-                                  Colors.white,
-                                  const Color(0xFFD4999F),
-                                  _sendForAnalysis,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      backgroundColor: Colors.black, // Dark background for edge-to-edge feel
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Full Screen Image
+          Image.memory(
+            widget.imageBytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+
+          // 2. Conditional UI Layout
+          if (_isAnalyzing)
+            _buildAnalyzingOverlay()
+          else
+            _buildBottomControls(),
+        ],
       ),
     );
   }
 
-  Widget _buildActionButton(
-    String label,
-    Color bgColor,
-    Color textColor,
-    VoidCallback onTap,
-  ) {
+  // =================== UI WIDGETS ===================
+
+  Widget _buildAnalyzingOverlay() {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              Colors.black.withOpacity(0.5),
+              Colors.black.withOpacity(0.9),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 40, 20, 30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      height: 40,
+                      width: 40,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          widget.isHair
+                              ? Colors.amber.shade300
+                              : Colors.pink.shade300,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Analyzing',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 600),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              _loadingMessages[_currentMessageIndex],
+                              key: ValueKey<int>(_currentMessageIndex),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: widget.isHair
+                                    ? Colors.amber.shade300
+                                    : Colors.pink.shade200,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    minHeight: 3,
+                    backgroundColor: Colors.white.withOpacity(0.1),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.isHair
+                          ? Colors.amber.shade300
+                          : Colors.pink.shade300,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'This analysis reflects visible features at the time of capture and is intended for awareness and education.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.6),
+                    height: 1.4,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    return Positioned(
+      bottom: 40,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildCircularButton(
+              icon: Icons.refresh_rounded,
+              onTap: _retakePhoto,
+            ),
+            const SizedBox(width: 40),
+            _buildCircularButton(
+              icon: Icons.check_rounded,
+              onTap: _sendForAnalysis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCircularButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 45, vertical: 14),
+        width: 70,
+        height: 70,
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(25),
+          shape: BoxShape.circle,
+          color: Colors.black.withOpacity(0.3),
+          border: Border.all(color: Colors.white, width: 2.0),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: Icon(icon, color: Colors.white, size: 32),
       ),
     );
   }

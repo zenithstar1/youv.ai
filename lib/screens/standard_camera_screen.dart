@@ -2,11 +2,13 @@ import 'dart:typed_data';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'image_preview_screen.dart';
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
 import 'dart:ui' as ui;
+import '../utils/web_face_detection.dart' as web_face;
+
+Timer? _faceStableTimer;
 
 /// =================================================
 /// COLORS
@@ -30,7 +32,7 @@ const List<String> _skinFacts = [
   "Stress can trigger acne flare-ups.",
   "Healthy skin contains billions of microbes.",
   "Water intake supports skin barrier function.",
-  "Skin protects your body from bacteria and pollution."
+  "Skin protects your body from bacteria and pollution.",
 ];
 
 /// =================================================
@@ -71,7 +73,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   late CameraLensDirection _lens;
 
   Timer? _autoCaptureTimer;
-  html.EventListener? _faceEventListener;
+  Object? _faceDetectedListenerSub;
 
   // Auto-capture ring animation
   AnimationController? _autoRingController;
@@ -94,10 +96,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   int _highlightIndex = -1; // for skin marker highlighting
   double _ringProgress = 0.0;
   String _getRandomSkinFact() {
-  final facts = List<String>.from(_skinFacts);
-  facts.shuffle();
-  return facts.first;
-}
+    final facts = List<String>.from(_skinFacts);
+    facts.shuffle();
+    return facts.first;
+  }
 
   /// =================================================
   /// INIT
@@ -117,11 +119,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     _startEngagementTimer();
 
     _initCamera();
-    _faceEventListener = (event) {
-      final e = event as html.CustomEvent;
-      final detected = e.detail as bool;
 
-      if (mounted && !_isDisposed && _phase == ScanPhase.live) {
+    if (kIsWeb && !widget.isHair) {
+      _faceDetectedListenerSub = web_face.addFaceDetectedListener((detected) {
+        if (!mounted || _isDisposed || _phase != ScanPhase.live) return;
+
         final wasDetected = _faceDetected;
         if (wasDetected != detected) {
           debugPrint('[FaceDetection] event: $detected');
@@ -131,15 +133,24 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         });
 
         if (detected && !wasDetected) {
-          // Face just became stable → start countdown
-          _startCountdown();
+          // Face detected → wait before starting countdown
+          _faceStableTimer?.cancel();
+
+          _faceStableTimer = Timer(const Duration(milliseconds: 1200), () {
+            if (_faceDetected && !_capturing) {
+              _startCountdown();
+            }
+          });
         } else if (!detected && wasDetected) {
-          // Face lost → cancel countdown
+          // Face lost → cancel everything
+          _faceStableTimer?.cancel();
           _cancelCountdown();
         }
-      }
-    };
-    html.window.addEventListener("faceDetected", _faceEventListener);
+      });
+    } else {
+      // Non-web builds don't have the JS face detection bridge; allow capture.
+      _faceDetected = true;
+    }
   }
 
   /// =================================================
@@ -150,7 +161,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     _engagementTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _isDisposed || _hasNavigated) return;
 
-      if (_phase != ScanPhase.live || _capturing || _holdSteady || _countdown > 0 || _faceDetected) {
+      if (_phase != ScanPhase.live ||
+          _capturing ||
+          _holdSteady ||
+          _countdown > 0 ||
+          _faceDetected) {
         if (_liveWaitSeconds != 0) {
           setState(() => _liveWaitSeconds = 0);
         }
@@ -203,40 +218,26 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   /// FACE DETECTION INIT (with retry until video is found)
   /// =================================================
   void _startFaceDetectionWithRetry([int attempt = 0]) {
+    if (!kIsWeb || widget.isHair) return;
     if (!mounted || _isDisposed || attempt > 15) return;
 
     Future.delayed(Duration(milliseconds: attempt == 0 ? 500 : 800), () {
       if (!mounted || _isDisposed) return;
 
-      // Find ALL video elements and pick the one that's actually playing
-      final videos = html.document.querySelectorAll("video");
-      html.Element? bestVideo;
-
-      for (int i = 0; i < videos.length; i++) {
-        final v = videos[i] as html.VideoElement;
-        if (v.videoWidth > 0 && v.readyState >= 2) {
-          bestVideo = v;
-          break;
-        }
-      }
-
-      // Fallback: take the first video element even if not ready yet
-      // (the JS side will wait for readyState)
-      if (bestVideo == null && videos.isNotEmpty) {
-        bestVideo = videos.first;
-      }
-
-      if (bestVideo != null) {
+      Future<void>(() async {
         try {
-          js_util.callMethod(html.window, 'startFaceDetection', [bestVideo]);
-          debugPrint("Face detection started on video element (attempt $attempt)");
+          final started = await web_face.startFaceDetection();
+          if (started) {
+            debugPrint("Face detection started (attempt $attempt)");
+            return;
+          }
         } catch (e) {
           debugPrint("Face detection start error: $e");
         }
-      } else {
+
         debugPrint("No video element found (attempt $attempt), retrying...");
         _startFaceDetectionWithRetry(attempt + 1);
-      }
+      });
     });
   }
 
@@ -278,12 +279,20 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         // Hold steady briefly, then capture.
         Future.delayed(const Duration(milliseconds: 450), () {
           () async {
-            final stableBeforeCapture = await _verifyFaceContinuous(const Duration(milliseconds: 280));
-            if (mounted && !_isDisposed && !_hasNavigated && stableBeforeCapture && !_capturing) {
+            final stableBeforeCapture = await _verifyFaceContinuous(
+              const Duration(milliseconds: 280),
+            );
+            if (mounted &&
+                !_isDisposed &&
+                !_hasNavigated &&
+                stableBeforeCapture &&
+                !_capturing) {
               debugPrint('[CaptureFlow] hold steady complete -> capture');
               _capture();
             } else {
-              debugPrint('[CaptureFlow] hold steady failed, cancelling countdown');
+              debugPrint(
+                '[CaptureFlow] hold steady failed, cancelling countdown',
+              );
               _cancelCountdown();
             }
           }();
@@ -328,12 +337,12 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     if (state == AppLifecycleState.inactive) {
       // Stop face detection so it can restart with new camera
-      try {
-        js_util.callMethod(html.window, 'stopFaceDetection', []);
-      } catch (_) {}
+      if (kIsWeb) {
+        web_face.stopFaceDetection().catchError((_) {});
+      }
       setState(() {
         _initialized = false;
-        _faceDetected = false;
+        _faceDetected = widget.isHair || !kIsWeb;
         _countdown = 0;
         _holdSteady = false;
         _controller = null;
@@ -349,7 +358,12 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   /// =================================================
   Future<void> _capture() async {
     final controller = _controller;
-    if (controller == null || !_initialized || _capturing || !controller.value.isInitialized || _isDisposed || _hasNavigated) {
+    if (controller == null ||
+        !_initialized ||
+        _capturing ||
+        !controller.value.isInitialized ||
+        _isDisposed ||
+        _hasNavigated) {
       return;
     }
     // Block capture if no face detected (skip for hair mode)
@@ -409,7 +423,12 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       _phase = ScanPhase.analyzing;
       _scanText = 'Analyzing visible skin markers…';
     });
-    const microLabels = ['Hydration', 'Pigmentation', 'Pore Visibility', 'Acne Activity'];
+    const microLabels = [
+      'Hydration',
+      'Pigmentation',
+      'Pore Visibility',
+      'Acne Activity',
+    ];
     for (int i = 0; i < 6; i++) {
       if (!mounted || _isDisposed || _hasNavigated) return;
       setState(() {
@@ -424,36 +443,35 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     if (!mounted || _isDisposed || _hasNavigated) return;
 
     // PHASE 3: Calculating with random skin facts
-setState(() {
-  _phase = ScanPhase.calculating;
-  _scanText = _getRandomSkinFact();
-  _ringProgress = 0;
-});
-
-const ringSteps = 20;
-
-for (int i = 1; i <= ringSteps; i++) {
-  await Future.delayed(const Duration(milliseconds: 50));
-
-  if (!mounted || _isDisposed || _hasNavigated) return;
-
-  setState(() {
-    _ringProgress = i / ringSteps;
-
-    // change fact every few steps
-    if (i % 5 == 0) {
+    setState(() {
+      _phase = ScanPhase.calculating;
       _scanText = _getRandomSkinFact();
-    }
-  });
-}
+      _ringProgress = 0;
+    });
 
-await Future.delayed(const Duration(milliseconds: 350));
-if (!mounted || _isDisposed || _hasNavigated) return;
+    const ringSteps = 20;
+
+    for (int i = 1; i <= ringSteps; i++) {
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      if (!mounted || _isDisposed || _hasNavigated) return;
+
+      setState(() {
+        _ringProgress = i / ringSteps;
+
+        // change fact every few steps
+        if (i % 5 == 0) {
+          _scanText = _getRandomSkinFact();
+        }
+      });
+    }
+
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted || _isDisposed || _hasNavigated) return;
     // Animate ring from 0 to 0.85 over 1s
-   
+
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    
     if (!mounted || _isDisposed || _hasNavigated) return;
 
     // Navigate
@@ -483,8 +501,10 @@ if (!mounted || _isDisposed || _hasNavigated) return;
     _engagementTimer?.cancel();
     _autoRingController?.dispose();
     _scanController?.dispose();
-    if (_faceEventListener != null) {
-      html.window.removeEventListener("faceDetected", _faceEventListener);
+    _faceStableTimer?.cancel();
+    if (_faceDetectedListenerSub != null) {
+      web_face.removeFaceDetectedListener(_faceDetectedListenerSub!);
+      _faceDetectedListenerSub = null;
     }
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
@@ -499,12 +519,12 @@ if (!mounted || _isDisposed || _hasNavigated) return;
     if (_isDisposed || _hasNavigated) return const SizedBox.shrink();
 
     final controller = _controller;
-    if (!_initialized || controller == null || !controller.value.isInitialized) {
+    if (!_initialized ||
+        controller == null ||
+        !controller.value.isInitialized) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(color: _kBlush),
-        ),
+        child: const Center(child: CircularProgressIndicator(color: _kBlush)),
       );
     }
 
@@ -658,16 +678,25 @@ if (!mounted || _isDisposed || _hasNavigated) return;
                 child: _holdSteady
                     ? Container(
                         key: const ValueKey('hold'),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: _kSoftGreen.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _kSoftGreen.withOpacity(0.4)),
+                          border: Border.all(
+                            color: _kSoftGreen.withOpacity(0.4),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.camera_alt, size: 16, color: _kSoftGreen),
+                            Icon(
+                              Icons.camera_alt,
+                              size: 16,
+                              color: _kSoftGreen,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               "Hold steady…",
@@ -681,52 +710,62 @@ if (!mounted || _isDisposed || _hasNavigated) return;
                         ),
                       )
                     : _countdown > 0
-                        ? Container(
-                            key: ValueKey('cd_$_countdown'),
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _kBlush.withOpacity(0.2),
-                              border: Border.all(color: _kBlush.withOpacity(0.6), width: 2),
+                    ? Container(
+                        key: ValueKey('cd_$_countdown'),
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _kBlush.withOpacity(0.2),
+                          border: Border.all(
+                            color: _kBlush.withOpacity(0.6),
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$_countdown',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontFamily: 'serif',
+                              fontWeight: FontWeight.bold,
+                              color: _kIvory.withOpacity(0.95),
                             ),
-                            child: Center(
-                              child: Text(
-                                '$_countdown',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontFamily: 'serif',
-                                  fontWeight: FontWeight.bold,
-                                  color: _kIvory.withOpacity(0.95),
-                                ),
+                          ),
+                        ),
+                      )
+                    : _faceDetected
+                    ? Container(
+                        key: const ValueKey('detected'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _kValidGreenBg.withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: _kSoftGreen,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Face detected",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: _kSoftGreen,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          )
-                        : _faceDetected
-                            ? Container(
-                                key: const ValueKey('detected'),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _kValidGreenBg.withOpacity(0.85),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.check_circle, size: 16, color: _kSoftGreen),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "Face detected",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: _kSoftGreen,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : const SizedBox.shrink(key: ValueKey('empty')),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(key: ValueKey('empty')),
               ),
             ),
 
@@ -735,15 +774,25 @@ if (!mounted || _isDisposed || _hasNavigated) return;
             Align(
               alignment: const Alignment(0, 0.72),
               child: _CaptureButton(
-                enabled: _initialized && !_capturing && _controller != null && _controller!.value.isInitialized && (widget.isHair || _faceDetected),
+                enabled:
+                    _initialized &&
+                    !_capturing &&
+                    _controller != null &&
+                    _controller!.value.isInitialized &&
+                    (widget.isHair || _faceDetected),
                 faceDetected: _faceDetected,
                 autoRingController: _autoRingController,
                 subLabel: (_countdown > 0 || _holdSteady)
                     ? 'Hold still…'
                     : _faceDetected
-                        ? 'Auto-capturing…'
-                        : 'Position your face in frame',
-                onTap: (_initialized && !_capturing && _controller != null && _controller!.value.isInitialized && (widget.isHair || _faceDetected))
+                    ? 'Auto-capturing…'
+                    : 'Position your face in frame',
+                onTap:
+                    (_initialized &&
+                        !_capturing &&
+                        _controller != null &&
+                        _controller!.value.isInitialized &&
+                        (widget.isHair || _faceDetected))
                     ? _capture
                     : null,
               ),
@@ -812,9 +861,7 @@ if (!mounted || _isDisposed || _hasNavigated) return;
               SizedBox(
                 width: screenW * 0.65,
                 height: screenW * 0.65 * 1.3,
-                child: CustomPaint(
-                  painter: _MeshPainter(),
-                ),
+                child: CustomPaint(painter: _MeshPainter()),
               ),
 
             // Skin markers (Phase 2)
@@ -907,9 +954,13 @@ class _Chip extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: valid ? _kValidGreenBg.withOpacity(0.85) : _kIvory.withOpacity(0.75),
+        color: valid
+            ? _kValidGreenBg.withOpacity(0.85)
+            : _kIvory.withOpacity(0.75),
         borderRadius: BorderRadius.circular(14),
-        border: valid ? null : Border.all(color: _kBurgundy.withOpacity(0.25), width: 0.8),
+        border: valid
+            ? null
+            : Border.all(color: _kBurgundy.withOpacity(0.25), width: 0.8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1021,10 +1072,7 @@ class _CaptureButton extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          _kBlush,
-                          _kRoseAccent,
-                        ],
+                        colors: [_kBlush, _kRoseAccent],
                       ),
                       boxShadow: faceDetected
                           ? [
@@ -1232,20 +1280,18 @@ class _SkinMarkerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 5 zones: forehead, left cheek, right cheek, under-eye, chin
     final zones = [
-      Offset(size.width * 0.50, size.height * 0.15),  // forehead
-      Offset(size.width * 0.25, size.height * 0.48),  // left cheek
-      Offset(size.width * 0.75, size.height * 0.48),  // right cheek
-      Offset(size.width * 0.50, size.height * 0.40),  // under-eye
-      Offset(size.width * 0.50, size.height * 0.58),  // T-zone
-      Offset(size.width * 0.50, size.height * 0.80),  // chin
+      Offset(size.width * 0.50, size.height * 0.15), // forehead
+      Offset(size.width * 0.25, size.height * 0.48), // left cheek
+      Offset(size.width * 0.75, size.height * 0.48), // right cheek
+      Offset(size.width * 0.50, size.height * 0.40), // under-eye
+      Offset(size.width * 0.50, size.height * 0.58), // T-zone
+      Offset(size.width * 0.50, size.height * 0.80), // chin
     ];
 
     for (int i = 0; i < zones.length; i++) {
       final active = i <= highlightIndex;
       final paint = Paint()
-        ..color = active
-            ? _kBlush.withOpacity(0.5)
-            : _kIvory.withOpacity(0.1)
+        ..color = active ? _kBlush.withOpacity(0.5) : _kIvory.withOpacity(0.1)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(zones[i], active ? 24 : 16, paint);
@@ -1261,7 +1307,8 @@ class _SkinMarkerPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_SkinMarkerPainter old) => old.highlightIndex != highlightIndex;
+  bool shouldRepaint(_SkinMarkerPainter old) =>
+      old.highlightIndex != highlightIndex;
 }
 
 /// =================================================

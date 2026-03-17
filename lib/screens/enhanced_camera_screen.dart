@@ -24,6 +24,8 @@ class AutoCaptureController {
   static double _globalHairRefCenterOffsetY = 0.20;
   static double _globalHairRefCenterYRatio = 0.66;
 
+  int _validFaceFrames = 0;
+
   /// Current pitch angle from face detection
   double _currentPitch = 0.0;
   
@@ -270,7 +272,36 @@ class AutoCaptureController {
       headEulerAngleZ: headEulerAngleZ,
     );
 
-    _hasFace = hasFace;
+    // _hasFace = hasFace;
+final isStructureValid = _isValidFaceStructure(landmarks);
+
+// Face must be large enough
+final isFaceSizeValid = _faceFillRatio > 0.18;
+
+// Reject weird aspect ratios (hands etc.)
+final aspectRatio = faceWidthRatio / (faceHeightRatio + 0.001);
+final isAspectRatioValid = aspectRatio > 0.5 && aspectRatio < 2.2;
+
+// bool detectedFace =
+//     hasFace && isStructureValid && isFaceSizeValid && isAspectRatioValid;
+bool detectedFace =
+    hasFace &&
+    isFaceSizeValid &&
+    isAspectRatioValid &&
+    (isStructureValid || _faceFillRatio > 0.35);
+
+// Require stable detection across frames
+if (detectedFace) {
+  _validFaceFrames++;
+} else {
+  _validFaceFrames = 0;
+}
+
+// Only confirm face after few stable frames
+_hasFace = _validFaceFrames > 1;
+
+
+
     _faceFillRatio = faceWidthRatio > faceHeightRatio
         ? faceWidthRatio
         : faceHeightRatio;
@@ -575,7 +606,7 @@ class AutoCaptureController {
     final eyeDx = (leftEye[0] - rightEye[0]).abs();
     final eyeDy = (leftEye[1] - rightEye[1]).abs();
     final earDx = (leftEar[0] - rightEar[0]).abs();
-    if (eyeDx < 28.0 || earDx < 56.0) {
+    if (eyeDx < 40.0 || earDx < 80.0) {
       return false;
     }
 
@@ -625,6 +656,23 @@ class AutoCaptureController {
     return pitchReady && yawReady && rollReady;
   }
 
+  bool _isValidFaceStructure(List<List<double>> landmarks) {
+  if (landmarks.length < 5) return false;
+
+  final leftEye = landmarks[1];
+  final rightEye = landmarks[2];
+  final nose = landmarks[0];
+
+  final eyeDistance = (leftEye[0] - rightEye[0]).abs();
+  final noseToEyeY = (nose[1] - ((leftEye[1] + rightEye[1]) / 2)).abs();
+
+  // Reject fake detections (hands, objects)
+  if (eyeDistance < 20) return false;
+  if (noseToEyeY < 5) return false;
+
+  return true;
+}
+
   /// Dispose the controller
   void dispose() {
     _captureTimer?.cancel();
@@ -664,6 +712,24 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   bool _isCapturing = false;
   bool _isDisposed = false;
   bool _hasNavigated = false;
+  
+
+  bool _isValidFaceStructure(List<List<double>> landmarks) {
+  if (landmarks.length < 5) return false;
+
+  final leftEye = landmarks[1];
+  final rightEye = landmarks[2];
+  final nose = landmarks[0];
+
+  final eyeDistance = (leftEye[0] - rightEye[0]).abs();
+  final noseToEyeY = (nose[1] - ((leftEye[1] + rightEye[1]) / 2)).abs();
+
+  // Reject fake detections (hands, objects)
+  if (eyeDistance < 30) return false;
+  if (noseToEyeY < 5) return false;
+
+  return true;
+}
 
   double _calculateGuideSize(BuildContext context) {
     final size = MediaQuery.of(context).size;

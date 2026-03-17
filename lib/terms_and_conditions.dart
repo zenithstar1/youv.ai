@@ -132,7 +132,7 @@ Positioned(
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: (W * 0.04).clamp(10.0, 22.0),
               runSpacing: 10,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
   onTap: () {
