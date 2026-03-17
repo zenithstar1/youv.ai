@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' as http_parser;
 
@@ -41,6 +42,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   int _currentMessageIndex = 0;
   Timer? _messageTimer;
   AnimationController? _scanLineController;
+  Timer? _retakeOpacityTimer;
+  bool _primaryPressed = false;
+  bool _retakeDimmed = false;
 
   late final List<String> _loadingMessages;
 
@@ -62,9 +66,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   void initState() {
     super.initState();
 
-    _loadingMessages = widget.isHair
-        ? _hairLoadingMessages
-        : _skinLoadingMessages;
+    _loadingMessages =
+        widget.isHair ? _hairLoadingMessages : _skinLoadingMessages;
 
     _scanLineController = AnimationController(
       vsync: this,
@@ -75,20 +78,22 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   @override
   void dispose() {
     _messageTimer?.cancel();
+    _retakeOpacityTimer?.cancel();
     _scanLineController?.dispose();
     super.dispose();
   }
 
   // =================== FIREBASE UPLOAD ===================
-  Future<String> _uploadImageToFirebase(Uint8List bytes, String type) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List bytes, String type) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return '';
     }
 
-    final ref = FirebaseStorage.instance.ref().child(
-      "user_images/${user.uid}/$type.jpg",
-    );
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child("user_images/${user.uid}/$type.jpg");
 
     await ref.putData(bytes);
     return await ref.getDownloadURL();
@@ -167,7 +172,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           fileName: widget.fileName,
         );
 
-        final hairAnalysis = hair.HairAnalysisModel.fromJson(hairResponse);
+        final hairAnalysis =
+            hair.HairAnalysisModel.fromJson(hairResponse);
 
         _uploadImageToFirebase(widget.imageBytes, 'latest_scan')
             .then((url) => _saveBeforeAfterImage(url))
@@ -179,7 +185,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => HairResultScreen(analysis: hairAnalysis),
+            builder: (context) => HairResultScreen(
+              analysis: hairAnalysis,
+            ),
           ),
         );
         return;
@@ -205,7 +213,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       if (skinAnalysisResult is SkinAnalysisModel) {
         skinAnalysisData = skinAnalysisResult;
       } else if (skinAnalysisResult is Map<String, dynamic>) {
-        skinAnalysisData = SkinAnalysisModel.fromJson(skinAnalysisResult);
+        skinAnalysisData =
+            SkinAnalysisModel.fromJson(skinAnalysisResult);
       } else {
         throw Exception("Invalid skin API response format");
       }
@@ -308,7 +317,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             width: double.infinity,
             height: double.infinity,
           ),
-
+          
           // 2. Conditional UI Layout
           if (_isAnalyzing)
             _buildAnalyzingOverlay()
@@ -436,46 +445,154 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   }
 
   Widget _buildBottomControls() {
+    final h = MediaQuery.sizeOf(context).height;
+    final imageToMicro = (h * 0.045).clamp(18.0, 34.0);
+    final microToButton = (h * 0.025).clamp(12.0, 24.0);
+    final buttonToRetake = (h * 0.018).clamp(12.0, 16.0);
+
     return Positioned(
-      bottom: 40,
+      bottom: 0,
       left: 0,
       right: 0,
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildCircularButton(
-              icon: Icons.refresh_rounded,
-              onTap: _retakePhoto,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: imageToMicro),
+                  Text(
+                    'Analyzed across 25+ skin parameters',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.lato(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF9E9E9E),
+                    ),
+                  ),
+                  SizedBox(height: microToButton),
+                  _buildPrimaryButton(),
+                  SizedBox(height: buttonToRetake),
+                  _buildRetakeAction(),
+                ],
+              ),
             ),
-            const SizedBox(width: 40),
-            _buildCircularButton(
-              icon: Icons.check_rounded,
-              onTap: _sendForAnalysis,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCircularButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildPrimaryButton() {
+    final boxShadow = [
+      BoxShadow(
+        color: const Color.fromRGBO(228, 179, 184, 1)
+            .withValues(alpha: _primaryPressed ? 0.22 : 0.35),
+        blurRadius: _primaryPressed ? 16 : 20,
+        offset: const Offset(0, 8),
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: _primaryPressed ? 0.05 : 0.08),
+        blurRadius: 6,
+        offset: const Offset(0, 2),
+      ),
+    ];
+
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 70,
-        height: 70,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.black.withOpacity(0.3),
-          border: Border.all(color: Colors.white, width: 2.0),
+      onTap: _sendForAnalysis,
+      onTapDown: (_) => setState(() => _primaryPressed = true),
+      onTapCancel: () => setState(() => _primaryPressed = false),
+      onTapUp: (_) => setState(() => _primaryPressed = false),
+      child: AnimatedScale(
+        scale: _primaryPressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          height: 54,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFE4B3B8), Color(0xFFD89AA1)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: boxShadow,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Analyze My Skin',
+                  textAlign: TextAlign.left,
+                  style: GoogleFonts.lato(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+            ],
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: 32),
       ),
     );
   }
+
+Widget _buildRetakeAction() {
+  return GestureDetector(
+    onTap: () {
+      _retakeOpacityTimer?.cancel();
+      setState(() => _retakeDimmed = true);
+      _retakeOpacityTimer = Timer(const Duration(milliseconds: 120), () {
+        if (!mounted) return;
+        setState(() => _retakeDimmed = false);
+      });
+      _retakePhoto();
+    },
+    child: AnimatedOpacity(
+      opacity: _retakeDimmed ? 0.6 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.12), // 🔥 glass effect
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.25),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.refresh, size: 14, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              'Retake Photo',
+              style: GoogleFonts.lato(
+                fontSize: 14,
+                fontWeight: FontWeight.w700, // ✅ BOLD
+                color: Colors.white,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
+    }

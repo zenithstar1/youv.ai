@@ -60,6 +60,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # assets:
+  #   - assets/images/fflutter:
   assets:
     - assets/images/
     - assets/videos/intro.mp4

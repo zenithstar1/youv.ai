@@ -152,7 +152,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
           }
         },
         child: Scaffold(
-          backgroundColor: const Color(0xFFFDEDED),
+          backgroundColor: const Color(0xFFF9F0EC),
           body: SafeArea(
         child: SingleChildScrollView(
           child: Column(

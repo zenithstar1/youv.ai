@@ -278,7 +278,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         },
         child: SafeArea(
           child: Scaffold(
-        backgroundColor: const Color(0xFFF5E6E8),
+        backgroundColor: const Color(0xFFF9F0EC),
         resizeToAvoidBottomInset: true,
         body: LayoutBuilder(
           builder: (context, viewport) {
@@ -1093,7 +1093,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5E6E8),
+        backgroundColor: const Color(0xFFF9F0EC),
         body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: W * 0.07, vertical: 40),
