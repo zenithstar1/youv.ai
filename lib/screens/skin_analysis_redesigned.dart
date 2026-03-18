@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,12 +90,53 @@ class _DiagnosticRingState extends State<DiagnosticRing>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
+  bool _triggered = false;
+  ScrollPosition? _scrollPosition;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkVisibility();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_triggered) return;
+    _scrollPosition?.removeListener(_onScroll);
+    try {
+      _scrollPosition = Scrollable.maybeOf(context)?.position;
+    } catch (_) {
+      _scrollPosition = null;
+    }
+    _scrollPosition?.addListener(_onScroll);
+  }
+
+  void _onScroll() => _checkVisibility();
+
+  void _checkVisibility() {
+    if (_triggered || !mounted) return;
+    final ro = context.findRenderObject() as RenderBox?;
+    if (ro == null || !ro.attached || !ro.hasSize) return;
+    try {
+      final pos = ro.localToGlobal(Offset.zero);
+      final screenH = MediaQuery.of(context).size.height;
+      if (pos.dy < screenH * 0.9 && pos.dy + ro.size.height > 0) {
+        _trigger();
+      }
+    } catch (_) {
+      _trigger(); // fallback: animate immediately if position check fails
+    }
+  }
+
+  void _trigger() {
+    if (_triggered) return;
+    _triggered = true;
+    _scrollPosition?.removeListener(_onScroll);
     Future.delayed(widget.delay, () {
       if (mounted) _ctrl.forward();
     });
@@ -102,6 +144,7 @@ class _DiagnosticRingState extends State<DiagnosticRing>
 
   @override
   void dispose() {
+    _scrollPosition?.removeListener(_onScroll);
     _ctrl.dispose();
     super.dispose();
   }
@@ -125,6 +168,7 @@ class _DiagnosticRingState extends State<DiagnosticRing>
               color: color,
               strokeWidth: sw,
               bgColor: _DS.blush.withOpacity(0.25),
+              showInnerRing: !widget.isMain && widget.size >= 78,
             ),
             child: Center(
               child: Opacity(
@@ -152,18 +196,21 @@ class _RingPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
   final Color bgColor;
+  final bool showInnerRing;
 
   _RingPainter({
     required this.progress,
     required this.color,
     required this.strokeWidth,
     required this.bgColor,
+    this.showInnerRing = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth * 2) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
 
     // Background ring
     canvas.drawCircle(
@@ -175,9 +222,25 @@ class _RingPainter extends CustomPainter {
         ..strokeWidth = strokeWidth,
     );
 
+    // Glow behind progress arc (for scores above 60%)
+    if (progress > 0.6) {
+      canvas.drawArc(
+        rect,
+        -pi / 2,
+        2 * pi * progress,
+        false,
+        Paint()
+          ..color = color.withOpacity(0.18)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth + 6
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+    }
+
     // Progress arc
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      rect,
       -pi / 2,
       2 * pi * progress,
       false,
@@ -187,6 +250,32 @@ class _RingPainter extends CustomPainter {
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round,
     );
+
+    // Inner ring (only for main/hero rings)
+    if (showInnerRing) {
+      final innerRadius = radius - strokeWidth - 3;
+      if (innerRadius > 4) {
+        canvas.drawCircle(
+          center,
+          innerRadius,
+          Paint()
+            ..color = bgColor.withOpacity(0.4)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5,
+        );
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: innerRadius),
+          -pi / 2,
+          2 * pi * progress,
+          false,
+          Paint()
+            ..color = color.withOpacity(0.35)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+    }
   }
 
   @override
@@ -216,6 +305,295 @@ class _SectionRule extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────
+//  Half Ring (semicircle gauge)
+// ─────────────────────────────────────
+class _HalfRing extends StatefulWidget {
+  final double value; // 0–100
+  final double size;
+  final Color color;
+  final double strokeWidth;
+
+  const _HalfRing({required this.value, required this.size, required this.color, this.strokeWidth = 9});
+
+  @override
+  State<_HalfRing> createState() => _HalfRingState();
+}
+
+class _HalfRingState extends State<_HalfRing> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+  bool _triggered = false;
+  ScrollPosition? _scrollPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _check(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_triggered) return;
+    _scrollPosition?.removeListener(_check);
+    try { _scrollPosition = Scrollable.maybeOf(context)?.position; } catch (_) { _scrollPosition = null; }
+    _scrollPosition?.addListener(_check);
+  }
+
+  void _check() {
+    if (_triggered || !mounted) return;
+    final ro = context.findRenderObject() as RenderBox?;
+    if (ro == null || !ro.attached || !ro.hasSize) return;
+    try {
+      final pos = ro.localToGlobal(Offset.zero);
+      final screenH = MediaQuery.of(context).size.height;
+      if (pos.dy < screenH * 0.9 && pos.dy + ro.size.height > 0) {
+        _triggered = true;
+        _scrollPosition?.removeListener(_check);
+        Future.delayed(const Duration(milliseconds: 300), () { if (mounted) _ctrl.forward(); });
+      }
+    } catch (_) {
+      _triggered = true;
+      _ctrl.forward();
+    }
+  }
+
+  @override
+  void dispose() { _scrollPosition?.removeListener(_check); _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        final progress = _anim.value * widget.value / 100;
+        return SizedBox(
+          width: widget.size,
+          height: widget.size * 0.55, // half height
+          child: CustomPaint(
+            painter: _HalfRingPainter(
+              progress: progress,
+              color: widget.color,
+              strokeWidth: widget.strokeWidth,
+              bgColor: _DS.blush.withOpacity(0.25),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HalfRingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final double strokeWidth;
+  final Color bgColor;
+
+  _HalfRingPainter({required this.progress, required this.color, required this.strokeWidth, required this.bgColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height - strokeWidth / 2;
+    final radius = (size.width - strokeWidth * 2) / 2;
+    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: radius);
+
+    // Background half arc
+    canvas.drawArc(rect, pi, pi, false, Paint()
+      ..color = bgColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt);
+
+    // Glow
+    if (progress > 0.5) {
+      canvas.drawArc(rect, pi, pi * progress, false, Paint()
+        ..color = color.withOpacity(0.15)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth + 6
+        ..strokeCap = StrokeCap.butt
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
+    }
+
+    // Progress half arc
+    canvas.drawArc(rect, pi, pi * progress, false, Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt);
+  }
+
+  @override
+  bool shouldRepaint(_HalfRingPainter old) => old.progress != progress;
+}
+
+// ─────────────────────────────────────
+//  Pulse Dot (animated opacity)
+// ─────────────────────────────────────
+class _PulseDot extends StatefulWidget {
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.35, end: 0.88).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _opacity,
+      builder: (_, __) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withOpacity(_opacity.value),
+          boxShadow: [
+            BoxShadow(color: Colors.white.withOpacity(_opacity.value * 0.25), blurRadius: 6, spreadRadius: 3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────
+//  Bouncing Chevron
+// ─────────────────────────────────────
+class _BouncingChevron extends StatefulWidget {
+  @override
+  State<_BouncingChevron> createState() => _BouncingChevronState();
+}
+
+class _BouncingChevronState extends State<_BouncingChevron> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _offset;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+    _offset = Tween<double>(begin: 0, end: 6).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _opacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.5, end: 0.88), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.88, end: 0.5), weight: 50),
+    ]).animate(_ctrl);
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Transform.translate(
+        offset: Offset(0, _offset.value),
+        child: Opacity(
+          opacity: _opacity.value,
+          child: const Icon(Icons.keyboard_arrow_down, size: 18, color: _DS.grey400),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────
+//  Scroll-triggered Fade + Slide In
+// ─────────────────────────────────────
+class _FadeSlideIn extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+
+  const _FadeSlideIn({required this.child, this.delay = Duration.zero});
+
+  @override
+  State<_FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<_FadeSlideIn> {
+  bool _visible = false;
+  ScrollPosition? _scrollPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_visible) return;
+    _scrollPosition?.removeListener(_check);
+    try {
+      _scrollPosition = Scrollable.maybeOf(context)?.position;
+    } catch (_) {
+      _scrollPosition = null;
+    }
+    _scrollPosition?.addListener(_check);
+  }
+
+  void _check() {
+    if (_visible || !mounted) return;
+    final ro = context.findRenderObject() as RenderBox?;
+    if (ro == null || !ro.attached || !ro.hasSize) return;
+    try {
+      final pos = ro.localToGlobal(Offset.zero);
+      final screenH = MediaQuery.of(context).size.height;
+      if (pos.dy < screenH * 0.88 && pos.dy + ro.size.height > 0) {
+        _scrollPosition?.removeListener(_check);
+        if (widget.delay == Duration.zero) {
+          setState(() => _visible = true);
+        } else {
+          Future.delayed(widget.delay, () {
+            if (mounted) setState(() => _visible = true);
+          });
+        }
+      }
+    } catch (_) {
+      setState(() => _visible = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollPosition?.removeListener(_check);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutCubic,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.translationValues(0, _visible ? 0 : 20, 0),
+        child: widget.child,
       ),
     );
   }
@@ -664,24 +1042,24 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             // STAGE 2: Skin Map
             if (metrics.isNotEmpty) ...[
               const SliverToBoxAdapter(child: _SectionRule()),
-              SliverToBoxAdapter(child: _buildSkinMap(metrics)),
+              SliverToBoxAdapter(child: _FadeSlideIn(child: _buildSkinMap(metrics))),
             ],
             // STAGE 3: Key Opportunity
             if (metrics.isNotEmpty) ...[
               const SliverToBoxAdapter(child: _SectionRule()),
-              SliverToBoxAdapter(child: _buildKeyOpportunity(metrics)),
+              SliverToBoxAdapter(child: _FadeSlideIn(delay: const Duration(milliseconds: 100), child: _buildKeyOpportunity(metrics))),
             ],
             // STAGE 4: Skin Profile
             const SliverToBoxAdapter(child: _SectionRule()),
-            SliverToBoxAdapter(child: _buildSkinProfile()),
+            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildSkinProfile())),
             // STAGE 5: Facial Structure
-            SliverToBoxAdapter(child: _buildFacialStructureHeader(symmetry)),
-            SliverToBoxAdapter(child: _buildSymmetryScore(symmetry)),
+            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildFacialStructureHeader(symmetry))),
+            SliverToBoxAdapter(child: _FadeSlideIn(delay: const Duration(milliseconds: 100), child: _buildSymmetryScore(symmetry))),
             // STAGE 6: Structural Breakdown (swipe cards)
-            SliverToBoxAdapter(child: _buildStructuralBreakdown()),
+            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildStructuralBreakdown())),
             // STAGE 7: Report CTA
             const SliverToBoxAdapter(child: _SectionRule()),
-            SliverToBoxAdapter(child: _buildReportCTA()),
+            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
             // Disclaimer
             SliverToBoxAdapter(child: _buildDisclaimer()),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -761,121 +1139,194 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
 
     return Column(
       children: [
-        // Hero image card
+        // Hero image card with ambient glow
         Padding(
           padding: EdgeInsets.fromLTRB(r.w(20), r.h(16), r.w(20), 0),
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.52,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              color: _DS.blush,
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 28, offset: const Offset(0, 14)),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // User photo
-                if (widget.imageBytes != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: Image.memory(
-                      widget.imageBytes!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  ),
-
-                // Top gradient overlay
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.center,
-                        colors: [Colors.white.withOpacity(0.14), Colors.transparent],
-                      ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Ambient glow behind card
+              Positioned(
+                left: -16, right: -16, top: -16, bottom: -16,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(42),
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.16),
+                      radius: 0.85,
+                      colors: [
+                        _DS.blush.withOpacity(0.30),
+                        _DS.blush.withOpacity(0.10),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.45, 1.0],
                     ),
                   ),
                 ),
+              ),
+              // Hero card
+              Container(
+                height: MediaQuery.of(context).size.height * 0.52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  color: _DS.blush,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 28, offset: const Offset(0, 14)),
+                    BoxShadow(color: _DS.blush.withOpacity(0.18), blurRadius: 40, offset: const Offset(0, 4)),
+                  ],
+                  border: Border.all(color: Colors.white.withOpacity(0.55)),
+                ),
+                child: Stack(
+                  children: [
+                    // User photo
+                    if (widget.imageBytes != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Image.memory(
+                          widget.imageBytes!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      ),
 
-                // Bottom gradient
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.center,
-                        colors: [Colors.black.withOpacity(0.22), Colors.transparent],
+                    // Radial light overlay
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          gradient: RadialGradient(
+                            center: const Alignment(0, -0.28),
+                            radius: 0.72,
+                            colors: [
+                              Colors.white.withOpacity(0.14),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.68],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
 
-                // AI badge
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(5)),
-                    decoration: BoxDecoration(
-                      color: _DS.pageBg.withOpacity(0.82),
-                      borderRadius: BorderRadius.circular(50),
-                      border: Border.all(color: Colors.white.withOpacity(0.7)),
-                    ),
-                    child: Text(
-                      'AI FACIAL ANALYSIS',
-                      style: TextStyle(fontSize: r.sp(10), letterSpacing: 1.5, color: _DS.grey600),
-                    ),
-                  ),
-                ),
-
-                // Score overlay at bottom
-                Positioned(
-                  bottom: 20,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: EdgeInsets.fromLTRB(r.w(12), r.h(12), r.w(22), r.h(12)),
-                      decoration: BoxDecoration(
-                        color: _DS.pageBg.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(60),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 18, offset: const Offset(0, 6)),
-                        ],
-                        border: Border.all(color: Colors.white.withOpacity(0.72)),
+                    // Top gradient overlay
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.center,
+                            colors: [Colors.white.withOpacity(0.14), Colors.transparent],
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DiagnosticRing(value: score, size: 80, isMain: true, delay: const Duration(milliseconds: 400)),
-                          const SizedBox(width: 12),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('Skin Health', style: TextStyle(fontSize: r.sp(16), fontWeight: FontWeight.w600, color: _DS.textHigh)),
-                                Text('Index', style: TextStyle(fontSize: r.sp(13), fontStyle: FontStyle.italic, color: _DS.grey600)),
-                                const SizedBox(height: 3),
-                                Text(
-                                  'Based on multiple facial health parameters',
-                                  style: TextStyle(fontSize: r.sp(10), color: _DS.grey400, fontWeight: FontWeight.w300, height: 1.45),
-                                ),
-                              ],
+                    ),
+
+                    // Bottom gradient (deeper, multi-stop)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: const Alignment(0, -0.2),
+                            colors: [
+                              Colors.black.withOpacity(0.22),
+                              Colors.black.withOpacity(0.08),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // AI badge with glass effect
+                    Positioned(
+                      top: 16,
+                      left: 16,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(50),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(5)),
+                            decoration: BoxDecoration(
+                              color: _DS.pageBg.withOpacity(0.72),
+                              borderRadius: BorderRadius.circular(50),
+                              border: Border.all(color: Colors.white.withOpacity(0.7)),
+                            ),
+                            child: Text(
+                              'AI FACIAL ANALYSIS',
+                              style: TextStyle(fontSize: r.sp(10), letterSpacing: 1.5, color: _DS.grey600),
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+
+                    // Pulse dot
+                    Positioned(
+                      top: MediaQuery.of(context).size.height * 0.52 * 0.44,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: _PulseDot(),
+                      ),
+                    ),
+
+                    // Score overlay at bottom with glass effect
+                    Positioned(
+                      bottom: 20,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(60),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                            child: Container(
+                              padding: EdgeInsets.fromLTRB(r.w(12), r.h(12), r.w(22), r.h(12)),
+                              decoration: BoxDecoration(
+                                color: _DS.pageBg.withOpacity(0.85),
+                                borderRadius: BorderRadius.circular(60),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 18, offset: const Offset(0, 6)),
+                                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 1)),
+                                ],
+                                border: Border.all(color: Colors.white.withOpacity(0.72)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  DiagnosticRing(value: score, size: 80, isMain: true, delay: const Duration(milliseconds: 400)),
+                                  const SizedBox(width: 12),
+                                  Flexible(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('Skin Health', style: TextStyle(fontSize: r.sp(16), fontWeight: FontWeight.w600, color: _DS.textHigh)),
+                                        Text('Index', style: TextStyle(fontSize: r.sp(13), fontStyle: FontStyle.italic, color: _DS.grey600)),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          'Based on multiple facial health parameters',
+                                          style: TextStyle(fontSize: r.sp(10), color: _DS.grey400, fontWeight: FontWeight.w300, height: 1.45),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
 
@@ -904,10 +1355,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             children: [
               Text(
                 'Scroll to understand your skin',
-                style: TextStyle(fontSize: r.sp(12), color: _DS.grey400, fontWeight: FontWeight.w300, fontStyle: FontStyle.italic),
+                style: TextStyle(fontSize: r.sp(12), color: _DS.grey400, fontWeight: FontWeight.w300, fontStyle: FontStyle.italic, letterSpacing: 0.4),
               ),
               SizedBox(height: r.h(4)),
-              Icon(Icons.keyboard_arrow_down, size: r.w(18), color: _DS.grey400),
+              _BouncingChevron(),
             ],
           ),
         ),
@@ -931,7 +1382,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(26),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 4)),
+                BoxShadow(color: _DS.blush.withOpacity(0.08), blurRadius: 32, offset: const Offset(0, 8)),
+              ],
             ),
             child: Column(
               children: [
@@ -996,10 +1450,14 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   ),
                 ),
 
-                // Active metric detail
-                if (_activeMetricIdx != null && _activeMetricIdx! < metrics.length) ...[
-                  _buildActiveMetricDetail(metrics[_activeMetricIdx!]),
-                ],
+                // Active metric detail (animated)
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  child: (_activeMetricIdx != null && _activeMetricIdx! < metrics.length)
+                      ? _buildActiveMetricDetail(metrics[_activeMetricIdx!])
+                      : const SizedBox.shrink(),
+                ),
                 const SizedBox(height: 16),
               ],
             ),
@@ -1016,44 +1474,52 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
 
     return GestureDetector(
       onTap: () {
-        _showMetricModal(m);
+        setState(() {
+          _activeMetricIdx = _activeMetricIdx == idx ? null : idx;
+        });
       },
-      child: AnimatedContainer(
+      child: AnimatedScale(
+        scale: isActive ? 1.06 : 1.0,
         duration: const Duration(milliseconds: 220),
-        padding: EdgeInsets.symmetric(vertical: r.h(12), horizontal: r.w(6)),
-        decoration: BoxDecoration(
-          color: isActive ? t.color.withOpacity(0.06) : _DS.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isActive ? t.color : _DS.blush.withOpacity(0.26),
-            width: 1.5,
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          padding: EdgeInsets.symmetric(vertical: r.h(12), horizontal: r.w(6)),
+          decoration: BoxDecoration(
+            color: isActive ? Color.lerp(_DS.white, t.color, 0.06)! : _DS.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isActive ? t.color.withOpacity(0.4) : _DS.blush.withOpacity(0.26),
+              width: isActive ? 2.5 : 1.5,
+            ),
+            boxShadow: [
+              if (isActive) ...[
+                BoxShadow(color: t.color.withOpacity(0.20), blurRadius: 18, offset: const Offset(0, 6)),
+                BoxShadow(color: t.color.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2)),
+              ] else
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+            ],
           ),
-          boxShadow: [
-            if (isActive)
-              BoxShadow(color: t.color.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))
-            else
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DiagnosticRing(
-              value: m.value,
-              size: 72,
-              delay: Duration(milliseconds: idx * 120),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              m.label,
-              style: TextStyle(
-                fontSize: r.sp(12),
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                color: isActive ? t.color : _DS.grey600,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DiagnosticRing(
+                value: m.value,
+                size: 72,
+                delay: Duration(milliseconds: idx * 120),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                m.label,
+                style: TextStyle(
+                  fontSize: r.sp(12),
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                  color: isActive ? t.color : _DS.grey600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1128,7 +1594,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 14, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 14, offset: const Offset(0, 4)),
+                BoxShadow(color: t.color.withOpacity(0.08), blurRadius: 28, offset: const Offset(0, 8)),
+              ],
               border: Border(top: BorderSide(color: t.color, width: 3)),
             ),
             padding: EdgeInsets.all(r.w(20)),
@@ -1158,7 +1627,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                               decoration: BoxDecoration(
                                 color: t.color,
                                 borderRadius: BorderRadius.circular(50),
-                                boxShadow: [BoxShadow(color: t.color.withOpacity(0.26), blurRadius: 12, offset: const Offset(0, 4))],
+                                boxShadow: [
+                                  BoxShadow(color: t.color.withOpacity(0.30), blurRadius: 18, offset: const Offset(0, 6)),
+                                  BoxShadow(color: t.color.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2)),
+                                ],
                               ),
                               child: const Text('Understand why →', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
                             ),
@@ -1469,17 +1941,18 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 bottomLeft: Radius.circular(26),
                 bottomRight: Radius.circular(26),
               ),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 6))],
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 6)),
+                BoxShadow(color: _DS.blush.withOpacity(0.12), blurRadius: 32, offset: const Offset(0, 12)),
+              ],
             ),
             child: Column(
               children: [
-                DiagnosticRing(
+                _HalfRing(
                   value: pct,
-                  size: 160,
-                  isMain: true,
-                  overrideColor: _DS.blush,
-                  strokeWidth: 9,
-                  delay: const Duration(milliseconds: 300),
+                  size: 240,
+                  color: _DS.blush,
+                  strokeWidth: 32,
                 ),
                 const SizedBox(height: 10),
                 // Show score / 10 under ring
@@ -1731,7 +2204,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(30),
-          boxShadow: [BoxShadow(color: _DS.blush.withOpacity(0.4), blurRadius: 28, offset: const Offset(0, 12))],
+          boxShadow: [
+            BoxShadow(color: _DS.blush.withOpacity(0.40), blurRadius: 56, offset: const Offset(0, 24)),
+            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4)),
+          ],
         ),
         child: Column(
           children: [
@@ -1741,6 +2217,9 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(color: Colors.white.withOpacity(0.10), blurRadius: 12, spreadRadius: -2),
+                ],
               ),
               child: Icon(Icons.description_outlined, color: Colors.white, size: r.w(28)),
             ),
@@ -2032,7 +2511,11 @@ class _RadarPainter extends CustomPainter {
       final path = Path();
       for (int i = 0; i < n; i++) {
         final p = pt(rv, i);
-        if (i == 0) path.moveTo(p.dx, p.dy); else path.lineTo(p.dx, p.dy);
+        if (i == 0) {
+          path.moveTo(p.dx, p.dy);
+        } else {
+          path.lineTo(p.dx, p.dy);
+        }
       }
       path.close();
       canvas.drawPath(path, Paint()..color = _DS.blush.withOpacity(0.45)..style = PaintingStyle.stroke..strokeWidth = 1.2);
@@ -2055,11 +2538,40 @@ class _RadarPainter extends CustomPainter {
     for (int i = 0; i < n; i++) {
       final rv = (metrics[i].value / 100) * maxR;
       final p = pt(rv, i);
-      if (i == 0) dataPath.moveTo(p.dx, p.dy); else dataPath.lineTo(p.dx, p.dy);
+      if (i == 0) {
+        dataPath.moveTo(p.dx, p.dy);
+      } else {
+        dataPath.lineTo(p.dx, p.dy);
+      }
     }
     dataPath.close();
+    // Soft glow behind polygon
+    canvas.drawPath(dataPath, Paint()
+      ..color = _DS.blushDark.withOpacity(0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeJoin = StrokeJoin.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
     canvas.drawPath(dataPath, Paint()..color = _DS.blushDark.withOpacity(0.18)..style = PaintingStyle.fill);
     canvas.drawPath(dataPath, Paint()..color = _DS.blushDark..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeJoin = StrokeJoin.round);
+
+    // Highlighted spoke line from center to data point (drawn on top of polygon)
+    if (activeIdx != null && activeIdx! < n) {
+      final m = metrics[activeIdx!];
+      final tc = getThreshold(m.value);
+      final rv = (m.value / 100) * maxR;
+      final dataP = pt(rv, activeIdx!);
+      final fullP = pt(maxR, activeIdx!);
+      // Line from center to full radius
+      canvas.drawLine(
+        Offset(cx, cy), fullP,
+        Paint()..color = tc.color.withOpacity(0.5)..strokeWidth = 2.0,
+      );
+      // Glow dot at data point
+      canvas.drawCircle(dataP, 12, Paint()..color = tc.color.withOpacity(0.12)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+      canvas.drawCircle(dataP, 10, Paint()..color = tc.color.withOpacity(0.15));
+      canvas.drawCircle(dataP, 6, Paint()..color = tc.color);
+    }
 
     // Dots & labels
     for (int i = 0; i < n; i++) {
@@ -2067,20 +2579,21 @@ class _RadarPainter extends CustomPainter {
       final p = pt(rv, i);
       final isActive = activeIdx == i;
       final tc = getThreshold(metrics[i].value);
+      final hasSelection = activeIdx != null;
 
-      // Dot
-      canvas.drawCircle(p, isActive ? 6 : 4, Paint()..color = tc.color);
-      if (isActive) {
-        canvas.drawCircle(p, 9, Paint()..color = tc.color.withOpacity(0.2));
+      // Dot (skip active dot — already drawn above)
+      if (!isActive) {
+        canvas.drawCircle(p, hasSelection ? 3 : 4, Paint()..color = tc.color.withOpacity(hasSelection ? 0.4 : 1.0));
       }
 
       // Label
       final labelPt = pt(maxR + 28, i);
+      final labelColor = isActive ? tc.color : (hasSelection ? _DS.grey400 : _DS.grey600);
       final textPainter = TextPainter(
         text: TextSpan(
           children: [
-            TextSpan(text: '${metrics[i].label}\n', style: TextStyle(fontSize: 11, color: isActive ? tc.color : _DS.grey600, fontWeight: isActive ? FontWeight.w700 : FontWeight.w400)),
-            TextSpan(text: '${metrics[i].value.round()}', style: TextStyle(fontSize: 13, color: tc.color, fontWeight: FontWeight.w700)),
+            TextSpan(text: '${metrics[i].label}\n', style: TextStyle(fontSize: isActive ? 16 : 15, color: labelColor, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
+            TextSpan(text: '${metrics[i].value.round()}', style: TextStyle(fontSize: isActive ? 18 : 17, color: tc.color.withOpacity(isActive ? 1.0 : (hasSelection ? 0.5 : 0.75)), fontWeight: FontWeight.w700)),
           ],
         ),
         textDirection: TextDirection.ltr,
