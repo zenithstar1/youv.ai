@@ -706,11 +706,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   ];
 
   final List<Color> fitzpatrickColors = [
-    const Color(0xFFF5D5B8),
-    const Color(0xFFC8956C),
-    const Color(0xFFA0634A),
-    const Color(0xFF7A3B2E),
-    const Color(0xFF4A1F0F),
+    const Color(0xFFF6DDD2),
+    const Color(0xFFEFD0BE),
+    const Color(0xFFE2B79D),
+    const Color(0xFFD09B7E),
+    const Color(0xFFBC8063),
   ];
 
   @override

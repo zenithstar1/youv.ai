@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
@@ -32,21 +33,21 @@ class FaceDetectionFrame {
   });
 
   const FaceDetectionFrame.noFace()
-      : landmarks = const [],
-        hasFace = false,
-        headEulerAngleX = null,
-        headEulerAngleY = null,
-        headEulerAngleZ = null,
-        faceWidthRatio = 0.0,
-        faceHeightRatio = 0.0,
-        faceCenterOffsetX = 1.0,
-        faceCenterOffsetY = 1.0,
-        faceCenterXRatio = 0.5,
-        faceCenterYRatio = 0.5;
+    : landmarks = const [],
+      hasFace = false,
+      headEulerAngleX = null,
+      headEulerAngleY = null,
+      headEulerAngleZ = null,
+      faceWidthRatio = 0.0,
+      faceHeightRatio = 0.0,
+      faceCenterOffsetX = 1.0,
+      faceCenterOffsetY = 1.0,
+      faceCenterXRatio = 0.5,
+      faceCenterYRatio = 0.5;
 }
 
 /// FaceDetectionService handles real-time face detection for hair analysis
-/// 
+///
 /// IMPORTANT: Google ML Kit Face Detection returns only ~10 landmarks per face:
 /// - Nose tip (index 0)
 /// - Left eye (index 1)
@@ -58,7 +59,7 @@ class FaceDetectionFrame {
 /// - Left shoulder (index 7)
 /// - Right shoulder (index 8)
 /// - Left hip (index 9)
-/// 
+///
 /// For full 468-point MediaPipe geometry, consider separate MediaPipe package
 class FaceDetectionService {
   late FaceDetector _faceDetector;
@@ -66,9 +67,11 @@ class FaceDetectionService {
       StreamController<FaceDetectionFrame>.broadcast();
 
   bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
   bool _isProcessing = false;
   InputImageRotation _imageRotation = InputImageRotation.rotation0deg;
   static const bool _debugLogs = false;
+  static const bool _debugStreamLogs = false;
 
   /// Stream of face landmarks for subscription
   Stream<FaceDetectionFrame> get landmarksStream => _landmarksStream.stream;
@@ -100,11 +103,11 @@ class FaceDetectionService {
     try {
       _faceDetector = FaceDetector(
         options: FaceDetectorOptions(
-          enableLandmarks: true,  // Required for angle calculations
+          enableLandmarks: true, // Required for angle calculations
           enableClassification: false,
           // Accurate mode gives more stable Euler angles for capture gating.
           performanceMode: FaceDetectorMode.accurate,
-          enableContours: false,  // Not needed with 10 landmarks
+          enableContours: false, // Not needed with 10 landmarks
         ),
       );
       _isInitialized = true;
@@ -118,13 +121,20 @@ class FaceDetectionService {
   }
 
   /// Process camera frame and extract face landmarks
-  Future<void> processCameraFrame(CameraImage cameraImage) async {
-    if (!_isInitialized || _isProcessing) return;
+  Future<void> processCameraFrame(CameraImage image) async {
+    if (_debugStreamLogs && kDebugMode) {
+      print(
+        '[FACE DETECTION] processCameraFrame: image format=${image.format}, planes=${image.planes.length}, width=${image.width}, height=${image.height}',
+      );
+    }
+    if (!_isInitialized || _isProcessing) {
+      return;
+    }
     _isProcessing = true;
 
     try {
       // Convert camera image to InputImage for ML Kit
-      InputImage? inputImage = _convertCameraImage(cameraImage);
+      final InputImage? inputImage = _convertCameraImage(image);
 
       if (inputImage != null) {
         // Process with face detector
@@ -178,10 +188,12 @@ class FaceDetectionService {
             final frameHeight = inputImage.metadata!.size.height;
             final bounds = face.boundingBox;
 
-            final faceWidthRatio =
-                (bounds.width / frameWidth).clamp(0.0, 1.0).toDouble();
-            final faceHeightRatio =
-                (bounds.height / frameHeight).clamp(0.0, 1.0).toDouble();
+            final faceWidthRatio = (bounds.width / frameWidth)
+                .clamp(0.0, 1.0)
+                .toDouble();
+            final faceHeightRatio = (bounds.height / frameHeight)
+                .clamp(0.0, 1.0)
+                .toDouble();
 
             final centerX = bounds.left + (bounds.width / 2);
             final centerY = bounds.top + (bounds.height / 2);
@@ -193,8 +205,12 @@ class FaceDetectionService {
                 ((centerY - (frameHeight / 2)).abs() / (frameHeight / 2))
                     .clamp(0.0, 1.0)
                     .toDouble();
-            final centerXRatio = (centerX / frameWidth).clamp(0.0, 1.0).toDouble();
-            final centerYRatio = (centerY / frameHeight).clamp(0.0, 1.0).toDouble();
+            final centerXRatio = (centerX / frameWidth)
+                .clamp(0.0, 1.0)
+                .toDouble();
+            final centerYRatio = (centerY / frameHeight)
+                .clamp(0.0, 1.0)
+                .toDouble();
 
             _landmarksStream.add(
               FaceDetectionFrame(
@@ -225,54 +241,92 @@ class FaceDetectionService {
           }
         }
       } else {
-        if (_debugLogs) {
-          print('⚠️ Failed to convert camera image to InputImage');
+        if (_debugStreamLogs && kDebugMode) {
+          print('[FDS] Failed to convert camera image');
         }
       }
     } catch (e) {
-      print('❌ Error processing camera frame: $e');
+      if (_debugStreamLogs && kDebugMode) print('[FDS] Error processing frame: $e');
+    } finally {
+      _isProcessing = false;
     }
-
-    _isProcessing = false;
   }
 
 
   /// Convert CameraImage to InputImage for ML Kit
   InputImage? _convertCameraImage(CameraImage image) {
     try {
-      final allBytes = <int>[];
-      for (Plane plane in image.planes) {
-        allBytes.addAll(plane.bytes);
+      if (_debugStreamLogs && kDebugMode) {
+        print('[FDS] _convertCameraImage: kIsWeb=$kIsWeb, format=${image.format.group}, raw=${image.format.raw}');
       }
-      final bytes = Uint8List.fromList(allBytes);
+      
+      // Do not alter web behavior (tuned and stable).
+      if (kIsWeb) {
+        final allBytes = <int>[];
+        for (Plane plane in image.planes) {
+          allBytes.addAll(plane.bytes);
+        }
+        final bytes = Uint8List.fromList(allBytes);
+
+        final imageSize = Size(image.width.toDouble(), image.height.toDouble());
+
+        InputImageFormat inputImageFormat;
+        switch (image.format.group) {
+          case ImageFormatGroup.yuv420:
+            inputImageFormat = InputImageFormat.yuv420;
+            break;
+          case ImageFormatGroup.bgra8888:
+            inputImageFormat = InputImageFormat.bgra8888;
+            break;
+          default:
+            if (_debugStreamLogs && kDebugMode) {
+              print('[FDS] Unknown web format: ${image.format.group}');
+            }
+            return null;
+        }
+
+        final inputImage = InputImage.fromBytes(
+          bytes: bytes,
+          metadata: InputImageMetadata(
+            size: imageSize,
+            rotation: _imageRotation,
+            format: inputImageFormat,
+            bytesPerRow: image.planes[0].bytesPerRow,
+          ),
+        );
+
+        return inputImage;
+      }
+
+      // Mobile (Android/iOS): handle YUV420/BGRA formats reliably.
+      final bytesBuffer = WriteBuffer();
+      for (final plane in image.planes) {
+        bytesBuffer.putUint8List(plane.bytes);
+      }
+      final bytes = bytesBuffer.done().buffer.asUint8List();
 
       final imageSize = Size(image.width.toDouble(), image.height.toDouble());
 
-      InputImageFormat inputImageFormat;
-      switch (image.format.group) {
-        case ImageFormatGroup.yuv420:
-          inputImageFormat = InputImageFormat.yuv420;
-          break;
-        case ImageFormatGroup.bgra8888:
-          inputImageFormat = InputImageFormat.bgra8888;
-          break;
-        default:
-          return null;
-      }
+      final inputImageFormat =
+          InputImageFormatValue.fromRawValue(image.format.raw) ??
+          (image.format.group == ImageFormatGroup.yuv420
+              ? InputImageFormat.yuv420
+              : (image.format.group == ImageFormatGroup.bgra8888
+                    ? InputImageFormat.bgra8888
+                    : null));
+      if (inputImageFormat == null) return null;
 
-      final inputImage = InputImage.fromBytes(
+      return InputImage.fromBytes(
         bytes: bytes,
         metadata: InputImageMetadata(
           size: imageSize,
           rotation: _imageRotation,
           format: inputImageFormat,
-          bytesPerRow: image.planes[0].bytesPerRow,
+          bytesPerRow: image.planes.first.bytesPerRow,
         ),
       );
-
-      return inputImage;
     } catch (e) {
-      print('Error converting camera image: $e');
+      if (_debugStreamLogs && kDebugMode) print('[FDS] Image conversion error: $e');
       return null;
     }
   }

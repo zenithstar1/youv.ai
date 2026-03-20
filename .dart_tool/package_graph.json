@@ -9,6 +9,7 @@
       "dependencies": [
         "cached_network_image",
         "camera",
+        "camera_android",
         "change_app_package_name",
         "cloud_firestore",
         "cupertino_icons",
@@ -79,6 +80,16 @@
       "dependencies": [
         "flutter",
         "google_mlkit_commons"
+      ]
+    },
+    {
+      "name": "camera_android",
+      "version": "0.10.10+15",
+      "dependencies": [
+        "camera_platform_interface",
+        "flutter",
+        "flutter_plugin_android_lifecycle",
+        "stream_transform"
       ]
     },
     {
@@ -394,10 +405,25 @@
       ]
     },
     {
+      "name": "stream_transform",
+      "version": "2.1.1",
+      "dependencies": []
+    },
+    {
       "name": "flutter_plugin_android_lifecycle",
       "version": "2.0.33",
       "dependencies": [
         "flutter"
+      ]
+    },
+    {
+      "name": "camera_platform_interface",
+      "version": "2.12.0",
+      "dependencies": [
+        "cross_file",
+        "flutter",
+        "plugin_platform_interface",
+        "stream_transform"
       ]
     },
     {
@@ -409,16 +435,6 @@
         "flutter_web_plugins",
         "stream_transform",
         "web"
-      ]
-    },
-    {
-      "name": "camera_platform_interface",
-      "version": "2.12.0",
-      "dependencies": [
-        "cross_file",
-        "flutter",
-        "plugin_platform_interface",
-        "stream_transform"
       ]
     },
     {
@@ -965,11 +981,6 @@
         "meta",
         "path"
       ]
-    },
-    {
-      "name": "stream_transform",
-      "version": "2.1.1",
-      "dependencies": []
     },
     {
       "name": "uuid",

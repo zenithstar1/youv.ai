@@ -4,8 +4,10 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'image_preview_screen.dart';
 import 'dart:ui' as ui;
+import '../services/face_detection_service.dart';
 import '../utils/web_face_detection.dart' as web_face;
 
 Timer? _faceStableTimer;
@@ -74,6 +76,12 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
   Timer? _autoCaptureTimer;
   Object? _faceDetectedListenerSub;
+  FaceDetector? _finalImageFaceDetector;
+  FaceDetectionService? _nativeFaceDetectionService;
+  StreamSubscription<FaceDetectionFrame>? _nativeFaceSubscription;
+  bool _isStartingNativeImageStream = false;
+  int _nativeValidFaceFrames = 0;
+  int _nativeMissedFaceFrames = 0;
 
   // Auto-capture ring animation
   AnimationController? _autoRingController;
@@ -148,9 +156,29 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         }
       });
     } else {
-      // Non-web builds don't have the JS face detection bridge; allow capture.
-      _faceDetected = true;
+      _faceDetected = false;
     }
+  }
+
+  void _scheduleNativeAutoCapture() {
+    if (kIsWeb || widget.isHair) return;
+    if (!_faceDetected) return;
+    _autoCaptureTimer?.cancel();
+    _autoCaptureTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted ||
+          _isDisposed ||
+          _hasNavigated ||
+          _capturing ||
+          !_initialized ||
+          !_faceDetected ||
+          _phase != ScanPhase.live ||
+          _countdown > 0 ||
+          _holdSteady) {
+        return;
+      }
+      debugPrint('[SkinAuto] starting native countdown');
+      _startCountdown();
+    });
   }
 
   /// =================================================
@@ -191,7 +219,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
       final controller = CameraController(
         cam,
-        ResolutionPreset.high,
+        kIsWeb ? ResolutionPreset.high : ResolutionPreset.medium,
         enableAudio: false,
       );
       await controller.initialize();
@@ -207,11 +235,163 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       }
       // Start face detection after camera is fully set up and rendered
       _startFaceDetectionWithRetry();
+      await _startNativeFaceDetection(controller, cam);
     } catch (e) {
       debugPrint("Camera init error: $e");
     }
 
     _initializing = false;
+  }
+
+  Future<void> _startNativeFaceDetection(
+    CameraController controller,
+    CameraDescription camera,
+  ) async {
+    if (kIsWeb || widget.isHair || _isDisposed) return;
+
+    _nativeFaceDetectionService ??= FaceDetectionService();
+    final service = _nativeFaceDetectionService!;
+    if (!service.isInitialized) {
+      await service.initialize();
+    }
+    service.setSensorRotation(camera.sensorOrientation);
+
+    await _nativeFaceSubscription?.cancel();
+    _nativeFaceSubscription = service.landmarksStream.listen((frame) {
+      if (!mounted || _isDisposed || _phase != ScanPhase.live) return;
+
+      final candidateDetected = _isAcceptableLiveSkinFace(frame);
+      if (candidateDetected) {
+        _nativeValidFaceFrames += 1;
+        _nativeMissedFaceFrames = 0;
+      } else {
+        _nativeValidFaceFrames = 0;
+        _nativeMissedFaceFrames += 1;
+      }
+
+      final detected = _faceDetected
+          ? _nativeMissedFaceFrames < 3
+          : _nativeValidFaceFrames >= 2;
+      final wasDetected = _faceDetected;
+      if (wasDetected != detected) {
+        debugPrint('[SkinAuto] native face state: $detected');
+      }
+
+      if (wasDetected != detected) {
+        setState(() {
+          _faceDetected = detected;
+        });
+      }
+
+      if (detected && !wasDetected) {
+        _faceStableTimer?.cancel();
+        _faceStableTimer = Timer(const Duration(milliseconds: 900), () {
+          if (_faceDetected && !_capturing) {
+            _scheduleNativeAutoCapture();
+          }
+        });
+      } else if (!detected && wasDetected) {
+        _faceStableTimer?.cancel();
+        _cancelCountdown();
+      }
+    });
+
+    await _startNativeImageStream(controller, service);
+  }
+
+  Future<void> _startNativeImageStream(
+    CameraController controller,
+    FaceDetectionService service,
+  ) async {
+    if (kIsWeb || widget.isHair || _isStartingNativeImageStream) return;
+    if (!controller.value.isInitialized) return;
+    if (controller.value.isStreamingImages) return;
+
+    _isStartingNativeImageStream = true;
+    try {
+      await controller.startImageStream((CameraImage image) {
+        service.processCameraFrame(image);
+      });
+    } catch (e) {
+      debugPrint('[SkinAuto] startImageStream error: $e');
+    } finally {
+      _isStartingNativeImageStream = false;
+    }
+  }
+
+  Future<void> _stopNativeImageStream() async {
+    final controller = _controller;
+    if (controller == null) return;
+    if (!controller.value.isInitialized || !controller.value.isStreamingImages) {
+      return;
+    }
+
+    try {
+      await controller.stopImageStream();
+    } catch (e) {
+      debugPrint('[SkinAuto] stopImageStream error: $e');
+    }
+  }
+
+  bool _isAcceptableLiveSkinFace(FaceDetectionFrame frame) {
+    if (!frame.hasFace) return false;
+
+    final faceWidthRatio = frame.faceWidthRatio;
+    final faceHeightRatio = frame.faceHeightRatio;
+    final fillRatio = math.max(faceWidthRatio, faceHeightRatio);
+    final aspectRatio = faceWidthRatio / math.max(faceHeightRatio, 0.001);
+
+    if (faceWidthRatio < 0.10 || faceWidthRatio > 0.88) return false;
+    if (faceHeightRatio < 0.14 || faceHeightRatio > 0.96) return false;
+    if (fillRatio < 0.14) return false;
+    if (aspectRatio < 0.35 || aspectRatio > 1.75) return false;
+    if (frame.faceCenterOffsetX > 0.42 || frame.faceCenterOffsetY > 0.45) {
+      return false;
+    }
+
+    if (frame.landmarks.length < 3) return false;
+    final nose = frame.landmarks[0];
+    final leftEye = frame.landmarks[1];
+    final rightEye = frame.landmarks[2];
+    final hasMouthLandmarks =
+      frame.landmarks.length >= 7 &&
+      frame.landmarks[5].length >= 2 &&
+      frame.landmarks[6].length >= 2 &&
+      frame.landmarks[5][0].isFinite &&
+      frame.landmarks[5][1].isFinite &&
+      frame.landmarks[6][0].isFinite &&
+      frame.landmarks[6][1].isFinite;
+    final mouthLeft = hasMouthLandmarks ? frame.landmarks[5] : null;
+    final mouthRight = hasMouthLandmarks ? frame.landmarks[6] : null;
+
+    final hasCoreLandmarks = [nose, leftEye, rightEye]
+        .every((point) => point.length >= 2 && point[0].isFinite && point[1].isFinite);
+    if (!hasCoreLandmarks) return false;
+
+    final eyeDx = (leftEye[0] - rightEye[0]).abs();
+    final eyeDy = (leftEye[1] - rightEye[1]).abs();
+    if (eyeDx <= 6) return false;
+
+    final eyesLevel = eyeDy / eyeDx;
+    final noseCenteredToEyes =
+        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs() / eyeDx;
+
+    final eyeMidY = (leftEye[1] + rightEye[1]) / 2;
+
+    if (eyesLevel > 0.18) return false;
+    if (noseCenteredToEyes > 0.90) return false;
+    if (nose[1] <= eyeMidY) return false;
+
+    if (hasMouthLandmarks && mouthLeft != null && mouthRight != null) {
+      final mouthMidY = (mouthLeft[1] + mouthRight[1]) / 2;
+      final mouthWidth = (mouthRight[0] - mouthLeft[0]).abs();
+      if (mouthMidY <= nose[1]) return false;
+      if (mouthWidth < eyeDx * 0.08 || mouthWidth > eyeDx * 2.00) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /// =================================================
@@ -223,7 +403,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     Future.delayed(Duration(milliseconds: attempt == 0 ? 500 : 800), () {
       if (!mounted || _isDisposed) return;
-
       Future<void>(() async {
         try {
           final started = await web_face.startFaceDetection();
@@ -246,6 +425,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   /// =================================================
   void _startCountdown() {
     if (_capturing || _hasNavigated || _isDisposed || _countdown > 0) return;
+    if (!widget.isHair && !_faceDetected) return;
 
     debugPrint('[CaptureFlow] countdown started');
 
@@ -340,9 +520,13 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       if (kIsWeb) {
         web_face.stopFaceDetection().catchError((_) {});
       }
+      _faceStableTimer?.cancel();
+      _nativeFaceSubscription?.cancel();
+      _nativeFaceSubscription = null;
+      unawaited(_stopNativeImageStream());
       setState(() {
         _initialized = false;
-        _faceDetected = widget.isHair || !kIsWeb;
+        _faceDetected = false;
         _countdown = 0;
         _holdSteady = false;
         _controller = null;
@@ -378,9 +562,32 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       _autoCaptureTimer?.cancel();
       _autoRingController?.reset();
 
+      if (!kIsWeb && !widget.isHair) {
+        await _stopNativeImageStream();
+      }
+
       final pic = await controller.takePicture();
+      if (!widget.isHair && !kIsWeb) {
+        final hasFace = await _capturedImageHasFace(pic.path);
+        if (!mounted || _isDisposed || _hasNavigated) return;
+        if (!hasFace) {
+          debugPrint('[CaptureFlow] capture rejected: no face in final image');
+          await _rejectInvalidCapture(controller);
+          return;
+        }
+      }
       final bytes = await pic.readAsBytes();
       if (!mounted || _isDisposed || _hasNavigated) return;
+
+      if (kIsWeb && !widget.isHair) {
+        final hasFace = await web_face.validateCapturedFace(bytes);
+        if (!mounted || _isDisposed || _hasNavigated) return;
+        if (!hasFace) {
+          debugPrint('[CaptureFlow] web capture rejected: invalid final face');
+          await _rejectInvalidCapture(controller);
+          return;
+        }
+      }
 
       _capturedBytes = bytes;
       _capturedFileName = pic.name;
@@ -393,7 +600,160 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       if (mounted && !_isDisposed) {
         setState(() => _capturing = false);
       }
+      if (!kIsWeb && !widget.isHair) {
+        final service = _nativeFaceDetectionService;
+        if (service != null) {
+          await _startNativeImageStream(controller, service);
+        }
+      }
     }
+  }
+
+  Future<void> _rejectInvalidCapture(CameraController controller) async {
+    if (mounted && !_isDisposed && !_hasNavigated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No clear face detected. Reposition and try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      setState(() {
+        _capturing = false;
+        _countdown = 0;
+        _holdSteady = false;
+        _phase = ScanPhase.live;
+      });
+    }
+
+    if (kIsWeb || widget.isHair) {
+      _faceStableTimer?.cancel();
+      if (_faceDetected) {
+        _faceStableTimer = Timer(const Duration(milliseconds: 1200), () {
+          if (!mounted || _isDisposed || _hasNavigated) return;
+          if (_phase != ScanPhase.live || _capturing || !_faceDetected) return;
+          _startCountdown();
+        });
+      }
+      return;
+    }
+
+    final service = _nativeFaceDetectionService;
+    if (service != null) {
+      await _startNativeImageStream(controller, service);
+    }
+  }
+
+  Future<bool> _capturedImageHasFace(String imagePath) async {
+    try {
+      final imageSize = await _readEncodedImageSize(imagePath);
+      if (imageSize == null) {
+        return false;
+      }
+
+      final detector = _finalImageFaceDetector ??= FaceDetector(
+        options: FaceDetectorOptions(
+          performanceMode: FaceDetectorMode.accurate,
+          enableLandmarks: true,
+          enableClassification: false,
+          enableContours: false,
+        ),
+      );
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final faces = await detector.processImage(inputImage);
+      return faces.any(
+        (face) => _isAcceptableSkinCaptureFace(
+          face,
+          imageWidth: imageSize.width,
+          imageHeight: imageSize.height,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[CaptureFlow] final-image face validation error: $e');
+      return false;
+    }
+  }
+
+  Future<Size?> _readEncodedImageSize(String imagePath) async {
+    try {
+      final buffer = await ui.ImmutableBuffer.fromFilePath(imagePath);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final size = Size(
+        descriptor.width.toDouble(),
+        descriptor.height.toDouble(),
+      );
+      descriptor.dispose();
+      buffer.dispose();
+      return size;
+    } catch (e) {
+      debugPrint('[CaptureFlow] image size read failed: $e');
+      return null;
+    }
+  }
+
+  bool _isAcceptableSkinCaptureFace(
+    Face face, {
+    required double imageWidth,
+    required double imageHeight,
+  }) {
+    final bounds = face.boundingBox;
+    if (imageWidth <= 0 || imageHeight <= 0) {
+      return false;
+    }
+
+    final faceWidthRatio = bounds.width / imageWidth;
+    final faceHeightRatio = bounds.height / imageHeight;
+    final faceAreaRatio = (bounds.width * bounds.height) / (imageWidth * imageHeight);
+    final aspectRatio = bounds.width / math.max(bounds.height, 1.0);
+
+    final centerX = bounds.left + (bounds.width / 2);
+    final centerY = bounds.top + (bounds.height / 2);
+    final offsetX = ((centerX - (imageWidth / 2)).abs() / (imageWidth / 2));
+    final offsetY = ((centerY - (imageHeight / 2)).abs() / (imageHeight / 2));
+
+    final leftEye = face.landmarks[FaceLandmarkType.leftEye];
+    final rightEye = face.landmarks[FaceLandmarkType.rightEye];
+    final nose = face.landmarks[FaceLandmarkType.noseBase];
+    final mouthLeft = face.landmarks[FaceLandmarkType.leftMouth];
+    final mouthRight = face.landmarks[FaceLandmarkType.rightMouth];
+
+    final hasCoreLandmarks =
+        leftEye != null &&
+        rightEye != null &&
+        nose != null &&
+        mouthLeft != null &&
+        mouthRight != null;
+    if (!hasCoreLandmarks) {
+      return false;
+    }
+
+    final eyeDx = (leftEye.position.x - rightEye.position.x).abs().toDouble();
+    final eyeDy = (leftEye.position.y - rightEye.position.y).abs().toDouble();
+    if (eyeDx <= 0) {
+      return false;
+    }
+
+    final eyesLevel = eyeDy / eyeDx;
+    final mouthWidth =
+        (mouthRight.position.x - mouthLeft.position.x).abs().toDouble();
+    final noseCenteredToEyes =
+        ((nose.position.x - ((leftEye.position.x + rightEye.position.x) / 2)).abs() /
+                eyeDx)
+            .toDouble();
+
+    final yaw = (face.headEulerAngleY ?? 0).abs();
+    final roll = (face.headEulerAngleZ ?? 0).abs();
+
+    if (faceWidthRatio < 0.18 || faceWidthRatio > 0.78) return false;
+    if (faceHeightRatio < 0.24 || faceHeightRatio > 0.86) return false;
+    if (faceAreaRatio < 0.06 || faceAreaRatio > 0.58) return false;
+    if (aspectRatio < 0.58 || aspectRatio > 1.28) return false;
+    if (offsetX > 0.28 || offsetY > 0.32) return false;
+    if (eyesLevel > 0.10) return false;
+    if (noseCenteredToEyes > 0.55) return false;
+    if (mouthWidth < eyeDx * 0.30 || mouthWidth > eyeDx * 1.30) return false;
+    if (yaw > 24 || roll > 14) return false;
+
+    return true;
   }
 
   /// =================================================
@@ -507,8 +867,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       _faceDetectedListenerSub = null;
     }
     WidgetsBinding.instance.removeObserver(this);
+    _nativeFaceSubscription?.cancel();
+    _nativeFaceSubscription = null;
+    unawaited(_nativeFaceDetectionService?.dispose());
+    _nativeFaceDetectionService = null;
     _controller?.dispose();
     _controller = null;
+    unawaited(_finalImageFaceDetector?.close());
+    _finalImageFaceDetector = null;
     super.dispose();
   }
 

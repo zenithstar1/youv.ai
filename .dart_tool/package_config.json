@@ -62,6 +62,12 @@
       "languageVersion": "3.9"
     },
     {
+      "name": "camera_android",
+      "rootUri": "file:///C:/Users/amnsa/AppData/Local/Pub/Cache/hosted/pub.dev/camera_android-0.10.10+15",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
       "name": "camera_android_camerax",
       "rootUri": "file:///C:/Users/amnsa/AppData/Local/Pub/Cache/hosted/pub.dev/camera_android_camerax-0.6.30",
       "packageUri": "lib/",

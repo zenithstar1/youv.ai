@@ -37,11 +37,10 @@ class ImagePreviewScreen extends StatefulWidget {
 }
 
 class _ImagePreviewScreenState extends State<ImagePreviewScreen>
-    with SingleTickerProviderStateMixin {
+  {
   bool _isAnalyzing = false;
   int _currentMessageIndex = 0;
   Timer? _messageTimer;
-  AnimationController? _scanLineController;
   Timer? _retakeOpacityTimer;
   bool _primaryPressed = false;
   bool _retakeDimmed = false;
@@ -68,18 +67,12 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
 
     _loadingMessages =
         widget.isHair ? _hairLoadingMessages : _skinLoadingMessages;
-
-    _scanLineController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
   }
 
   @override
   void dispose() {
     _messageTimer?.cancel();
     _retakeOpacityTimer?.cancel();
-    _scanLineController?.dispose();
     super.dispose();
   }
 
@@ -157,6 +150,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
 
   // =================== MAIN ANALYSIS ===================
   Future<void> _sendForAnalysis() async {
+    if (_isAnalyzing) return;
+
     setState(() {
       _isAnalyzing = true;
       _currentMessageIndex = 0;
@@ -180,10 +175,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             .catchError((e) => print('Background upload failed: $e'));
 
         _messageTimer?.cancel();
-        setState(() => _isAnalyzing = false);
+        if (!mounted) return;
 
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => HairResultScreen(
               analysis: hairAnalysis,
@@ -229,21 +223,21 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
 
       _messageTimer?.cancel();
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SkinAnalysisRedesigned(
-              analysisData: skinAnalysisData,
-              imageBytes: widget.imageBytes,
-              faceRatioJson: symmetryData,
-            ),
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => SkinAnalysisRedesigned(
+            analysisData: skinAnalysisData,
+            imageBytes: widget.imageBytes,
+            faceRatioJson: symmetryData,
           ),
-        );
-      }
+        ),
+      );
     } catch (e) {
       _messageTimer?.cancel();
-      setState(() => _isAnalyzing = false);
+      if (mounted) {
+        setState(() => _isAnalyzing = false);
+      }
       _showErrorDialog(e.toString());
     }
   }

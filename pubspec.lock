@@ -81,6 +81,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.11.3+1"
+  camera_android:
+    dependency: "direct main"
+    description:
+      name: camera_android
+      sha256: "27761a1e317bc072266dc1975f3a04c7fa02ff6123f18b1d89d9968951a4f002"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.10+15"
   camera_android_camerax:
     dependency: transitive
     description:

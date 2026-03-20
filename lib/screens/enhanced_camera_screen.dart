@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
 import '../Models/head_pose_calculator.dart';
@@ -28,31 +29,31 @@ class AutoCaptureController {
 
   /// Current pitch angle from face detection
   double _currentPitch = 0.0;
-  
+
   /// Current yaw angle from face detection
   double _currentYaw = 0.0;
 
   /// Current roll angle from face detection
   double _currentRoll = 0.0;
-  
+
   /// Timer for the auto-capture countdown
   Timer? _captureTimer;
-  
+
   /// Remaining time in milliseconds for auto-capture
   int _remainingTime = 0;
-  
+
   /// Callback when capture should be triggered
   VoidCallback? _onCapture;
-  
+
   /// Callback for state updates (pitch, yaw, timer, etc.)
   VoidCallback? _onStateChange;
-  
+
   /// Minimum pitch for auto-capture (default: 42 degrees)
   final double minPitch;
-  
+
   /// Maximum pitch for auto-capture (default: 48 degrees)
   final double maxPitch;
-  
+
   /// Maximum yaw deviation for auto-capture (default: 5 degrees)
   final double maxYawDeviation;
 
@@ -95,7 +96,7 @@ class AutoCaptureController {
 
   /// Maximum normalized center offset for capture readiness.
   final double maxCenterOffsetRatio;
-  
+
   /// Auto-capture timer duration in milliseconds
   final int captureTimerMs;
 
@@ -210,10 +211,7 @@ class AutoCaptureController {
   bool get isBestAngleStable => _isCaptureReady;
 
   /// Sets callbacks for auto-capture (nullable to allow clearing)
-  void setCallbacks({
-    VoidCallback? onCapture,
-    VoidCallback? onStateChange,
-  }) {
+  void setCallbacks({VoidCallback? onCapture, VoidCallback? onStateChange}) {
     _onCapture = onCapture;
     _onStateChange = onStateChange;
   }
@@ -256,9 +254,16 @@ class AutoCaptureController {
     double faceCenterOffsetY = 1.0,
     double faceCenterYRatio = 0.5,
   }) {
-
+    if (kDebugMode) print('[AUTO] updateFaceDetection: hasFace=$hasFace, fill=$faceWidthRatio/$faceHeightRatio, offsetX=$faceCenterOffsetX, offsetY=$faceCenterOffsetY, centerY=$faceCenterYRatio');
     // Capture previous state BEFORE mutating angles.
     final wasCaptureReady = _isCaptureReady;
+
+    _faceFillRatio = faceWidthRatio > faceHeightRatio
+        ? faceWidthRatio
+        : faceHeightRatio;
+    _faceCenterOffsetX = faceCenterOffsetX;
+    _faceCenterOffsetY = faceCenterOffsetY;
+    _faceCenterYRatio = faceCenterYRatio;
 
     final rawPitch = HeadPoseCalculator.calculatePitch(
       landmarks,
@@ -273,43 +278,37 @@ class AutoCaptureController {
     );
 
     // _hasFace = hasFace;
-final isStructureValid = _isValidFaceStructure(landmarks);
+    final isStructureValid = _isValidFaceStructure(landmarks);
 
-// Face must be large enough
-final isFaceSizeValid = _faceFillRatio > 0.18;
+    // Face must be large enough
+    final isFaceSizeValid = _faceFillRatio > (kIsWeb ? 0.18 : 0.12);
 
-// Reject weird aspect ratios (hands etc.)
-final aspectRatio = faceWidthRatio / (faceHeightRatio + 0.001);
-final isAspectRatioValid = aspectRatio > 0.5 && aspectRatio < 2.2;
+    // Reject weird aspect ratios (hands etc.)
+    final aspectRatio = faceWidthRatio / (faceHeightRatio + 0.001);
+    final isAspectRatioValid = aspectRatio > 0.5 && aspectRatio < 2.2;
 
-// bool detectedFace =
-//     hasFace && isStructureValid && isFaceSizeValid && isAspectRatioValid;
-bool detectedFace =
-    hasFace &&
-    isFaceSizeValid &&
-    isAspectRatioValid &&
-    (isStructureValid || _faceFillRatio > 0.35);
+    // bool detectedFace =
+    //     hasFace && isStructureValid && isFaceSizeValid && isAspectRatioValid;
+    bool detectedFace =
+        hasFace &&
+        isFaceSizeValid &&
+        isAspectRatioValid &&
+        (isStructureValid || _faceFillRatio > 0.35);
 
-// Require stable detection across frames
-if (detectedFace) {
-  _validFaceFrames++;
-} else {
-  _validFaceFrames = 0;
-}
+    // Require stable detection across frames
+    if (detectedFace) {
+      _validFaceFrames++;
+    } else {
+      _validFaceFrames = 0;
+    }
 
-// Only confirm face after few stable frames
-_hasFace = _validFaceFrames > 1;
+    // Only confirm face after few stable frames
+    _hasFace = _validFaceFrames > (kIsWeb ? 1 : 0);
 
-
-
-    _faceFillRatio = faceWidthRatio > faceHeightRatio
-        ? faceWidthRatio
-        : faceHeightRatio;
-    _faceCenterOffsetX = faceCenterOffsetX;
-    _faceCenterOffsetY = faceCenterOffsetY;
     _faceCenterYRatio = faceCenterYRatio;
 
-    final hasValidPose = rawPitch.isFinite && rawYaw.isFinite && rawRoll.isFinite;
+    final hasValidPose =
+        rawPitch.isFinite && rawYaw.isFinite && rawRoll.isFinite;
 
     // For non-hair mode, invalid pose must never trigger capture.
     // For hair mode, keep previous pose and continue with geometry-based gating.
@@ -328,7 +327,6 @@ _hasFace = _validFaceFrames > 1;
       _onStateChange?.call();
       return;
     }
-
 
     if (hasValidPose) {
       if (!_hasPose) {
@@ -356,42 +354,47 @@ _hasFace = _validFaceFrames > 1;
     );
 
     final captureQualityThreshold =
-      (minPoseQualityForCapture - captureQualityRelaxation).clamp(0.0, 1.0);
+        (minPoseQualityForCapture - captureQualityRelaxation).clamp(0.0, 1.0);
     final hasCrownTilt =
-      (_currentPitch - targetPitch).abs() <= bestPitchTolerance;
+        (_currentPitch - targetPitch).abs() <= bestPitchTolerance;
     final isCenteredHead =
-      _currentYaw.abs() <= maxYawDeviation && _currentRoll.abs() <= maxRollDeviation;
+        _currentYaw.abs() <= maxYawDeviation &&
+        _currentRoll.abs() <= maxRollDeviation;
 
     bool hasCapturePose;
     if (useFaceFillCapture) {
       final now = DateTime.now();
       final centeredForCircle =
-        _faceCenterOffsetX <= maxCenterOffsetRatio &&
-        _faceCenterOffsetY <= maxCenterOffsetRatio;
+          _faceCenterOffsetX <= maxCenterOffsetRatio &&
+          _faceCenterOffsetY <= maxCenterOffsetRatio;
       final fillReady =
-        _faceFillRatio >= minFaceFillRatio && _faceFillRatio <= maxFaceFillRatio;
+          _faceFillRatio >= minFaceFillRatio &&
+          _faceFillRatio <= maxFaceFillRatio;
       final scalpFramingReady =
-        _faceCenterYRatio >= 0.52 && _faceCenterYRatio <= 0.82;
+          _faceCenterYRatio >= 0.52 && _faceCenterYRatio <= 0.82;
       final landmarkPoseReady = _isHairLandmarkPoseReady(landmarks);
       final manualReferenceReady = _matchesManualHairReference(
         hasValidPose: hasValidPose,
       );
 
-      final geometryPoseReady = _hasFace &&
-        centeredForCircle &&
-        fillReady &&
-        scalpFramingReady &&
-        landmarkPoseReady;
+      final geometryPoseReady =
+          _hasFace &&
+          centeredForCircle &&
+          fillReady &&
+          scalpFramingReady &&
+          landmarkPoseReady;
 
       if (geometryPoseReady) {
         _lastHairCapturePoseAt = now;
       }
 
       final withinPoseLossGrace =
-        _lastHairCapturePoseAt != null &&
-        now.difference(_lastHairCapturePoseAt!).inMilliseconds <= hairPoseLossGraceMs;
+          _lastHairCapturePoseAt != null &&
+          now.difference(_lastHairCapturePoseAt!).inMilliseconds <=
+              hairPoseLossGraceMs;
 
-      hasCapturePose = geometryPoseReady || manualReferenceReady || withinPoseLossGrace;
+      hasCapturePose =
+          geometryPoseReady || manualReferenceReady || withinPoseLossGrace;
       _isBestAngle = hasCapturePose;
 
       if (geometryPoseReady) {
@@ -425,14 +428,14 @@ _hasFace = _validFaceFrames > 1;
       }
     } else {
       hasCapturePose =
-        isPerfectAngle &&
-        hasCrownTilt &&
-        isCenteredHead &&
-        _poseQuality >= captureQualityThreshold;
+          isPerfectAngle &&
+          hasCrownTilt &&
+          isCenteredHead &&
+          _poseQuality >= captureQualityThreshold;
       _isBestAngle = isPerfectAngle && _poseQuality >= minPoseQualityForCapture;
       _guidanceText = _isBestAngle
-        ? 'Great! Hold still for auto capture'
-        : 'Adjust tilt angle';
+          ? 'Great! Hold still for auto capture'
+          : 'Adjust tilt angle';
     }
     if (hasCapturePose) {
       _bestAngleSince ??= DateTime.now();
@@ -442,7 +445,8 @@ _hasFace = _validFaceFrames > 1;
       _bestFrameStreak = 0;
     }
 
-    _isCaptureReady = hasCapturePose &&
+    _isCaptureReady =
+        hasCapturePose &&
         _bestAngleSince != null &&
         _bestFrameStreak >= requiredConsecutiveBestFrames &&
         DateTime.now().difference(_bestAngleSince!).inMilliseconds >=
@@ -519,19 +523,16 @@ _hasFace = _validFaceFrames > 1;
 
     _remainingTime = captureTimerMs;
 
-    _captureTimer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (timer) {
-        _remainingTime -= 100;
+    _captureTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      _remainingTime -= 100;
 
-        if (_remainingTime <= 0) {
-          _stopCaptureTimer();
-          _triggerCapture();
-        } else {
-          _onStateChange?.call();
-        }
-      },
-    );
+      if (_remainingTime <= 0) {
+        _stopCaptureTimer();
+        _triggerCapture();
+      } else {
+        _onStateChange?.call();
+      }
+    });
 
     _onStateChange?.call();
   }
@@ -569,12 +570,15 @@ _hasFace = _validFaceFrames > 1;
     required double roll,
     required double targetPitch,
   }) {
-    final pitchScore = 1.0 -
+    final pitchScore =
+        1.0 -
         ((pitch - targetPitch).abs() / bestPitchTolerance).clamp(0.0, 1.0);
     final yawScore = 1.0 - (yaw.abs() / bestYawTolerance).clamp(0.0, 1.0);
     final rollScore = 1.0 - (roll.abs() / bestRollTolerance).clamp(0.0, 1.0);
-    return (pitchScore * 0.5 + yawScore * 0.3 + rollScore * 0.2)
-        .clamp(0.0, 1.0);
+    return (pitchScore * 0.5 + yawScore * 0.3 + rollScore * 0.2).clamp(
+      0.0,
+      1.0,
+    );
   }
 
   bool _isHairLandmarkPoseReady(List<List<double>> landmarks) {
@@ -657,21 +661,21 @@ _hasFace = _validFaceFrames > 1;
   }
 
   bool _isValidFaceStructure(List<List<double>> landmarks) {
-  if (landmarks.length < 5) return false;
+    if (landmarks.length < 5) return false;
 
-  final leftEye = landmarks[1];
-  final rightEye = landmarks[2];
-  final nose = landmarks[0];
+    final leftEye = landmarks[1];
+    final rightEye = landmarks[2];
+    final nose = landmarks[0];
 
-  final eyeDistance = (leftEye[0] - rightEye[0]).abs();
-  final noseToEyeY = (nose[1] - ((leftEye[1] + rightEye[1]) / 2)).abs();
+    final eyeDistance = (leftEye[0] - rightEye[0]).abs();
+    final noseToEyeY = (nose[1] - ((leftEye[1] + rightEye[1]) / 2)).abs();
 
-  // Reject fake detections (hands, objects)
-  if (eyeDistance < 20) return false;
-  if (noseToEyeY < 5) return false;
+    // Reject fake detections (hands, objects)
+    if (eyeDistance < 20) return false;
+    if (noseToEyeY < 5) return false;
 
-  return true;
-}
+    return true;
+  }
 
   /// Dispose the controller
   void dispose() {
@@ -679,12 +683,50 @@ _hasFace = _validFaceFrames > 1;
   }
 }
 
+/// Mobile-specific auto-capture controller.
+///
+/// Uses slightly relaxed thresholds compared to the web controller to account
+/// for native camera frame-rate variability and different sensor
+/// characteristics.  Extends [AutoCaptureController] so the UI code can
+/// treat both identically.
+class MobileAutoCaptureController extends AutoCaptureController {
+  MobileAutoCaptureController({
+    required bool isHair,
+    required bool disableAutoCapture,
+  }) : super(
+          minPitch: isHair ? 36.0 : 36.0,
+          maxPitch: isHair ? 54.0 : 56.0,
+          maxYawDeviation: isHair ? 12.0 : 12.0,
+          maxRollDeviation: isHair ? 10.0 : 14.0,
+          idealPitch: isHair ? 45.0 : 46.0,
+          bestPitchTolerance: isHair ? 6.0 : 6.5,
+          bestYawTolerance: isHair ? 8.0 : 8.0,
+          bestRollTolerance: isHair ? 6.0 : 10.0,
+          requiredStableMs: isHair ? 120 : 200,
+          requiredConsecutiveBestFrames: 1,
+          minPoseQualityForCapture: isHair ? 0.45 : 0.50,
+          captureQualityRelaxation: isHair ? 0.10 : 0.20,
+          smoothingFactor: isHair ? 0.40 : 0.35,
+          useFaceFillCapture: isHair && !disableAutoCapture,
+          enableAutoCapture: !disableAutoCapture,
+          minFaceFillRatio: isHair ? 0.12 : 0.18,
+          maxFaceFillRatio: isHair ? 1.0 : 0.95,
+          targetFaceFillRatio: isHair ? 0.45 : 0.42,
+          maxCenterOffsetRatio: isHair ? 0.48 : 0.32,
+          captureTimerMs: isHair ? 300 : 400,
+          hairPoseLossGraceMs: isHair ? 1500 : 0,
+          frameThrottleInterval: 1,
+        );
+}
+
 /// EnhancedCameraScreen with auto-capture logic and tilt guidance
 class EnhancedCameraScreen extends StatefulWidget {
   /// Callback when image is captured
   final Function(Uint8List imageBytes, String fileName) onImageCaptured;
+
   /// Whether this is for hair analysis
   final bool isHair;
+
   /// Disable auto-capture feature
   final bool disableAutoCapture;
 
@@ -712,24 +754,31 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   bool _isCapturing = false;
   bool _isDisposed = false;
   bool _hasNavigated = false;
-  
+  Timer? _imageStreamWatchdog;
+  DateTime? _lastAnalysisFrameAt;
+  DateTime? _lastImageStreamStartAt;
+  int _analysisRestartAttempts = 0;
+  DateTime? _analysisRestartWindowStart;
+  DateTime? _lastCameraReinitAt;
+  bool _isReinitializingCamera = false;
+  bool _isStartingImageStream = false;
 
   bool _isValidFaceStructure(List<List<double>> landmarks) {
-  if (landmarks.length < 5) return false;
+    if (landmarks.length < 5) return false;
 
-  final leftEye = landmarks[1];
-  final rightEye = landmarks[2];
-  final nose = landmarks[0];
+    final leftEye = landmarks[1];
+    final rightEye = landmarks[2];
+    final nose = landmarks[0];
 
-  final eyeDistance = (leftEye[0] - rightEye[0]).abs();
-  final noseToEyeY = (nose[1] - ((leftEye[1] + rightEye[1]) / 2)).abs();
+    final eyeDistance = (leftEye[0] - rightEye[0]).abs();
+    final noseToEyeY = (nose[1] - ((leftEye[1] + rightEye[1]) / 2)).abs();
 
-  // Reject fake detections (hands, objects)
-  if (eyeDistance < 30) return false;
-  if (noseToEyeY < 5) return false;
+    // Reject fake detections (hands, objects)
+    if (eyeDistance < 30) return false;
+    if (noseToEyeY < 5) return false;
 
-  return true;
-}
+    return true;
+  }
 
   double _calculateGuideSize(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -744,7 +793,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   double _calculateGuideVerticalInset(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final responsiveInset = mediaQuery.size.height * 0.12;
-    return (responsiveInset + (mediaQuery.padding.top * 0.4)).clamp(100.0, 180.0);
+    return (responsiveInset + (mediaQuery.padding.top * 0.4)).clamp(
+      100.0,
+      180.0,
+    );
   }
 
   double _calculateGuideHorizontalInset(BuildContext context) {
@@ -756,39 +808,51 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   @override
   void initState() {
     super.initState();
-    final disableAutoCaptureForHair = widget.isHair;
-    
-    // Hair-density profile:
-    // - Slight forward tilt to expose scalp density without extreme chin tuck.
-    // - Stricter yaw/roll to avoid side captures.
-    final minPitch = widget.isHair ? 40.0 : 40.0;
-    final maxPitch = widget.isHair ? 50.0 : 52.0;
-    
-    _autoCaptureController = AutoCaptureController(
-      minPitch: minPitch,
-      maxPitch: maxPitch,
-      maxYawDeviation: widget.isHair ? 6.0 : 6.0,
-      maxRollDeviation: widget.isHair ? 4.0 : 8.0,
-      idealPitch: widget.isHair ? 45.0 : 46.0,
-      bestPitchTolerance: widget.isHair ? 3.0 : 3.5,
-      bestYawTolerance: widget.isHair ? 4.0 : 4.0,
-      bestRollTolerance: widget.isHair ? 2.0 : 6.0,
-      requiredStableMs: widget.isHair ? 250 : 450,
-      requiredConsecutiveBestFrames: widget.isHair ? 1 : 1,
-      minPoseQualityForCapture: widget.isHair ? 0.66 : 0.70,
-      captureQualityRelaxation: widget.isHair ? 0.00 : 0.12,
-      smoothingFactor: widget.isHair ? 0.32 : 0.25,
-      useFaceFillCapture: widget.isHair && !widget.disableAutoCapture,
-      enableAutoCapture: disableAutoCaptureForHair ? false : !widget.disableAutoCapture,
-      minFaceFillRatio: widget.isHair ? 0.26 : 0.40,
-      maxFaceFillRatio: widget.isHair ? 0.98 : 0.82,
-      targetFaceFillRatio: widget.isHair ? 0.60 : 0.56,
-      maxCenterOffsetRatio: widget.isHair ? 0.34 : 0.20,
-      captureTimerMs: widget.isHair ? 450 : 600,
-      hairPoseLossGraceMs: widget.isHair ? 900 : 0,
-      frameThrottleInterval: widget.isHair ? 3 : 2,
-    );
-    
+    final disableAutoCaptureForHair = widget.disableAutoCapture;
+
+    // Platform split: web keeps finely-tuned thresholds, mobile uses relaxed
+    // controller optimized for native Camera2 stream.
+    if (kIsWeb) {
+      // Hair-density profile:
+      // - Slight forward tilt to expose scalp density without extreme chin tuck.
+      // - Stricter yaw/roll to avoid side captures.
+      final minPitch = widget.isHair ? 40.0 : 40.0;
+      final maxPitch = widget.isHair ? 50.0 : 52.0;
+
+      _autoCaptureController = AutoCaptureController(
+        minPitch: minPitch,
+        maxPitch: maxPitch,
+        maxYawDeviation: widget.isHair ? 6.0 : 6.0,
+        maxRollDeviation: widget.isHair ? 4.0 : 8.0,
+        idealPitch: widget.isHair ? 45.0 : 46.0,
+        bestPitchTolerance: widget.isHair ? 3.0 : 3.5,
+        bestYawTolerance: widget.isHair ? 4.0 : 4.0,
+        bestRollTolerance: widget.isHair ? 2.0 : 6.0,
+        requiredStableMs: widget.isHair ? 250 : 450,
+        requiredConsecutiveBestFrames: widget.isHair ? 1 : 1,
+        minPoseQualityForCapture: widget.isHair ? 0.66 : 0.70,
+        captureQualityRelaxation: widget.isHair ? 0.00 : 0.12,
+        smoothingFactor: widget.isHair ? 0.32 : 0.25,
+        useFaceFillCapture: widget.isHair && !widget.disableAutoCapture,
+        enableAutoCapture: disableAutoCaptureForHair
+            ? false
+            : !widget.disableAutoCapture,
+        minFaceFillRatio: widget.isHair ? 0.26 : 0.40,
+        maxFaceFillRatio: widget.isHair ? 0.98 : 0.82,
+        targetFaceFillRatio: widget.isHair ? 0.60 : 0.56,
+        maxCenterOffsetRatio: widget.isHair ? 0.34 : 0.20,
+        captureTimerMs: widget.isHair ? 450 : 600,
+        hairPoseLossGraceMs: widget.isHair ? 900 : 0,
+        frameThrottleInterval: widget.isHair ? 3 : 2,
+      );
+    } else {
+      // Mobile: relaxed thresholds for Camera2 stream
+      _autoCaptureController = MobileAutoCaptureController(
+        isHair: widget.isHair,
+        disableAutoCapture: disableAutoCaptureForHair,
+      );
+    }
+
     _autoCaptureController.setCallbacks(
       onCapture: _handleAutoCapture,
       onStateChange: () {
@@ -806,6 +870,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   Future<void> _initializeHairAnalysisCamera() async {
     try {
       _isCameraInitialized = false;
+      _stopImageStreamWatchdog();
+      _isReinitializingCamera = true;
 
       // Get and cache available cameras
       if (_availableCameras.isEmpty) {
@@ -827,47 +893,62 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
       await _cameraController?.dispose();
       _cameraController = null;
 
-      if (!widget.isHair) {
-        // Initialize face detection service only for auto-capture mode.
-        _faceDetectionService ??= FaceDetectionService();
-        await _faceDetectionService!.initialize();
-        // Configure ML Kit image rotation based on camera sensor orientation.
-        _faceDetectionService!.setSensorRotation(selectedCamera.sensorOrientation);
-      }
+      // Always initialize face detection service (hair + non-hair flows).
+      _faceDetectionService ??= FaceDetectionService();
+      await _faceDetectionService!.initialize();
+      // Configure ML Kit image rotation based on camera sensor orientation.
+      _faceDetectionService!.setSensorRotation(
+        selectedCamera.sensorOrientation,
+      );
 
       // Initialize camera controller
       _cameraController = CameraController(
         selectedCamera,
-        ResolutionPreset.high,
+        kIsWeb
+            ? ResolutionPreset.high
+            : (defaultTargetPlatform == TargetPlatform.android
+                  ? ResolutionPreset.low
+                  : ResolutionPreset.medium),
         enableAudio: false,
+        imageFormatGroup: kIsWeb
+            ? null
+            : (defaultTargetPlatform == TargetPlatform.android
+                  ? ImageFormatGroup.yuv420
+                  : (defaultTargetPlatform == TargetPlatform.iOS
+                        ? ImageFormatGroup.bgra8888
+                        : null)),
       );
 
       await _cameraController!.initialize();
 
-      if (!widget.isHair && _faceDetectionService != null) {
-        // Listen to face detection landmarks in non-hair flow.
-        _landmarksSubscription = _faceDetectionService!.landmarksStream.listen(
-          (frame) {
-            _autoCaptureController.updateFaceDetection(
-              frame.landmarks,
-              headEulerAngleX: frame.headEulerAngleX,
-              headEulerAngleY: frame.headEulerAngleY,
-              headEulerAngleZ: frame.headEulerAngleZ,
-              hasFace: frame.hasFace,
-              faceWidthRatio: frame.faceWidthRatio,
-              faceHeightRatio: frame.faceHeightRatio,
-              faceCenterOffsetX: frame.faceCenterOffsetX,
-              faceCenterOffsetY: frame.faceCenterOffsetY,
-              faceCenterYRatio: frame.faceCenterYRatio,
-            );
-          },
-          onError: (error) {
-          },
-        );
-
-        // Start image stream for face detection
-        await _startFaceDetectionImageStream();
+      // Brief stabilization pause on mobile for Camera2 session setup.
+      if (!kIsWeb) {
+        await Future.delayed(const Duration(milliseconds: 200));
       }
+
+      // Listen to face detection landmarks in both hair + non-hair flows.
+      _landmarksSubscription = _faceDetectionService!.landmarksStream.listen((
+        frame,
+      ) {
+        _autoCaptureController.updateFaceDetection(
+          frame.landmarks,
+          headEulerAngleX: frame.headEulerAngleX,
+          headEulerAngleY: frame.headEulerAngleY,
+          headEulerAngleZ: frame.headEulerAngleZ,
+          hasFace: frame.hasFace,
+          faceWidthRatio: frame.faceWidthRatio,
+          faceHeightRatio: frame.faceHeightRatio,
+          faceCenterOffsetX: frame.faceCenterOffsetX,
+          faceCenterOffsetY: frame.faceCenterOffsetY,
+          faceCenterYRatio: frame.faceCenterYRatio,
+        );
+      });
+
+      // Start image stream
+      await _startSafeImageStream();
+
+      // Start watchdog to monitor stream health
+      _startImageStreamWatchdog();
 
       if (mounted) {
         setState(() {
@@ -885,6 +966,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         );
       }
     }
+    _isReinitializingCamera = false;
   }
 
   Future<void> _switchCamera() async {
@@ -919,7 +1001,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     bool shouldRestartStream = false;
 
     try {
-      if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      if (_cameraController == null ||
+          !_cameraController!.value.isInitialized) {
         return;
       }
 
@@ -965,7 +1048,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
           ),
         );
       }
-      
+
       // Exit immediately after navigation
       return;
     } catch (e) {
@@ -984,52 +1067,162 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         }
       }
     } finally {
-      if (shouldRestartStream &&
+      final canRestartStream =
           mounted &&
           !_isDisposed &&
           !_hasNavigated &&
           _cameraController != null &&
-          _cameraController!.value.isInitialized &&
-          !_cameraController!.value.isStreamingImages) {
-        await _startFaceDetectionImageStream();
+          _cameraController!.value.isInitialized;
+
+      // Guarantee the analysis stream restarts after capture on mobile flows.
+      // This is intentionally independent of `shouldRestartStream` to avoid the
+      // pipeline getting stuck in "ImageAnalysis INACTIVE" states.
+      if (canRestartStream && !_cameraController!.value.isStreamingImages) {
+        await _restartSafeImageStream();
       }
       _isCapturing = false;
     }
   }
 
-  Future<void> _startFaceDetectionImageStream() async {
-    if (_cameraController == null || _faceDetectionService == null) {
+  Future<void> _startSafeImageStream() async {
+    if (_cameraController == null || _isStartingImageStream) return;
+
+    final controller = _cameraController!;
+
+    // Wait until initialized (retry loop instead of early return)
+    int initWaitAttempts = 0;
+    while (!controller.value.isInitialized && initWaitAttempts < 40) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      initWaitAttempts++;
+    }
+
+    if (!controller.value.isInitialized) return;
+    if (controller.value.isStreamingImages) return;
+
+    _isStartingImageStream = true;
+
+    // Ensure face detection service exists
+    _faceDetectionService ??= FaceDetectionService();
+    if (!_faceDetectionService!.isInitialized) {
+      await _faceDetectionService!.initialize();
+    }
+
+    try {
+      _lastImageStreamStartAt = DateTime.now();
+      _lastAnalysisFrameAt = null;
+      if (kDebugMode) print('[STREAM] Starting image stream');
+      await controller.startImageStream((CameraImage image) {
+        _lastAnalysisFrameAt = DateTime.now();
+        final service = _faceDetectionService;
+        if (service != null) {
+          service.processCameraFrame(image);
+        }
+      });
+      if (kDebugMode) print('[STREAM] Image stream started');
+    } catch (e) {
+      if (kDebugMode) print('startImageStream error: $e');
+    } finally {
+      _isStartingImageStream = false;
+    }
+  }
+
+  Future<void> _restartSafeImageStream() async {
+    final controller = _cameraController;
+    if (controller == null || _isStartingImageStream) return;
+
+    try {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+    } catch (_) {}
+
+    if (!kIsWeb) {
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+
+    await _startSafeImageStream();
+  }
+
+  void _startImageStreamWatchdog() {
+    if (kIsWeb) {
       return;
     }
-    if (_cameraController!.value.isStreamingImages) {
-      return;
-    }
-    await _cameraController!.startImageStream((CameraImage image) {
-      _faceDetectionService!.processCameraFrame(image);
+    _imageStreamWatchdog ??= Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted || _isDisposed || _hasNavigated || _isCapturing) {
+        return;
+      }
+      if (_isReinitializingCamera || _isStartingImageStream) {
+        return;
+      }
+      final controller = _cameraController;
+      if (controller == null || !controller.value.isInitialized) {
+        return;
+      }
+      final now = DateTime.now();
+      final lastFrameAt = _lastAnalysisFrameAt;
+      final lastStartAt = _lastImageStreamStartAt;
+      final withinStartupGrace =
+          lastStartAt != null &&
+          now.difference(lastStartAt).inMilliseconds < 5000;
+      final isStale =
+          lastFrameAt == null
+              ? !withinStartupGrace
+              : now.difference(lastFrameAt).inMilliseconds > 3000;
+
+      // Restart the stream if it stopped or frames have gone stale.
+      if (!controller.value.isStreamingImages || isStale) {
+        if (kDebugMode) {
+          print(
+            '[WATCHDOG] Restarting image stream: isStreaming=${controller.value.isStreamingImages}, '
+            'lastFrameMs=${lastFrameAt == null ? -1 : now.difference(lastFrameAt).inMilliseconds}',
+          );
+        }
+        _analysisRestartWindowStart ??= now;
+        if (now.difference(_analysisRestartWindowStart!).inSeconds >= 5) {
+          _analysisRestartWindowStart = now;
+          _analysisRestartAttempts = 0;
+        }
+        _analysisRestartAttempts += 1;
+
+        await _restartSafeImageStream();
+
+        // If repeated restarts fail, reinitialize the camera once.
+        final shouldReinit = _analysisRestartAttempts >= 3 &&
+            !_isReinitializingCamera &&
+            (_lastCameraReinitAt == null ||
+                  now.difference(_lastCameraReinitAt!).inSeconds >= 10);
+        if (shouldReinit) {
+          if (kDebugMode) print('[WATCHDOG] Reinitializing camera after repeated stream restarts');
+          _lastCameraReinitAt = now;
+          await _initializeHairAnalysisCamera();
+        }
+      }
     });
+  }
+
+  void _stopImageStreamWatchdog() {
+    _imageStreamWatchdog?.cancel();
+    _imageStreamWatchdog = null;
   }
 
   @override
   void dispose() {
     _isDisposed = true;
-    
+    _stopImageStreamWatchdog();
+
     // Clear callbacks to prevent posthumous calls
-    _autoCaptureController.setCallbacks(
-      onCapture: null,
-      onStateChange: null,
-    );
-    
+    _autoCaptureController.setCallbacks(onCapture: null, onStateChange: null);
+
     _landmarksSubscription?.cancel();
     _autoCaptureController.dispose();
     _cameraController?.dispose();
     _faceDetectionService?.dispose();
-    
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       backgroundColor: Colors.black,
       body: _buildHairAnalysisUI(),
@@ -1038,7 +1231,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   /// Build UI for hair analysis (real camera with face detection)
   Widget _buildHairAnalysisUI() {
-    
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1058,11 +1250,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                   if (!widget.isHair) ...[
                     const SizedBox(height: 20),
                     Text(
-                      _isCameraInitialized ? '📷 Camera ready...' : '⏳ Initializing camera & face detection...',
-                      style: const TextStyle(
-                        color: _kIvory,
-                        fontSize: 14,
-                      ),
+                      _isCameraInitialized
+                          ? '📷 Camera ready...'
+                          : '⏳ Initializing camera & face detection...',
+                      style: const TextStyle(color: _kIvory, fontSize: 14),
                     ),
                   ],
                 ],
@@ -1161,7 +1352,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: _autoCaptureController.isBestAngle
-                  ? Colors.green.shade800.withValues(alpha: 0.8)
+                    ? Colors.green.shade800.withValues(alpha: 0.8)
                     : Colors.black54,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
@@ -1199,7 +1390,9 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                             child: Text(
                               'Capturing in ${(_autoCaptureController.remainingTime / 1000).toStringAsFixed(1)}s',
                               style: TextStyle(
-                                color: Colors.green.shade300.withValues(alpha: 0.7),
+                                color: Colors.green.shade300.withValues(
+                                  alpha: 0.7,
+                                ),
                                 fontSize: 10,
                               ),
                             ),
@@ -1209,7 +1402,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                   ),
                   // Angle values
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black26,
                       borderRadius: BorderRadius.circular(6),
@@ -1220,8 +1416,11 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                         Text(
                           'Tilt: ${_autoCaptureController.currentPitch.toStringAsFixed(0)}°',
                           style: TextStyle(
-                            color: (_autoCaptureController.currentPitch >= _autoCaptureController.targetMinPitch &&
-                                    _autoCaptureController.currentPitch <= _autoCaptureController.targetMaxPitch)
+                            color:
+                                (_autoCaptureController.currentPitch >=
+                                        _autoCaptureController.targetMinPitch &&
+                                    _autoCaptureController.currentPitch <=
+                                        _autoCaptureController.targetMaxPitch)
                                 ? Colors.greenAccent
                                 : Colors.white70,
                             fontSize: 10,
@@ -1231,7 +1430,9 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                         Text(
                           'Angle: ${_autoCaptureController.currentYaw.toStringAsFixed(0)}°',
                           style: TextStyle(
-                            color: _autoCaptureController.currentYaw.abs() <= _autoCaptureController.targetMaxYawDeviation
+                            color:
+                                _autoCaptureController.currentYaw.abs() <=
+                                    _autoCaptureController.targetMaxYawDeviation
                                 ? Colors.greenAccent
                                 : Colors.white70,
                             fontSize: 10,
@@ -1333,10 +1534,14 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                       ),
                     ),
                   FloatingActionButton(
-                    backgroundColor: _autoCaptureController.isBestAngle || isHairManualMode
+                    backgroundColor:
+                        _autoCaptureController.isBestAngle || isHairManualMode
                         ? _kBurgundy
                         : Colors.grey.shade700,
-                    elevation: _autoCaptureController.isBestAngle || isHairManualMode ? 8 : 4,
+                    elevation:
+                        _autoCaptureController.isBestAngle || isHairManualMode
+                        ? 8
+                        : 4,
                     onPressed: () async {
                       _autoCaptureController.registerManualCaptureReference();
                       await _takePicture();
@@ -1344,7 +1549,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
                     child: Icon(
                       Icons.camera_alt,
                       size: 28,
-                      color: _autoCaptureController.isBestAngle || isHairManualMode
+                      color:
+                          _autoCaptureController.isBestAngle || isHairManualMode
                           ? _kIvory
                           : Colors.white70,
                     ),
@@ -1358,8 +1564,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             widget.isHair
                 ? 'Tap shutter to capture'
                 : (_autoCaptureController.isBestAngle
-                    ? 'Tap or wait for auto-capture'
-                    : 'Adjust position for auto-capture'),
+                      ? 'Tap or wait for auto-capture'
+                      : 'Adjust position for auto-capture'),
             style: TextStyle(
               color: widget.isHair
                   ? _kSoftPink.withValues(alpha: 0.95)
@@ -1431,5 +1637,3 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     );
   }
 }
-
-

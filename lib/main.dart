@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import 'onboarding_flow.dart';
+import 'services/camera_setup_noop.dart'
+    if (dart.library.io) 'services/camera_setup_mobile.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Force Camera2 API on Android (CameraX has ImageAnalysis INACTIVE bug).
+  setupAndroidCamera();
 
   await Firebase.initializeApp(
     options: const FirebaseOptions(
