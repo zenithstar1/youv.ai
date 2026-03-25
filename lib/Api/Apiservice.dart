@@ -451,8 +451,8 @@ class ApiService {
       if (userPhone.isNotEmpty) {
         try {
           final whatsappUrl =
-  'http://127.0.0.1:8000/api/send-template-report';
-        // 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report';
+  //'http://127.0.0.1:8000/api/send-template-report';
+         'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report';
           print('WhatsApp send URL: $whatsappUrl');
 
           final waPayload = {

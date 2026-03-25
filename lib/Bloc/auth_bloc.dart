@@ -11,8 +11,8 @@ import 'dart:convert';
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
 // Production                → 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth'
 const String _authBaseUrl =
-  //'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth';
-  'https://127.0.0.1:8000/api/auth';
+  'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth';
+  //'https://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
