@@ -396,58 +396,142 @@ class ApiService {
     }
   }
 
-  /// Send detailed analysis report via email after payment.
-  /// Uses user-compatible endpoint (no admin role required).
+  /// Send detailed analysis report (WhatsApp + email) after payment.
+  /// Uses no-auth endpoints: generate-pdf-from-analysis + send-template-report.
   static Future<Map<String, dynamic>> sendDetailedReport(
     String analysisId,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
+      final userInfoStr = prefs.getString('userInfo') ?? '{}';
+      final userInfo = json.decode(userInfoStr);
+      final userName = userInfo['user']?['name'] ?? userInfo['name'] ?? 'User';
+      final userPhone = userInfo['user']?['phone'] ?? userInfo['phone'] ?? '';
+      final userEmail = userInfo['user']?['email'] ?? userInfo['email'] ?? '';
 
-      if (token.isEmpty) {
-        throw Exception('User not authenticated');
-      }
-
+      print('DEBUG userInfo: $userInfoStr');
+      print('DEBUG phone=$userPhone, name=$userName, email=$userEmail');
       print('Starting report send process for analysis_id: $analysisId');
 
-      final liveSendUrl = '$liveReportBaseUrl/analysis/$analysisId/send-both';
-      print('Send report URL: $liveSendUrl');
+      // Step 1: Generate PDF (no auth required)
+      final pdfGenUrl = '$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId';
+      print('Generate PDF URL: $pdfGenUrl');
 
-      http.Response response = await http.post(
-        Uri.parse(liveSendUrl),
+      final pdfResponse = await http.post(
+        Uri.parse(pdfGenUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: jsonEncode({'analysis_id': analysisId}),
       );
 
-      print('Send report response status: ${response.statusCode}');
-      print('Send report response body: ${response.body}');
+      print('Generate PDF response status: ${pdfResponse.statusCode}');
+      print('Generate PDF response body: ${pdfResponse.body}');
 
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        final userMessage =
-            responseData['message'] ?? 'Report sent successfully';
-
-        print('✅ Report sent successfully');
-
-        return {
-          'success': true,
-          'message': userMessage,
-          'email_sent': responseData['results']?['email']?['sent'] ?? false,
-          'whatsapp_sent': responseData['results']?['whatsapp']?['sent'] ?? false,
-          'data': responseData,
-        };
-      } else {
-        final errorData = json.decode(response.body);
-        throw Exception(
-          errorData['message'] ??
-              'Failed to send report: ${response.statusCode}',
-        );
+      if (pdfResponse.statusCode != 200) {
+        throw Exception('Failed to generate PDF: ${pdfResponse.statusCode}');
       }
+
+      final pdfData = json.decode(pdfResponse.body);
+      final pdfUrl = pdfData['pdf_url'] ?? '';
+
+      if (pdfUrl.isEmpty) {
+        throw Exception('PDF URL not returned from server');
+      }
+
+      print('✅ PDF generated: $pdfUrl');
+
+      bool whatsappSent = false;
+      bool emailSent = false;
+      String message = '';
+
+      // Step 2: Send WhatsApp via send-template-report (no auth required)
+      if (userPhone.isNotEmpty) {
+        try {
+          final whatsappUrl =
+  //'http://127.0.0.1:8000/api/send-template-report';
+        'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report';
+          print('WhatsApp send URL: $whatsappUrl');
+
+          final waPayload = {
+              'to': userPhone,
+              'pdf_url': pdfUrl, // ✅ IMPORTANT
+              'value1': userName,
+              'value2': 'CPLSS',
+          };
+          print('DEBUG WhatsApp payload: ${jsonEncode(waPayload)}');
+
+          final waResponse = await http.post(
+            Uri.parse(whatsappUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(waPayload),
+          );
+
+          print('WhatsApp response status: ${waResponse.statusCode}');
+          print('WhatsApp response body: ${waResponse.body}');
+
+          if (waResponse.statusCode == 200) {
+            whatsappSent = true;
+            print('✅ WhatsApp sent successfully');
+          }
+        } catch (e) {
+          print('WhatsApp send error: $e');
+        }
+      } else {
+        print('⚠️ No phone number found, skipping WhatsApp');
+      }
+
+      // Step 3: Send email via send-both (best-effort, may fail if auth expired)
+      if (userEmail.isNotEmpty && token.isNotEmpty) {
+        try {
+          final emailUrl = '$liveReportBaseUrl/analysis/$analysisId/send-both';
+          final emailResponse = await http.post(
+            Uri.parse(emailUrl),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'analysis_id': analysisId}),
+          );
+
+          if (emailResponse.statusCode == 200) {
+            final emailData = json.decode(emailResponse.body);
+            emailSent = emailData['results']?['email']?['sent'] ?? false;
+            print('✅ Email sent: $emailSent');
+          } else {
+            print('Email send returned ${emailResponse.statusCode} — skipping');
+          }
+        } catch (e) {
+          print('Email send error (non-critical): $e');
+        }
+      }
+
+      if (whatsappSent || emailSent) {
+        message = 'Report sent successfully';
+        if (whatsappSent && emailSent) {
+          message = 'Report sent to WhatsApp and Email';
+        } else if (whatsappSent) {
+          message = 'Report sent to WhatsApp';
+        } else {
+          message = 'Report sent to Email';
+        }
+      } else {
+        message = 'PDF generated but could not send via WhatsApp or Email';
+      }
+
+      return {
+        'success': whatsappSent || emailSent,
+        'message': message,
+        'email_sent': emailSent,
+        'whatsapp_sent': whatsappSent,
+        'data': {'pdf_url': pdfUrl},
+      };
     } catch (e) {
       print('❌ Error in sendDetailedReport: $e');
       return {'success': false, 'message': 'Error sending report: $e'};
