@@ -31111,7 +31111,7 @@ a=""
 s=J.kQ(i)?9:11
 break
 case 9:p=13
-a0="http://127.0.0.1:8000/api/send-template-report"
+a0="https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report"
 A.ck("WhatsApp send URL: "+A.n(a0))
 a1=A.ab(["to",i,"pdf_url",d,"value1",j,"value2","CPLSS"],b1,t.z)
 A.ck("DEBUG WhatsApp payload: "+B.a8.EZ(a1,null))
@@ -112614,7 +112614,7 @@ p=4
 A.ck("login")
 j=t.N
 s=7
-return A.t(A.nj(A.e5("https://127.0.0.1:8000/api/auth/login",0,null),A.ab(["email",a.grd(),"password",a.gGA(a)],j,j),null),$async$xk)
+return A.t(A.nj(A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login",0,null),A.ab(["email",a.grd(),"password",a.gGA(a)],j,j),null),$async$xk)
 case 7:n=d
 j=n
 A.ck(A.dR(A.dQ(j.e)).bg(0,j.w))
@@ -112679,7 +112679,7 @@ if(!a1.d)a1.a.$1(new A.de(i))
 s=1
 break}if(!a1.d)a1.a.$1(new A.je())
 p=4
-i=A.e5("https://127.0.0.1:8000/api/auth/register",0,null)
+i=A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register",0,null)
 h=a0.gm4(a0)
 g=a0.grd()
 f=a0.gGA(a0)
@@ -112747,7 +112747,7 @@ s=1
 break}b=a5.b
 a=t.N
 s=7
-return A.t(A.nj(A.e5("https://127.0.0.1:8000/api/auth/send-otp",0,null),A.ab(["mobile",m,"flow",b,"type",b],a,a),null),$async$AP)
+return A.t(A.nj(A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/send-otp",0,null),A.ab(["mobile",m,"flow",b,"type",b],a,a),null),$async$AP)
 case 7:l=a9
 A.ck("sendOtp flow="+b+" status="+l.b)
 a0=l
@@ -112800,7 +112800,7 @@ q=3
 i=a.a
 h=t.N
 s=6
-return A.t(A.nj(A.e5("https://127.0.0.1:8000/api/auth/mobile-login",0,null),A.ab(["phone",i,"otp",a.e,"mobile",i,"name",a.b,"email",a.c],h,h),null),$async$zD)
+return A.t(A.nj(A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/mobile-login",0,null),A.ab(["phone",i,"otp",a.e,"mobile",i,"name",a.b,"email",a.c],h,h),null),$async$zD)
 case 6:o=d
 h=o
 A.ck(A.dR(A.dQ(h.e)).bg(0,h.w))
@@ -112850,7 +112850,7 @@ s=q}for(;;)switch(s){case 0:if(!b.d)b.a.$1(new A.je())
 q=3
 k=t.N
 s=6
-return A.t(A.nj(A.e5("https://127.0.0.1:8000/api/auth/google-login",0,null),A.ab(["google_id",a.gaHZ(),"email",a.grd(),"name",a.gOh(a),"uid",a.gQO(),"image",a.gQb(),"phone",a.gQa()],k,k),null),$async$x3)
+return A.t(A.nj(A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/google-login",0,null),A.ab(["google_id",a.gaHZ(),"email",a.grd(),"name",a.gOh(a),"uid",a.gQO(),"image",a.gQb(),"phone",a.gQa()],k,k),null),$async$x3)
 case 6:o=d
 k=o
 A.ck(A.dR(A.dQ(k.e)).bg(0,k.w))
@@ -112900,7 +112900,7 @@ var $async$n4=A.w(function(c,d){if(c===1){p.push(d)
 s=q}for(;;)switch(s){case 0:if(!b.d)b.a.$1(new A.je())
 q=3
 A.ck("Logging out...")
-m=A.e5("https://127.0.0.1:8000/api/auth/logout",0,null)
+m=A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/logout",0,null)
 h=A
 g=J
 s=6
@@ -112947,7 +112947,7 @@ return A.t(A.hI(),$async$xN)
 case 6:o=a4
 g=A.au(J.i(o.a,"_token"))
 n=g==null?"":g
-f=A.e5("https://127.0.0.1:8000/api/auth/update-profile",0,null)
+f=A.e5("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/update-profile",0,null)
 e=t.N
 d=A.ab(["Authorization","Bearer "+A.n(n),"Content-Type","application/json"],e,e)
 c=a1.gHu()
