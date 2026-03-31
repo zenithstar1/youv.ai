@@ -1,0 +1,456 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser;
+import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/skin_analysis_model.dart';
+
+class ApiService {
+  // Use live backend endpoints.
+  static const String baseUrl =
+    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  static const String localBaseUrl = baseUrl;
+  static const String liveReportBaseUrl =
+    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  // static const String skinAnalyzeEndpoint =
+  //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+  static const String skinAnalyzeEndpoint =
+      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+  static const int maxRetries = 1;
+  static const Duration retryDelay = Duration(milliseconds: 500);
+  static const Duration requestTimeout = Duration(seconds: 120);
+  static const int preferredUploadBytes = 700 * 1024;
+  static const int minimumUploadBytes = 250 * 1024;
+
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+
+  /// Analyzes skin from uploaded image bytes (for web)
+  /// Retries up to 3 times on failure
+  /// Analyzes skin from uploaded image bytes (for web)
+  /// Retries up to 3 times on failure
+  Future<SkinAnalysisModel> analyzeSkinWithImageBytes(
+    Uint8List imageBytes,
+    String fileName,
+  ) async {
+    int attemptCount = 0;
+    Exception? lastException;
+    Duration nextRetryDelay = retryDelay;
+    Uint8List uploadBytes = _optimizeInitialUpload(imageBytes);
+    // const List<String> multipartFieldCandidates = ['file[]', 'file', 'file[0]'];
+    const String currentFieldName = 'file';
+
+    final effectiveFileName =
+      fileName.trim().isEmpty ? 'capture.jpg' : fileName.trim();
+
+    while (attemptCount < maxRetries) {
+      attemptCount++;
+      print('Attempt $attemptCount of $maxRetries.. .');
+
+      try {
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse(skinAnalyzeEndpoint),
+        );
+
+        // final currentFieldName = multipartFieldCandidates[
+        //   (attemptCount - 1).clamp(0, multipartFieldCandidates.length - 1)
+        // ];
+
+        // Add image file from bytes
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            currentFieldName,
+            uploadBytes,
+            filename: effectiveFileName,
+            contentType: http_parser.MediaType('image', 'jpeg'),
+          ),
+        );
+
+        request.headers.addAll({'Accept': 'application/json'});
+
+        print('Sending request to: $skinAnalyzeEndpoint');
+        print('Multipart field: $currentFieldName');
+        print('File name: $effectiveFileName');
+        print('File size: ${uploadBytes.length} bytes');
+
+        var streamedResponse = await request.send().timeout(
+          requestTimeout,
+          onTimeout: () {
+            throw Exception('Request timeout.  Please try again.');
+          },
+        );
+
+        var response = await http.Response.fromStream(streamedResponse);
+
+        print('Response status: ${response.statusCode}');
+        final responsePreview = response.body.length > 500
+          ? '${response.body.substring(0, 500)}...'
+          : response.body;
+        print('Response body: $responsePreview');
+
+        if (response.statusCode == 200) {
+          final jsonData = json.decode(response.body);
+
+          // Parse the model first
+          final model = SkinAnalysisModel.fromJson(jsonData);
+
+          // Store analysis_id from model if available
+          if (model.analysisId != null && model.analysisId!.isNotEmpty) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('analysis_id', model.analysisId!);
+            print('✅ Stored analysis_id from model: ${model.analysisId}');
+          }
+
+          print('✅ Success on attempt $attemptCount');
+          return model;
+        } else if (response.statusCode == 422) {
+          // Don't retry on validation errors
+          throw Exception(
+            'Invalid image format. Please use a clear face photo.',
+          );
+        } else if (response.statusCode >= 500) {
+          // Server error - retry
+          final responseBodyLower = response.body.toLowerCase();
+          final isUploadFailure = responseBodyLower.contains('failed to upload') ||
+              responseBodyLower.contains('file failed to upload');
+
+          if (isUploadFailure) {
+            uploadBytes = _compressForRetry(uploadBytes);
+            nextRetryDelay = const Duration(milliseconds: 600);
+            lastException = Exception('Server upload failed (payload adjusted)');
+            print('⚠️ Upload failed on server, retrying with smaller image (${uploadBytes.length} bytes)');
+          } else {
+            nextRetryDelay = retryDelay;
+            lastException = Exception('Server error (${response.statusCode})');
+          }
+
+          print(
+            '⚠️ Server error on attempt $attemptCount:  ${response.statusCode}',
+          );
+        } else {
+          // Client error - don't retry
+          throw Exception(
+            'Failed to analyze image. Status: ${response.statusCode}',
+          );
+        }
+      } catch (e) {
+        print('❌ Error on attempt $attemptCount: $e');
+
+        if (e.toString().contains('SocketException')) {
+          nextRetryDelay = const Duration(milliseconds: 800);
+          lastException = Exception('No internet connection');
+        } else if (e.toString().contains('TimeoutException') ||
+            e.toString().contains('timeout')) {
+          nextRetryDelay = const Duration(seconds: 1);
+          lastException = Exception('Request timeout');
+        } else if (e.toString().contains('Invalid image format') ||
+            e.toString().contains('422')) {
+          // Don't retry validation errors
+          rethrow;
+        } else {
+          lastException = Exception('Error:  ${e.toString()}');
+        }
+      }
+
+      // Wait before retrying (except on last attempt)
+      if (attemptCount < maxRetries) {
+        print(
+          '⏳ Waiting ${(nextRetryDelay.inMilliseconds / 1000).toStringAsFixed(1)} seconds before retry...',
+        );
+        await Future.delayed(nextRetryDelay);
+      }
+    }
+
+    // All attempts failed
+    print('❌ All $maxRetries attempts failed');
+    throw Exception(
+      'Server is busy. Please try again later.\n\n'
+      'We attempted $maxRetries times but couldn\'t process your request.\n'
+      'Last error: ${lastException?.toString().replaceAll('Exception:  ', '')}',
+    );
+  }
+
+  Uint8List _optimizeInitialUpload(Uint8List originalBytes) {
+    final normalizedBytes = _normalizeToJpeg(originalBytes);
+    if (normalizedBytes.length <= preferredUploadBytes) {
+      return normalizedBytes;
+    }
+    return _compressJpegToTarget(
+      normalizedBytes,
+      targetBytes: preferredUploadBytes,
+      maxWidth: 1280,
+      startQuality: 85,
+      minQuality: 55,
+    );
+  }
+
+  Uint8List _normalizeToJpeg(Uint8List sourceBytes) {
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) {
+      return sourceBytes;
+    }
+    return Uint8List.fromList(img.encodeJpg(decoded, quality: 90));
+  }
+
+  Uint8List _compressForRetry(Uint8List currentBytes) {
+    final nextTarget = (currentBytes.length * 0.7)
+        .round()
+        .clamp(minimumUploadBytes, preferredUploadBytes);
+    return _compressJpegToTarget(
+      currentBytes,
+      targetBytes: nextTarget,
+      maxWidth: 1080,
+      startQuality: 78,
+      minQuality: 45,
+    );
+  }
+
+  Uint8List _compressJpegToTarget(
+    Uint8List sourceBytes, {
+    required int targetBytes,
+    required int maxWidth,
+    required int startQuality,
+    required int minQuality,
+  }) {
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) {
+      return sourceBytes;
+    }
+
+    img.Image working = decoded;
+    if (working.width > maxWidth) {
+      working = img.copyResize(working, width: maxWidth);
+    }
+
+    Uint8List best = Uint8List.fromList(
+      img.encodeJpg(working, quality: startQuality),
+    );
+    if (best.length <= targetBytes) {
+      return best;
+    }
+
+    for (int quality = startQuality - 5; quality >= minQuality; quality -= 5) {
+      final candidate = Uint8List.fromList(
+        img.encodeJpg(working, quality: quality),
+      );
+      if (candidate.length < best.length) {
+        best = candidate;
+      }
+      if (candidate.length <= targetBytes) {
+        return candidate;
+      }
+    }
+
+    while (working.width > 720) {
+      final newWidth = (working.width * 0.85).round();
+      working = img.copyResize(working, width: newWidth);
+      final candidate = Uint8List.fromList(
+        img.encodeJpg(working, quality: minQuality),
+      );
+      if (candidate.length < best.length) {
+        best = candidate;
+      }
+      if (candidate.length <= targetBytes) {
+        return candidate;
+      }
+    }
+
+    return best;
+  }
+
+  /// Get PDF download URL for detailed report
+  static Future<Map<String, dynamic>> getReportPdfUrl(String analysisId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      if (token.isEmpty) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/analysis/$analysisId/pdf'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return {
+          'success': true,
+          'pdf_url': responseData['pdf_url'] ?? '',
+          'data': responseData,
+        };
+      } else {
+        throw Exception('Failed to get PDF URL: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error getting PDF URL: $e');
+      return {'success': false, 'message': 'Error getting PDF:  $e'};
+    }
+  }
+
+  /// Download PDF report as bytes (for web download)
+  static Future<Uint8List?> downloadReportPdf(String analysisId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      if (token.isEmpty) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/analysis/$analysisId/download-pdf'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to download PDF: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error downloading PDF: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>> updatePolicyAcceptance(
+    bool accepted,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      if (token.isEmpty) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/accept-policy'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(
+          'Failed to update policy acceptance: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Error updating policy acceptance: $e');
+    }
+  }
+
+  /// Generate PDF from analysis before sending
+  static Future<Map<String, dynamic>> generatePdfFromAnalysis(
+    String analysisId,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      print('Generating PDF for analysis_id: $analysisId');
+
+      final response = await http.post(
+        Uri.parse('$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('Generate PDF response status: ${response.statusCode}');
+      print('Generate PDF response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'PDF generated successfully',
+          'data': responseData,
+        };
+      } else {
+        final errorData = json.decode(response.body);
+        return {
+          'success': false,
+          'message':
+              errorData['message'] ??
+              'Failed to generate PDF:  ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Error generating PDF: $e');
+      return {'success': false, 'message': 'Error generating PDF: $e'};
+    }
+  }
+
+  /// Send detailed analysis report via email after payment.
+  /// Uses user-compatible endpoint (no admin role required).
+  static Future<Map<String, dynamic>> sendDetailedReport(
+    String analysisId,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
+      if (token.isEmpty) {
+        throw Exception('User not authenticated');
+      }
+
+      print('Starting report send process for analysis_id: $analysisId');
+
+      final liveSendUrl = '$liveReportBaseUrl/analysis/$analysisId/send-both';
+      print('Send report URL: $liveSendUrl');
+
+      http.Response response = await http.post(
+        Uri.parse(liveSendUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'analysis_id': analysisId}),
+      );
+
+      print('Send report response status: ${response.statusCode}');
+      print('Send report response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final userMessage =
+            responseData['message'] ?? 'Report sent successfully';
+
+        print('✅ Report sent successfully');
+
+        return {
+          'success': true,
+          'message': userMessage,
+          'email_sent': responseData['results']?['email']?['sent'] ?? false,
+          'whatsapp_sent': responseData['results']?['whatsapp']?['sent'] ?? false,
+          'data': responseData,
+        };
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+          errorData['message'] ??
+              'Failed to send report: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('❌ Error in sendDetailedReport: $e');
+      return {'success': false, 'message': 'Error sending report: $e'};
+    }
+  }
+}
