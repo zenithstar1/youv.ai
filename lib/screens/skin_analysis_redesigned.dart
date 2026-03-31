@@ -35,11 +35,20 @@ class _Threshold {
 }
 
 _Threshold getThreshold(double v) {
-  if (v <= 30) return const _Threshold(Color(0xFFD32F2F), 'Bad', 'Low Stability');
-  if (v <= 40) return const _Threshold(Color(0xFFF44336), 'Not Good', 'Low Stability');
-  if (v <= 60) return const _Threshold(Color(0xFFFB8C00), 'Okay', 'Moderate Stability');
-  if (v <= 80) return const _Threshold(Color(0xFFFBC02D), 'Moderate', 'Moderate Stability');
-  if (v <= 90) return const _Threshold(Color(0xFF7CB342), 'Great', 'Good Stability');
+  if (v <= 30)
+    return const _Threshold(Color(0xFFD32F2F), 'Bad', 'Low Stability');
+  if (v <= 40)
+    return const _Threshold(Color(0xFFF44336), 'Not Good', 'Low Stability');
+  if (v <= 60)
+    return const _Threshold(Color(0xFFFB8C00), 'Okay', 'Moderate Stability');
+  if (v <= 80)
+    return const _Threshold(
+      Color(0xFFFBC02D),
+      'Moderate',
+      'Moderate Stability',
+    );
+  if (v <= 90)
+    return const _Threshold(Color(0xFF7CB342), 'Great', 'Good Stability');
   return const _Threshold(Color(0xFF43A047), 'Excellent', 'High Stability');
 }
 
@@ -51,7 +60,11 @@ class _MetricData {
   final double value;
   final List<_IndicatorData> indicators;
 
-  _MetricData({required this.label, required this.value, required this.indicators});
+  _MetricData({
+    required this.label,
+    required this.value,
+    required this.indicators,
+  });
 }
 
 class _IndicatorData {
@@ -96,7 +109,10 @@ class _DiagnosticRingState extends State<DiagnosticRing>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _checkVisibility();
@@ -153,7 +169,9 @@ class _DiagnosticRingState extends State<DiagnosticRing>
   Widget build(BuildContext context) {
     final t = getThreshold(widget.value);
     final color = widget.overrideColor ?? t.color;
-    final sw = widget.strokeWidth > 0 ? widget.strokeWidth : (widget.isMain ? 8.0 : 6.0);
+    final sw = widget.strokeWidth > 0
+        ? widget.strokeWidth
+        : (widget.isMain ? 8.0 : 6.0);
 
     return AnimatedBuilder(
       animation: _anim,
@@ -319,13 +337,19 @@ class _HalfRing extends StatefulWidget {
   final Color color;
   final double strokeWidth;
 
-  const _HalfRing({required this.value, required this.size, required this.color, this.strokeWidth = 9});
+  const _HalfRing({
+    required this.value,
+    required this.size,
+    required this.color,
+    this.strokeWidth = 9,
+  });
 
   @override
   State<_HalfRing> createState() => _HalfRingState();
 }
 
-class _HalfRingState extends State<_HalfRing> with SingleTickerProviderStateMixin {
+class _HalfRingState extends State<_HalfRing>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
   bool _triggered = false;
@@ -334,9 +358,14 @@ class _HalfRingState extends State<_HalfRing> with SingleTickerProviderStateMixi
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
-    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _check(); });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _check();
+    });
   }
 
   @override
@@ -344,7 +373,11 @@ class _HalfRingState extends State<_HalfRing> with SingleTickerProviderStateMixi
     super.didChangeDependencies();
     if (_triggered) return;
     _scrollPosition?.removeListener(_check);
-    try { _scrollPosition = Scrollable.maybeOf(context)?.position; } catch (_) { _scrollPosition = null; }
+    try {
+      _scrollPosition = Scrollable.maybeOf(context)?.position;
+    } catch (_) {
+      _scrollPosition = null;
+    }
     _scrollPosition?.addListener(_check);
   }
 
@@ -358,7 +391,9 @@ class _HalfRingState extends State<_HalfRing> with SingleTickerProviderStateMixi
       if (pos.dy < screenH * 0.9 && pos.dy + ro.size.height > 0) {
         _triggered = true;
         _scrollPosition?.removeListener(_check);
-        Future.delayed(const Duration(milliseconds: 300), () { if (mounted) _ctrl.forward(); });
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _ctrl.forward();
+        });
       }
     } catch (_) {
       _triggered = true;
@@ -367,7 +402,11 @@ class _HalfRingState extends State<_HalfRing> with SingleTickerProviderStateMixi
   }
 
   @override
-  void dispose() { _scrollPosition?.removeListener(_check); _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _scrollPosition?.removeListener(_check);
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +437,12 @@ class _HalfRingPainter extends CustomPainter {
   final double strokeWidth;
   final Color bgColor;
 
-  _HalfRingPainter({required this.progress, required this.color, required this.strokeWidth, required this.bgColor});
+  _HalfRingPainter({
+    required this.progress,
+    required this.color,
+    required this.strokeWidth,
+    required this.bgColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -408,28 +452,46 @@ class _HalfRingPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: Offset(cx, cy), radius: radius);
 
     // Background half arc
-    canvas.drawArc(rect, pi, pi, false, Paint()
-      ..color = bgColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.butt);
+    canvas.drawArc(
+      rect,
+      pi,
+      pi,
+      false,
+      Paint()
+        ..color = bgColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.butt,
+    );
 
     // Glow
     if (progress > 0.5) {
-      canvas.drawArc(rect, pi, pi * progress, false, Paint()
-        ..color = color.withOpacity(0.15)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth + 6
-        ..strokeCap = StrokeCap.butt
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
+      canvas.drawArc(
+        rect,
+        pi,
+        pi * progress,
+        false,
+        Paint()
+          ..color = color.withOpacity(0.15)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth + 6
+          ..strokeCap = StrokeCap.butt
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
     }
 
     // Progress half arc
-    canvas.drawArc(rect, pi, pi * progress, false, Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.butt);
+    canvas.drawArc(
+      rect,
+      pi,
+      pi * progress,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.butt,
+    );
   }
 
   @override
@@ -444,19 +506,29 @@ class _PulseDot extends StatefulWidget {
   State<_PulseDot> createState() => _PulseDotState();
 }
 
-class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _opacity;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..repeat(reverse: true);
-    _opacity = Tween<double>(begin: 0.35, end: 0.88).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(
+      begin: 0.35,
+      end: 0.88,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -469,7 +541,11 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
           shape: BoxShape.circle,
           color: Colors.white.withOpacity(_opacity.value),
           boxShadow: [
-            BoxShadow(color: Colors.white.withOpacity(_opacity.value * 0.25), blurRadius: 6, spreadRadius: 3),
+            BoxShadow(
+              color: Colors.white.withOpacity(_opacity.value * 0.25),
+              blurRadius: 6,
+              spreadRadius: 3,
+            ),
           ],
         ),
       ),
@@ -485,7 +561,8 @@ class _BouncingChevron extends StatefulWidget {
   State<_BouncingChevron> createState() => _BouncingChevronState();
 }
 
-class _BouncingChevronState extends State<_BouncingChevron> with SingleTickerProviderStateMixin {
+class _BouncingChevronState extends State<_BouncingChevron>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _offset;
   late Animation<double> _opacity;
@@ -493,8 +570,14 @@ class _BouncingChevronState extends State<_BouncingChevron> with SingleTickerPro
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
-    _offset = Tween<double>(begin: 0, end: 6).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
+    _offset = Tween<double>(
+      begin: 0,
+      end: 6,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     _opacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.5, end: 0.88), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 0.88, end: 0.5), weight: 50),
@@ -502,7 +585,10 @@ class _BouncingChevronState extends State<_BouncingChevron> with SingleTickerPro
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -512,7 +598,11 @@ class _BouncingChevronState extends State<_BouncingChevron> with SingleTickerPro
         offset: Offset(0, _offset.value),
         child: Opacity(
           opacity: _opacity.value,
-          child: const Icon(Icons.keyboard_arrow_down, size: 18, color: _DS.grey400),
+          child: const Icon(
+            Icons.keyboard_arrow_down,
+            size: 18,
+            color: _DS.grey400,
+          ),
         ),
       ),
     );
@@ -607,7 +697,11 @@ class _StageLabel extends StatelessWidget {
   final String title;
   final String sub;
 
-  const _StageLabel({required this.number, required this.title, required this.sub});
+  const _StageLabel({
+    required this.number,
+    required this.title,
+    required this.sub,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -716,8 +810,20 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   @override
   void initState() {
     super.initState();
-    selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1).clamp(1, 5) - 1;
+    selectedColorIndex =
+        (widget.analysisData?.fitzpatrickType ?? 1).clamp(1, 5) - 1;
     _structurePageController = PageController(viewportFraction: 0.85);
+  }
+
+  @override
+  void didUpdateWidget(covariant SkinAnalysisRedesigned oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldType = oldWidget.analysisData?.fitzpatrickType;
+    final newType = widget.analysisData?.fitzpatrickType;
+    if (newType != null && newType != oldType) {
+      // Keep tone display in sync with latest analysis result (non-interactive).
+      selectedColorIndex = newType.clamp(1, 5) - 1;
+    }
   }
 
   @override
@@ -731,19 +837,43 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final d = widget.analysisData;
     if (d == null) return [];
     return [
-      _MetricData(label: 'Acne', value: d.acneScore, indicators: _buildIndicators(_getAcneFactors())),
-      _MetricData(label: 'Hydration', value: d.hydrationScore, indicators: _buildIndicators(_getHydrationFactors())),
-      _MetricData(label: 'Wrinkles', value: d.wrinklesScore, indicators: _buildIndicators(_getWrinklesFactors())),
-      _MetricData(label: 'Pigmentation', value: d.pigmentationScore, indicators: _buildIndicators(_getPigmentationFactors())),
-      _MetricData(label: 'Pores', value: d.poresScore, indicators: _buildIndicators(_getPoresFactors())),
+      _MetricData(
+        label: 'Acne',
+        value: d.acneScore,
+        indicators: _buildIndicators(_getAcneFactors()),
+      ),
+      _MetricData(
+        label: 'Hydration',
+        value: d.hydrationScore,
+        indicators: _buildIndicators(_getHydrationFactors()),
+      ),
+      _MetricData(
+        label: 'Wrinkles',
+        value: d.wrinklesScore,
+        indicators: _buildIndicators(_getWrinklesFactors()),
+      ),
+      _MetricData(
+        label: 'Pigmentation',
+        value: d.pigmentationScore,
+        indicators: _buildIndicators(_getPigmentationFactors()),
+      ),
+      _MetricData(
+        label: 'Pores',
+        value: d.poresScore,
+        indicators: _buildIndicators(_getPoresFactors()),
+      ),
     ];
   }
 
   List<_IndicatorData> _buildIndicators(List<FactorItem> factors) {
-    return factors.map((f) => _IndicatorData(
-      name: f.name,
-      score: ((1 - f.value) * 100).clamp(0, 100),
-    )).toList();
+    return factors
+        .map(
+          (f) => _IndicatorData(
+            name: f.name,
+            score: ((1 - f.value) * 100).clamp(0, 100),
+          ),
+        )
+        .toList();
   }
 
   List<FactorItem> _getAcneFactors() {
@@ -827,8 +957,12 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final wrinkles = _calcWrinklesDetail();
     final aging = _calcAging((d.skinAge + d.eyeAge) / 2);
 
-    return ((acne * 0.25) + (hydration * 0.20) + (pigmentation * 0.20) +
-            (pores * 0.15) + (wrinkles * 0.15) + (aging * 0.05))
+    return ((acne * 0.25) +
+            (hydration * 0.20) +
+            (pigmentation * 0.20) +
+            (pores * 0.15) +
+            (wrinkles * 0.15) +
+            (aging * 0.05))
         .clamp(0, 100);
   }
 
@@ -920,9 +1054,12 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final n = vals.length;
     final sum = vals.fold(0.0, (a, b) => a + b);
     if (sum <= 0) return 0;
-    final perc = (sum - 100).abs() < 2 ? vals : vals.map((v) => v / sum * 100).toList();
+    final perc = (sum - 100).abs() < 2
+        ? vals
+        : vals.map((v) => v / sum * 100).toList();
     final ideal = 100.0 / n;
-    final avgDev = perc.map((v) => (v - ideal).abs()).fold(0.0, (a, b) => a + b) / n;
+    final avgDev =
+        perc.map((v) => (v - ideal).abs()).fold(0.0, (a, b) => a + b) / n;
     double norm = 1.0 - _safeDiv(avgDev, ideal);
     return (10.0 * norm.clamp(0, 1)).clamp(0, 10);
   }
@@ -939,30 +1076,57 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final comps = <double>[];
     final wts = <double>[];
 
-    if (d.verticalPerc.isNotEmpty) { comps.add(_scoreFromUniform(d.verticalPerc)); wts.add(30); }
-    if (d.horizontalPerc.isNotEmpty) { comps.add(_scoreFromUniform(d.horizontalPerc)); wts.add(30); }
-    final fg = _parseRatio(d.faceBox?.golden), fy = _parseRatio(d.faceBox?.yours);
-    if (fg != null && fy != null) { comps.add(_scoreFromRatio(fy, fg)); wts.add(10); }
-    final nlcM = _parseRatio(d.noseLipChinRatio), nlcI = _parseRatio(d.noseLipChinIdeal);
-    if (nlcM != null && nlcI != null) { comps.add(_scoreFromRatio(nlcM, nlcI)); wts.add(10); }
+    if (d.verticalPerc.isNotEmpty) {
+      comps.add(_scoreFromUniform(d.verticalPerc));
+      wts.add(30);
+    }
+    if (d.horizontalPerc.isNotEmpty) {
+      comps.add(_scoreFromUniform(d.horizontalPerc));
+      wts.add(30);
+    }
+    final fg = _parseRatio(d.faceBox?.golden),
+        fy = _parseRatio(d.faceBox?.yours);
+    if (fg != null && fy != null) {
+      comps.add(_scoreFromRatio(fy, fg));
+      wts.add(10);
+    }
+    final nlcM = _parseRatio(d.noseLipChinRatio),
+        nlcI = _parseRatio(d.noseLipChinIdeal);
+    if (nlcM != null && nlcI != null) {
+      comps.add(_scoreFromRatio(nlcM, nlcI));
+      wts.add(10);
+    }
     final lipM = _parseRatio(d.lipRatio), lipI = _parseRatio(d.lipIdeal);
-    if (lipM != null && lipI != null) { comps.add(_scoreFromRatio(lipM, lipI)); wts.add(10); }
+    if (lipM != null && lipI != null) {
+      comps.add(_scoreFromRatio(lipM, lipI));
+      wts.add(10);
+    }
 
     double? eyeS(EyeBox? e) {
       if (e == null) return null;
       final g = _parseRatio(e.golden), m = _parseRatio(e.measured);
       return (g != null && m != null) ? _scoreFromRatio(m, g) : null;
     }
+
     final ls = eyeS(d.leftEye), rs = eyeS(d.rightEye);
     final es = (ls != null && rs != null) ? (ls + rs) / 2 : (ls ?? rs);
-    if (es != null) { comps.add(es); wts.add(5); }
+    if (es != null) {
+      comps.add(es);
+      wts.add(5);
+    }
     if (d.jaw != null && d.jaw!.ideal > 0 && d.jaw!.ratio > 0) {
-      comps.add(_scoreFromRatio(d.jaw!.ratio, d.jaw!.ideal)); wts.add(5);
+      comps.add(_scoreFromRatio(d.jaw!.ratio, d.jaw!.ideal));
+      wts.add(5);
     }
 
     if (comps.isEmpty) return 7.0;
     final tw = wts.fold(0.0, (a, b) => a + b);
-    return comps.asMap().entries.map((e) => e.value * (wts[e.key] / tw)).fold(0.0, (a, b) => a + b).clamp(3.0, 9.5);
+    return comps
+        .asMap()
+        .entries
+        .map((e) => e.value * (wts[e.key] / tw))
+        .fold(0.0, (a, b) => a + b)
+        .clamp(3.0, 9.5);
   }
 
   // ─── REPORT SENDING (same logic as original) ───
@@ -973,12 +1137,18 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     if (analysisId == null || analysisId.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No analysis found. Please analyze your skin first.'), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text('No analysis found. Please analyze your skin first.'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
       return;
     }
-    setState(() { _sendingReport = true; _reportMessage = 'Generating PDF report...'; });
+    setState(() {
+      _sendingReport = true;
+      _reportMessage = 'Generating PDF report...';
+    });
     try {
       final result = await ApiService.sendDetailedReport(analysisId);
       if (!mounted) return;
@@ -989,12 +1159,18 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
       });
       if (result['success'] == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Report sent! Check your email.'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Report sent! Check your email.'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() { _sendingReport = false; _reportMessage = ''; });
+      setState(() {
+        _sendingReport = false;
+        _reportMessage = '';
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
@@ -1005,19 +1181,30 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     if (age <= 0) return 'Unknown';
     final decade = (age ~/ 10) * 10;
     final within = age % 10;
-    final part = within <= 3 ? 'Early' : within <= 6 ? 'Mid' : 'Late';
+    final part = within <= 3
+        ? 'Early'
+        : within <= 6
+        ? 'Mid'
+        : 'Late';
     return '$part ${decade}s';
   }
 
   String _labelForMode(RatioMode mode) {
     switch (mode) {
-      case RatioMode.vertical: return "Vertical Sections";
-      case RatioMode.horizontal: return "Horizontal Sections";
-      case RatioMode.eyes: return "Eye Aspect Ratio";
-      case RatioMode.faceBox: return "Face Aspect Ratio";
-      case RatioMode.noseLipChin: return "Nose–Lip–Chin";
-      case RatioMode.lips: return "Lips Ratio";
-      case RatioMode.jaw: return "Jaw Ratio";
+      case RatioMode.vertical:
+        return "Vertical Sections";
+      case RatioMode.horizontal:
+        return "Horizontal Sections";
+      case RatioMode.eyes:
+        return "Eye Aspect Ratio";
+      case RatioMode.faceBox:
+        return "Face Aspect Ratio";
+      case RatioMode.noseLipChin:
+        return "Nose–Lip–Chin";
+      case RatioMode.lips:
+        return "Lips Ratio";
+      case RatioMode.jaw:
+        return "Jaw Ratio";
     }
   }
 
@@ -1042,21 +1229,37 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             // STAGE 2: Skin Map
             if (metrics.isNotEmpty) ...[
               const SliverToBoxAdapter(child: _SectionRule()),
-              SliverToBoxAdapter(child: _FadeSlideIn(child: _buildSkinMap(metrics))),
+              SliverToBoxAdapter(
+                child: _FadeSlideIn(child: _buildSkinMap(metrics)),
+              ),
             ],
             // STAGE 3: Key Opportunity
             if (metrics.isNotEmpty) ...[
               const SliverToBoxAdapter(child: _SectionRule()),
-              SliverToBoxAdapter(child: _FadeSlideIn(delay: const Duration(milliseconds: 100), child: _buildKeyOpportunity(metrics))),
+              SliverToBoxAdapter(
+                child: _FadeSlideIn(
+                  delay: const Duration(milliseconds: 100),
+                  child: _buildKeyOpportunity(metrics),
+                ),
+              ),
             ],
             // STAGE 4: Skin Profile
             const SliverToBoxAdapter(child: _SectionRule()),
             SliverToBoxAdapter(child: _FadeSlideIn(child: _buildSkinProfile())),
             // STAGE 5: Facial Structure
-            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildFacialStructureHeader(symmetry))),
-            SliverToBoxAdapter(child: _FadeSlideIn(delay: const Duration(milliseconds: 100), child: _buildSymmetryScore(symmetry))),
+            SliverToBoxAdapter(
+              child: _FadeSlideIn(child: _buildFacialStructureHeader(symmetry)),
+            ),
+            SliverToBoxAdapter(
+              child: _FadeSlideIn(
+                delay: const Duration(milliseconds: 100),
+                child: _buildSymmetryScore(symmetry),
+              ),
+            ),
             // STAGE 6: Structural Breakdown (swipe cards)
-            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildStructuralBreakdown())),
+            SliverToBoxAdapter(
+              child: _FadeSlideIn(child: _buildStructuralBreakdown()),
+            ),
             // STAGE 7: Report CTA
             const SliverToBoxAdapter(child: _SectionRule()),
             SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
@@ -1083,9 +1286,19 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               decoration: BoxDecoration(
                 color: _DS.white,
                 borderRadius: BorderRadius.circular(r.w(12)),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Icon(Icons.arrow_back_ios_new, size: r.w(18), color: _DS.textHigh),
+              child: Icon(
+                Icons.arrow_back_ios_new,
+                size: r.w(18),
+                color: _DS.textHigh,
+              ),
             ),
           ),
           SizedBox(width: r.w(12)),
@@ -1132,7 +1345,9 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
         'Pores': 'Pore refinement',
       };
 
-      final pos = positiveDesc[best.label] ?? 'great ${best.label.toLowerCase()} health';
+      final pos =
+          positiveDesc[best.label] ??
+          'great ${best.label.toLowerCase()} health';
       final neg = improveDesc[worstM.label] ?? worstM.label;
       microInsight = 'Your skin shows $pos. $neg could use a little attention.';
     }
@@ -1147,7 +1362,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             children: [
               // Ambient glow behind card
               Positioned(
-                left: -16, right: -16, top: -16, bottom: -16,
+                left: -16,
+                right: -16,
+                top: -16,
+                bottom: -16,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(42),
@@ -1171,8 +1389,16 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   borderRadius: BorderRadius.circular(30),
                   color: _DS.blush,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 28, offset: const Offset(0, 14)),
-                    BoxShadow(color: _DS.blush.withOpacity(0.18), blurRadius: 40, offset: const Offset(0, 4)),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 28,
+                      offset: const Offset(0, 14),
+                    ),
+                    BoxShadow(
+                      color: _DS.blush.withOpacity(0.18),
+                      blurRadius: 40,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
                   border: Border.all(color: Colors.white.withOpacity(0.55)),
                 ),
@@ -1216,7 +1442,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.center,
-                            colors: [Colors.white.withOpacity(0.14), Colors.transparent],
+                            colors: [
+                              Colors.white.withOpacity(0.14),
+                              Colors.transparent,
+                            ],
                           ),
                         ),
                       ),
@@ -1250,15 +1479,24 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                           child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(5)),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: r.w(12),
+                              vertical: r.h(5),
+                            ),
                             decoration: BoxDecoration(
                               color: _DS.pageBg.withOpacity(0.72),
                               borderRadius: BorderRadius.circular(50),
-                              border: Border.all(color: Colors.white.withOpacity(0.7)),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.7),
+                              ),
                             ),
                             child: Text(
                               'AI FACIAL ANALYSIS',
-                              style: TextStyle(fontSize: r.sp(10), letterSpacing: 1.5, color: _DS.grey600),
+                              style: TextStyle(
+                                fontSize: r.sp(10),
+                                letterSpacing: 1.5,
+                                color: _DS.grey600,
+                              ),
                             ),
                           ),
                         ),
@@ -1270,9 +1508,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                       top: MediaQuery.of(context).size.height * 0.52 * 0.44,
                       left: 0,
                       right: 0,
-                      child: Center(
-                        child: _PulseDot(),
-                      ),
+                      child: Center(child: _PulseDot()),
                     ),
 
                     // Score overlay at bottom with glass effect
@@ -1286,32 +1522,72 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                             child: Container(
-                              padding: EdgeInsets.fromLTRB(r.w(12), r.h(12), r.w(22), r.h(12)),
+                              padding: EdgeInsets.fromLTRB(
+                                r.w(12),
+                                r.h(12),
+                                r.w(22),
+                                r.h(12),
+                              ),
                               decoration: BoxDecoration(
                                 color: _DS.pageBg.withOpacity(0.85),
                                 borderRadius: BorderRadius.circular(60),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 18, offset: const Offset(0, 6)),
-                                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 1)),
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.14),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
                                 ],
-                                border: Border.all(color: Colors.white.withOpacity(0.72)),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.72),
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  DiagnosticRing(value: score, size: 80, isMain: true, delay: const Duration(milliseconds: 400)),
+                                  DiagnosticRing(
+                                    value: score,
+                                    size: 80,
+                                    isMain: true,
+                                    delay: const Duration(milliseconds: 400),
+                                  ),
                                   const SizedBox(width: 12),
                                   Flexible(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Text('Skin Health', style: TextStyle(fontSize: r.sp(16), fontWeight: FontWeight.w600, color: _DS.textHigh)),
-                                        Text('Index', style: TextStyle(fontSize: r.sp(13), fontStyle: FontStyle.italic, color: _DS.grey600)),
+                                        Text(
+                                          'Skin Health',
+                                          style: TextStyle(
+                                            fontSize: r.sp(16),
+                                            fontWeight: FontWeight.w600,
+                                            color: _DS.textHigh,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Index',
+                                          style: TextStyle(
+                                            fontSize: r.sp(13),
+                                            fontStyle: FontStyle.italic,
+                                            color: _DS.grey600,
+                                          ),
+                                        ),
                                         const SizedBox(height: 3),
                                         Text(
                                           'Based on multiple facial health parameters',
-                                          style: TextStyle(fontSize: r.sp(10), color: _DS.grey400, fontWeight: FontWeight.w300, height: 1.45),
+                                          style: TextStyle(
+                                            fontSize: r.sp(10),
+                                            color: _DS.grey400,
+                                            fontWeight: FontWeight.w300,
+                                            height: 1.45,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -1335,15 +1611,28 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
           Padding(
             padding: EdgeInsets.fromLTRB(r.w(20), r.h(14), r.w(20), 0),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: r.w(18), vertical: r.h(14)),
+              padding: EdgeInsets.symmetric(
+                horizontal: r.w(18),
+                vertical: r.h(14),
+              ),
               decoration: BoxDecoration(
                 color: _DS.white,
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 14, offset: const Offset(0, 4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Text(
                 microInsight,
-                style: TextStyle(fontSize: r.sp(14), color: _DS.textMid, height: 1.65),
+                style: TextStyle(
+                  fontSize: r.sp(14),
+                  color: _DS.textMid,
+                  height: 1.65,
+                ),
               ),
             ),
           ),
@@ -1355,7 +1644,13 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             children: [
               Text(
                 'Scroll to understand your skin',
-                style: TextStyle(fontSize: r.sp(12), color: _DS.grey400, fontWeight: FontWeight.w300, fontStyle: FontStyle.italic, letterSpacing: 0.4),
+                style: TextStyle(
+                  fontSize: r.sp(12),
+                  color: _DS.grey400,
+                  fontWeight: FontWeight.w300,
+                  fontStyle: FontStyle.italic,
+                  letterSpacing: 0.4,
+                ),
               ),
               SizedBox(height: r.h(4)),
               _BouncingChevron(),
@@ -1373,7 +1668,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final r = Responsive(context);
     return Column(
       children: [
-        const _StageLabel(number: '2', title: 'Understanding Your Skin', sub: 'The five pillars'),
+        const _StageLabel(
+          number: '2',
+          title: 'Understanding Your Skin',
+          sub: 'The five pillars',
+        ),
         SizedBox(height: r.h(16)),
         // Radar chart
         Padding(
@@ -1383,8 +1682,16 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               color: _DS.white,
               borderRadius: BorderRadius.circular(26),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 4)),
-                BoxShadow(color: _DS.blush.withOpacity(0.08), blurRadius: 32, offset: const Offset(0, 8)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: _DS.blush.withOpacity(0.08),
+                  blurRadius: 32,
+                  offset: const Offset(0, 8),
+                ),
               ],
             ),
             child: Column(
@@ -1394,7 +1701,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   padding: EdgeInsets.fromLTRB(r.w(8), r.h(24), r.w(8), 0),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final radarSize = (constraints.maxWidth - 16).clamp(180.0, 300.0);
+                      final radarSize = (constraints.maxWidth - 16).clamp(
+                        180.0,
+                        300.0,
+                      );
                       return SizedBox(
                         height: radarSize,
                         child: Center(
@@ -1418,7 +1728,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                     children: List.generate(min(3, metrics.length), (i) {
                       return Expanded(
                         child: Padding(
-                          padding: EdgeInsets.only(left: i == 0 ? 0 : 4, right: i == 2 ? 0 : 4),
+                          padding: EdgeInsets.only(
+                            left: i == 0 ? 0 : 4,
+                            right: i == 2 ? 0 : 4,
+                          ),
                           child: _buildPillarCard(metrics[i], i),
                         ),
                       );
@@ -1433,7 +1746,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                         final idx = i + 3;
                         return Expanded(
                           child: Padding(
-                            padding: EdgeInsets.only(left: i == 0 ? 0 : 4, right: i == 1 ? 0 : 4),
+                            padding: EdgeInsets.only(
+                              left: i == 0 ? 0 : 4,
+                              right: i == 1 ? 0 : 4,
+                            ),
                             child: _buildPillarCard(metrics[idx], idx),
                           ),
                         );
@@ -1446,7 +1762,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   padding: EdgeInsets.only(top: r.h(10), bottom: r.h(8)),
                   child: Text(
                     'Tap the cards to know more',
-                    style: TextStyle(fontSize: r.sp(11), color: _DS.grey400, fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                      fontSize: r.sp(11),
+                      color: _DS.grey400,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
 
@@ -1454,7 +1774,9 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 AnimatedSize(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  child: (_activeMetricIdx != null && _activeMetricIdx! < metrics.length)
+                  child:
+                      (_activeMetricIdx != null &&
+                          _activeMetricIdx! < metrics.length)
                       ? _buildActiveMetricDetail(metrics[_activeMetricIdx!])
                       : const SizedBox.shrink(),
                 ),
@@ -1489,15 +1811,29 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             color: isActive ? Color.lerp(_DS.white, t.color, 0.06)! : _DS.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isActive ? t.color.withOpacity(0.4) : _DS.blush.withOpacity(0.26),
+              color: isActive
+                  ? t.color.withOpacity(0.4)
+                  : _DS.blush.withOpacity(0.26),
               width: isActive ? 2.5 : 1.5,
             ),
             boxShadow: [
               if (isActive) ...[
-                BoxShadow(color: t.color.withOpacity(0.20), blurRadius: 18, offset: const Offset(0, 6)),
-                BoxShadow(color: t.color.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2)),
+                BoxShadow(
+                  color: t.color.withOpacity(0.20),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: t.color.withOpacity(0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
               ] else
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
             ],
           ),
           child: Column(
@@ -1544,12 +1880,20 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 children: [
                   Text(
                     m.label.toUpperCase(),
-                    style: TextStyle(fontSize: r.sp(10), letterSpacing: 1, color: _DS.grey400),
+                    style: TextStyle(
+                      fontSize: r.sp(10),
+                      letterSpacing: 1,
+                      color: _DS.grey400,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${t.stability} · ${m.indicators.length} indicators assessed',
-                    style: TextStyle(fontSize: r.sp(11), color: _DS.grey600, fontWeight: FontWeight.w300),
+                    style: TextStyle(
+                      fontSize: r.sp(11),
+                      color: _DS.grey600,
+                      fontWeight: FontWeight.w300,
+                    ),
                   ),
                 ],
               ),
@@ -1557,13 +1901,23 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             GestureDetector(
               onTap: () => _showMetricModal(m),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: t.color.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(50),
                   border: Border.all(color: t.color.withOpacity(0.25)),
                 ),
-                child: Text('See why →', style: TextStyle(fontSize: r.sp(12), fontWeight: FontWeight.w600, color: t.color)),
+                child: Text(
+                  'See why →',
+                  style: TextStyle(
+                    fontSize: r.sp(12),
+                    fontWeight: FontWeight.w600,
+                    color: t.color,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1582,12 +1936,17 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final t = getThreshold(focus.value);
 
     // Bottom 3 indicators
-    final worstIndicators = [...focus.indicators]..sort((a, b) => a.score.compareTo(b.score));
+    final worstIndicators = [...focus.indicators]
+      ..sort((a, b) => a.score.compareTo(b.score));
     final bottom3 = worstIndicators.take(3).toList();
 
     return Column(
       children: [
-        const _StageLabel(number: '3', title: 'Your Key Opportunity', sub: 'Focus insight'),
+        const _StageLabel(
+          number: '3',
+          title: 'Your Key Opportunity',
+          sub: 'Focus insight',
+        ),
         Padding(
           padding: EdgeInsets.fromLTRB(r.w(20), r.h(16), r.w(20), 0),
           child: Container(
@@ -1595,8 +1954,16 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               color: _DS.white,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 14, offset: const Offset(0, 4)),
-                BoxShadow(color: t.color.withOpacity(0.08), blurRadius: 28, offset: const Offset(0, 8)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.07),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: t.color.withOpacity(0.08),
+                  blurRadius: 28,
+                  offset: const Offset(0, 8),
+                ),
               ],
               border: Border(top: BorderSide(color: t.color, width: 3)),
             ),
@@ -1611,35 +1978,76 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('PRIMARY FOCUS AREA', style: TextStyle(fontSize: r.sp(10), letterSpacing: 2, color: _DS.grey400)),
+                          Text(
+                            'PRIMARY FOCUS AREA',
+                            style: TextStyle(
+                              fontSize: r.sp(10),
+                              letterSpacing: 2,
+                              color: _DS.grey400,
+                            ),
+                          ),
                           const SizedBox(height: 6),
-                          Text(focus.label, style: TextStyle(fontSize: r.sp(24), fontWeight: FontWeight.w700, color: _DS.textHigh)),
+                          Text(
+                            focus.label,
+                            style: TextStyle(
+                              fontSize: r.sp(24),
+                              fontWeight: FontWeight.w700,
+                              color: _DS.textHigh,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             '${focus.label} appears slightly lower than your other skin indicators. Targeted attention here could meaningfully improve your overall score.',
-                            style: TextStyle(fontSize: r.sp(13), color: _DS.grey600, fontWeight: FontWeight.w300, height: 1.65),
+                            style: TextStyle(
+                              fontSize: r.sp(13),
+                              color: _DS.grey600,
+                              fontWeight: FontWeight.w300,
+                              height: 1.65,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           GestureDetector(
                             onTap: () => _showMetricModal(focus),
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: r.w(22), vertical: r.h(11)),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: r.w(22),
+                                vertical: r.h(11),
+                              ),
                               decoration: BoxDecoration(
                                 color: t.color,
                                 borderRadius: BorderRadius.circular(50),
                                 boxShadow: [
-                                  BoxShadow(color: t.color.withOpacity(0.30), blurRadius: 18, offset: const Offset(0, 6)),
-                                  BoxShadow(color: t.color.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2)),
+                                  BoxShadow(
+                                    color: t.color.withOpacity(0.30),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                  BoxShadow(
+                                    color: t.color.withOpacity(0.12),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
                                 ],
                               ),
-                              child: const Text('Understand why →', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                              child: const Text(
+                                'Understand why →',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 12),
-                    DiagnosticRing(value: focus.value, size: 78, delay: const Duration(milliseconds: 300)),
+                    DiagnosticRing(
+                      value: focus.value,
+                      size: 78,
+                      delay: const Duration(milliseconds: 300),
+                    ),
                   ],
                 ),
 
@@ -1656,8 +2064,21 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(ind.name, style: TextStyle(fontSize: 12, color: _DS.grey600)),
-                            Text(ind.score.round().toString(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: it.color)),
+                            Text(
+                              ind.name,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _DS.grey600,
+                              ),
+                            ),
+                            Text(
+                              ind.score.round().toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: it.color,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -1681,7 +2102,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 }),
                 Text(
                   '+${focus.indicators.length - 3} more indicators — tap "Understand why" to see all',
-                  style: TextStyle(fontSize: 11, color: _DS.grey400, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _DS.grey400,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ),
@@ -1696,12 +2121,25 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ALL INDICATORS AT A GLANCE', style: TextStyle(fontSize: 10, letterSpacing: 1.6, color: _DS.grey400)),
+                Text(
+                  'ALL INDICATORS AT A GLANCE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 1.6,
+                    color: _DS.grey400,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: metrics.map((m) {
@@ -1723,15 +2161,29 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                               decoration: BoxDecoration(
                                 color: tc.color.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: tc.color.withOpacity(0.18)),
+                                border: Border.all(
+                                  color: tc.color.withOpacity(0.18),
+                                ),
                               ),
                               child: Center(
-                                child: Text(m.value.round().toString(),
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: tc.color)),
+                                child: Text(
+                                  m.value.round().toString(),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: tc.color,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 5),
-                            Text(label, style: TextStyle(fontSize: 9, color: _DS.grey400), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(
+                              label,
+                              style: TextStyle(fontSize: 9, color: _DS.grey400),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
                       ),
@@ -1755,7 +2207,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
 
     return Column(
       children: [
-        const _StageLabel(number: '4', title: 'Skin Profile', sub: 'Biometric summary'),
+        const _StageLabel(
+          number: '4',
+          title: 'Skin Profile',
+          sub: 'Biometric summary',
+        ),
         Padding(
           padding: EdgeInsets.fromLTRB(r.w(20), r.h(16), r.w(20), 0),
           child: Container(
@@ -1763,16 +2219,30 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(26),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 // 3-col attributes
                 Row(
                   children: [
-                    _profileTile('🧬', d != null ? _ageLabel(d.skinAge) : '-', 'Skin Age'),
+                    _profileTile(
+                      '🧬',
+                      d != null ? _ageLabel(d.skinAge) : '-',
+                      'Skin Age',
+                    ),
                     const SizedBox(width: 10),
-                    _profileTile('👁', d != null ? _ageLabel(d.eyeAge) : '-', 'Eye Age'),
+                    _profileTile(
+                      '👁',
+                      d != null ? _ageLabel(d.eyeAge) : '-',
+                      'Eye Age',
+                    ),
                     const SizedBox(width: 10),
                     _profileTile('✦', d?.skinType ?? '-', 'Skin Type'),
                   ],
@@ -1788,55 +2258,71 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   ),
                   child: Column(
                     children: [
-                      Text('SKIN TONE', style: TextStyle(fontSize: 10, letterSpacing: 1.8, color: _DS.grey400)),
+                      Text(
+                        'SKIN TONE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1.8,
+                          color: _DS.grey400,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(fitzpatrickColors.length, (i) {
                           final isSelected = selectedColorIndex == i;
                           return Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => selectedColorIndex = i),
-                              child: Column(
-                                children: [
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 250),
-                                    curve: Curves.easeOutCubic,
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: fitzpatrickColors[i],
-                                      border: Border.all(
-                                        color: isSelected ? _DS.blushDark : Colors.white,
-                                        width: isSelected ? 3 : 2,
+                            child: Column(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeOutCubic,
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: fitzpatrickColors[i],
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? _DS.blushDark
+                                          : Colors.white,
+                                      width: isSelected ? 3 : 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isSelected
+                                            ? fitzpatrickColors[i].withOpacity(
+                                                0.4,
+                                              )
+                                            : Colors.black.withOpacity(0.08),
+                                        blurRadius: isSelected ? 10 : 4,
+                                        offset: const Offset(0, 2),
                                       ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: isSelected
-                                              ? fitzpatrickColors[i].withOpacity(0.4)
-                                              : Colors.black.withOpacity(0.08),
-                                          blurRadius: isSelected ? 10 : 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: isSelected
-                                        ? const Icon(Icons.check, size: 14, color: Colors.white)
-                                        : null,
+                                    ],
                                   ),
-                                  const SizedBox(height: 5),
-                                  AnimatedDefaultTextStyle(
-                                    duration: const Duration(milliseconds: 200),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
-                                      color: isSelected ? _DS.textHigh : _DS.grey400,
-                                    ),
-                                    child: Text('${i + 1}'),
+                                  child: isSelected
+                                      ? const Icon(
+                                          Icons.check,
+                                          size: 14,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(height: 5),
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 200),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w300,
+                                    color: isSelected
+                                        ? _DS.textHigh
+                                        : _DS.grey400,
                                   ),
-                                ],
-                              ),
+                                  child: Text('${i + 1}'),
+                                ),
+                              ],
                             ),
                           );
                         }),
@@ -1847,7 +2333,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                         child: Text(
                           'Fitzpatrick Type ${selectedColorIndex + 1}',
                           key: ValueKey(selectedColorIndex),
-                          style: TextStyle(fontSize: 13, color: _DS.textMid, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _DS.textMid,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -1875,10 +2365,26 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _DS.textHigh)),
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _DS.textHigh,
+                ),
+              ),
             ),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, color: _DS.grey400, fontWeight: FontWeight.w300), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: _DS.grey400,
+                fontWeight: FontWeight.w300,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),
@@ -1903,18 +2409,59 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
       child: Stack(
         children: [
           // Decorative circles
-          Positioned(right: -40, top: -40, child: Container(width: 180, height: 180, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(0.12))))),
-          Positioned(right: -20, top: -20, child: Container(width: 120, height: 120, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(0.08))))),
+          Positioned(
+            right: -40,
+            top: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+            ),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('SECOND AI MODULE', style: TextStyle(fontSize: r.sp(10), letterSpacing: 2.2, color: Colors.white.withOpacity(0.65))),
+              Text(
+                'SECOND AI MODULE',
+                style: TextStyle(
+                  fontSize: r.sp(10),
+                  letterSpacing: 2.2,
+                  color: Colors.white.withOpacity(0.65),
+                ),
+              ),
               const SizedBox(height: 5),
-              Text('Facial Structure Analysis', style: TextStyle(fontSize: r.sp(20), fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(
+                'Facial Structure Analysis',
+                style: TextStyle(
+                  fontSize: r.sp(20),
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 'A separate model analyzes your facial geometry and proportions.',
-                style: TextStyle(fontSize: r.sp(12), fontWeight: FontWeight.w300, color: Colors.white.withOpacity(0.75), height: 1.5),
+                style: TextStyle(
+                  fontSize: r.sp(12),
+                  fontWeight: FontWeight.w300,
+                  color: Colors.white.withOpacity(0.75),
+                  height: 1.5,
+                ),
               ),
             ],
           ),
@@ -1942,8 +2489,16 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 bottomRight: Radius.circular(26),
               ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 6)),
-                BoxShadow(color: _DS.blush.withOpacity(0.12), blurRadius: 32, offset: const Offset(0, 12)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: _DS.blush.withOpacity(0.12),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                ),
               ],
             ),
             child: Column(
@@ -1956,14 +2511,39 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 ),
                 const SizedBox(height: 10),
                 // Show score / 10 under ring
-                Text(scoreText, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: _DS.textHigh)),
-                Text('/ 10', style: TextStyle(fontSize: 15, color: _DS.grey400)),
+                Text(
+                  scoreText,
+                  style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    color: _DS.textHigh,
+                  ),
+                ),
+                Text(
+                  '/ 10',
+                  style: TextStyle(fontSize: 15, color: _DS.grey400),
+                ),
                 const SizedBox(height: 8),
-                const Text('Symmetry Score', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: _DS.textHigh)),
+                const Text(
+                  'Symmetry Score',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: _DS.textHigh,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
-                  symmetry >= 8.5 ? 'Excellent facial symmetry!' : symmetry >= 7.0 ? 'Good facial balance and harmony' : 'Room for enhancement',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFFFB8C00)),
+                  symmetry >= 8.5
+                      ? 'Excellent facial symmetry!'
+                      : symmetry >= 7.0
+                      ? 'Good facial balance and harmony'
+                      : 'Room for enhancement',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFFFB8C00),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Container(
@@ -1974,7 +2554,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   ),
                   child: const Text(
                     'Your facial proportions show good balance. This score is calculated using golden ratio standards across five facial measurements.',
-                    style: TextStyle(fontSize: 11, color: _DS.grey700, height: 1.7),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _DS.grey700,
+                      height: 1.7,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1990,7 +2574,13 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1998,13 +2588,28 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('SKIN BALANCE INDEX', style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: _DS.grey400)),
+                    Text(
+                      'SKIN BALANCE INDEX',
+                      style: TextStyle(
+                        fontSize: 10,
+                        letterSpacing: 1.2,
+                        color: _DS.grey400,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: _DS.blush)),
+                    Text(
+                      '${pct.toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.blush,
+                      ),
+                    ),
                   ],
                 ),
                 Container(
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _DS.blush.withOpacity(0.13),
@@ -2026,7 +2631,9 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final r = Responsive(context);
     FaceRatioData? faceData;
     if (widget.faceRatioJson != null) {
-      try { faceData = FaceRatioData.fromMap(widget.faceRatioJson!); } catch (_) {}
+      try {
+        faceData = FaceRatioData.fromMap(widget.faceRatioJson!);
+      } catch (_) {}
     }
     if (faceData == null) return const SizedBox.shrink();
 
@@ -2037,8 +2644,22 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('STRUCTURAL BREAKDOWN', style: TextStyle(fontSize: r.sp(10), letterSpacing: 2, color: _DS.grey400)),
-              Text('Swipe to explore ↔', style: TextStyle(fontSize: r.sp(11), color: _DS.grey400, fontStyle: FontStyle.italic)),
+              Text(
+                'STRUCTURAL BREAKDOWN',
+                style: TextStyle(
+                  fontSize: r.sp(10),
+                  letterSpacing: 2,
+                  color: _DS.grey400,
+                ),
+              ),
+              Text(
+                'Swipe to explore ↔',
+                style: TextStyle(
+                  fontSize: r.sp(11),
+                  color: _DS.grey400,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
             ],
           ),
         ),
@@ -2058,9 +2679,17 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   decoration: BoxDecoration(
                     color: _DS.white,
                     borderRadius: BorderRadius.circular(22),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                     border: Border.all(
-                      color: _structurePage == index ? _DS.blush.withOpacity(0.3) : Colors.transparent,
+                      color: _structurePage == index
+                          ? _DS.blush.withOpacity(0.3)
+                          : Colors.transparent,
                       width: 1.5,
                     ),
                   ),
@@ -2072,8 +2701,21 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(_labelForMode(mode), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _DS.grey700)),
-                            Text('${index + 1}/${_ratioModes.length}', style: TextStyle(fontSize: 10, color: _DS.grey400)),
+                            Text(
+                              _labelForMode(mode),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _DS.grey700,
+                              ),
+                            ),
+                            Text(
+                              '${index + 1}/${_ratioModes.length}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: _DS.grey400,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -2092,7 +2734,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                                     child: SizedBox(
                                       width: faceData.imageW,
                                       height: faceData.imageH,
-                                      child: Image.memory(faceData.imageBytes!, fit: BoxFit.fill),
+                                      child: Image.memory(
+                                        faceData.imageBytes!,
+                                        fit: BoxFit.fill,
+                                      ),
                                     ),
                                   ),
                                 if (faceData.imageBytes != null)
@@ -2102,20 +2747,34 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                                       width: faceData.imageW,
                                       height: faceData.imageH,
                                       child: CustomPaint(
-                                        painter: PrettyRatioPainter(faceData, mode),
+                                        painter: PrettyRatioPainter(
+                                          faceData,
+                                          mode,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 // Mode badge
                                 Positioned(
-                                  top: 8, right: 8,
+                                  top: 8,
+                                  right: 8,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: _DS.blush.withOpacity(0.18),
                                       borderRadius: BorderRadius.circular(50),
                                     ),
-                                    child: Text(_labelForMode(mode), style: TextStyle(fontSize: 9, color: _DS.blush, fontWeight: FontWeight.w600)),
+                                    child: Text(
+                                      _labelForMode(mode),
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: _DS.blush,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -2163,29 +2822,50 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     String info = '';
     switch (mode) {
       case RatioMode.vertical:
-        if (data.verticalPerc.isNotEmpty) info = data.verticalPerc.map((p) => '${p.toStringAsFixed(1)}%').join(' · ');
+        if (data.verticalPerc.isNotEmpty)
+          info = data.verticalPerc
+              .map((p) => '${p.toStringAsFixed(1)}%')
+              .join(' · ');
         break;
       case RatioMode.horizontal:
-        if (data.horizontalPerc.isNotEmpty) info = data.horizontalPerc.map((p) => '${p.toStringAsFixed(1)}%').join(' · ');
+        if (data.horizontalPerc.isNotEmpty)
+          info = data.horizontalPerc
+              .map((p) => '${p.toStringAsFixed(1)}%')
+              .join(' · ');
         break;
       case RatioMode.eyes:
-        info = 'Left: ${data.leftEye?.measured ?? "–"} | Right: ${data.rightEye?.measured ?? "–"}';
+        info =
+            'Left: ${data.leftEye?.measured ?? "–"} | Right: ${data.rightEye?.measured ?? "–"}';
         break;
       case RatioMode.faceBox:
-        if (data.faceBox != null) info = 'Yours: ${data.faceBox!.yours}  ·  Golden: ${data.faceBox!.golden}';
+        if (data.faceBox != null)
+          info =
+              'Yours: ${data.faceBox!.yours}  ·  Golden: ${data.faceBox!.golden}';
         break;
       case RatioMode.noseLipChin:
-        info = 'Ratio: ${data.noseLipChinRatio ?? "–"}  ·  Ideal: ${data.noseLipChinIdeal ?? "–"}';
+        info =
+            'Ratio: ${data.noseLipChinRatio ?? "–"}  ·  Ideal: ${data.noseLipChinIdeal ?? "–"}';
         break;
       case RatioMode.lips:
-        info = 'Ratio: ${data.lipRatio ?? "–"}  ·  Ideal: ${data.lipIdeal ?? "–"}';
+        info =
+            'Ratio: ${data.lipRatio ?? "–"}  ·  Ideal: ${data.lipIdeal ?? "–"}';
         break;
       case RatioMode.jaw:
-        if (data.jaw != null) info = 'Ratio: ${data.jaw!.ratio.toStringAsFixed(2)}  ·  Ideal: ${data.jaw!.ideal.toStringAsFixed(2)}';
+        if (data.jaw != null)
+          info =
+              'Ratio: ${data.jaw!.ratio.toStringAsFixed(2)}  ·  Ideal: ${data.jaw!.ideal.toStringAsFixed(2)}';
         break;
     }
     if (info.isEmpty) return const SizedBox.shrink();
-    return Text(info, style: TextStyle(fontSize: 11, color: _DS.grey600, fontWeight: FontWeight.w300), textAlign: TextAlign.center);
+    return Text(
+      info,
+      style: TextStyle(
+        fontSize: 11,
+        color: _DS.grey600,
+        fontWeight: FontWeight.w300,
+      ),
+      textAlign: TextAlign.center,
+    );
   }
 
   // ═══════════════════════════════════════════
@@ -2205,34 +2885,60 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
           ),
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
-            BoxShadow(color: _DS.blush.withOpacity(0.40), blurRadius: 56, offset: const Offset(0, 24)),
-            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: _DS.blush.withOpacity(0.40),
+              blurRadius: 56,
+              offset: const Offset(0, 24),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
           children: [
             // Icon
             Container(
-              width: r.w(56), height: r.w(56),
+              width: r.w(56),
+              height: r.w(56),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(color: Colors.white.withOpacity(0.10), blurRadius: 12, spreadRadius: -2),
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.10),
+                    blurRadius: 12,
+                    spreadRadius: -2,
+                  ),
                 ],
               ),
-              child: Icon(Icons.description_outlined, color: Colors.white, size: r.w(28)),
+              child: Icon(
+                Icons.description_outlined,
+                color: Colors.white,
+                size: r.w(28),
+              ),
             ),
             SizedBox(height: r.h(14)),
             Text(
               'Save Your Full Skin Analysis',
-              style: TextStyle(fontSize: r.sp(22), fontWeight: FontWeight.w700, color: Colors.white),
+              style: TextStyle(
+                fontSize: r.sp(22),
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: r.h(8)),
             Text(
               'Includes detailed breakdowns, insights, and future scan comparisons.',
-              style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w300, color: Colors.white.withOpacity(0.82), height: 1.65),
+              style: TextStyle(
+                fontSize: r.sp(13),
+                fontWeight: FontWeight.w300,
+                color: Colors.white.withOpacity(0.82),
+                height: 1.65,
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: r.h(18)),
@@ -2246,19 +2952,40 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.96),
                   borderRadius: BorderRadius.circular(50),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 12, offset: const Offset(0, 4))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (_sendingReport)
-                      const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _DS.blushDark))
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _DS.blushDark,
+                        ),
+                      )
                     else
                       Icon(Icons.save_outlined, size: 16, color: _DS.blush),
                     const SizedBox(width: 10),
                     Text(
-                      _reportSent ? 'Report Sent ✓' : (_sendingReport ? 'Sending...' : 'Save My Analysis'),
-                      style: TextStyle(fontSize: r.sp(16), fontWeight: FontWeight.w700, color: _DS.blushDark),
+                      _reportSent
+                          ? 'Report Sent ✓'
+                          : (_sendingReport
+                                ? 'Sending...'
+                                : 'Save My Analysis'),
+                      style: TextStyle(
+                        fontSize: r.sp(16),
+                        fontWeight: FontWeight.w700,
+                        color: _DS.blushDark,
+                      ),
                     ),
                   ],
                 ),
@@ -2267,7 +2994,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             const SizedBox(height: 12),
             Text(
               'Track changes over time with future scans.',
-              style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.6)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.6),
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -2283,12 +3013,19 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.info_outline, size: 13, color: Colors.white.withOpacity(0.65)),
+                  Icon(
+                    Icons.info_outline,
+                    size: 13,
+                    color: Colors.white.withOpacity(0.65),
+                  ),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       'The account you created will track your progress over time.',
-                      style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.72)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withOpacity(0.72),
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -2317,17 +3054,28 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
         child: Column(
           children: [
             GestureDetector(
-              onTap: () => setState(() => _disclaimerExpanded = !_disclaimerExpanded),
+              onTap: () =>
+                  setState(() => _disclaimerExpanded = !_disclaimerExpanded),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 13,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('About this analysis', style: TextStyle(fontSize: 13, color: _DS.grey600)),
+                    Text(
+                      'About this analysis',
+                      style: TextStyle(fontSize: 13, color: _DS.grey600),
+                    ),
                     AnimatedRotation(
                       turns: _disclaimerExpanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 300),
-                      child: Icon(Icons.keyboard_arrow_down, size: 18, color: _DS.grey400),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 18,
+                        color: _DS.grey400,
+                      ),
                     ),
                   ],
                 ),
@@ -2348,7 +3096,15 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                     ])
                       Padding(
                         padding: const EdgeInsets.only(bottom: 5),
-                        child: Text('· $txt', style: TextStyle(fontSize: 12, color: _DS.grey700, fontWeight: FontWeight.w300, height: 1.65)),
+                        child: Text(
+                          '· $txt',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _DS.grey700,
+                            fontWeight: FontWeight.w300,
+                            height: 1.65,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -2371,7 +3127,9 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.82),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.82,
+          ),
           decoration: BoxDecoration(
             color: _DS.pageBg,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
@@ -2382,7 +3140,14 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               // Handle
               Padding(
                 padding: const EdgeInsets.only(top: 13),
-                child: Container(width: 36, height: 4, decoration: BoxDecoration(color: _DS.blush, borderRadius: BorderRadius.circular(2))),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _DS.blush,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
               // Header
               Padding(
@@ -2393,25 +3158,54 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('INDICATOR ANALYSIS', style: TextStyle(fontSize: 10, letterSpacing: 1.8, color: _DS.grey400)),
-                          Text(metric.label, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: _DS.textHigh)),
+                          Text(
+                            'INDICATOR ANALYSIS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              letterSpacing: 1.8,
+                              color: _DS.grey400,
+                            ),
+                          ),
+                          Text(
+                            metric.label,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: _DS.textHigh,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: t.color.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(50),
-                            border: Border.all(color: t.color.withOpacity(0.25)),
+                            border: Border.all(
+                              color: t.color.withOpacity(0.25),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              Text(metric.value.round().toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: t.color)),
+                              Text(
+                                metric.value.round().toString(),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: t.color,
+                                ),
+                              ),
                               const SizedBox(width: 5),
-                              Text(t.label, style: TextStyle(fontSize: 12, color: t.color)),
+                              Text(
+                                t.label,
+                                style: TextStyle(fontSize: 12, color: t.color),
+                              ),
                             ],
                           ),
                         ),
@@ -2419,12 +3213,21 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
                           child: Container(
-                            width: 32, height: 32,
+                            width: 32,
+                            height: 32,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _DS.blush.withOpacity(0.16),
                             ),
-                            child: const Center(child: Text('✕', style: TextStyle(fontSize: 14, color: _DS.grey600))),
+                            child: const Center(
+                              child: Text(
+                                '✕',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _DS.grey600,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -2449,8 +3252,21 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(ind.name, style: TextStyle(fontSize: 14, color: _DS.grey700)),
-                              Text(ind.score.round().toString(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: it.color)),
+                              Text(
+                                ind.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _DS.grey700,
+                                ),
+                              ),
+                              Text(
+                                ind.score.round().toString(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: it.color,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 5),
@@ -2518,7 +3334,13 @@ class _RadarPainter extends CustomPainter {
         }
       }
       path.close();
-      canvas.drawPath(path, Paint()..color = _DS.blush.withOpacity(0.45)..style = PaintingStyle.stroke..strokeWidth = 1.2);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = _DS.blush.withOpacity(0.45)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2,
+      );
     }
 
     // Spokes
@@ -2526,9 +3348,12 @@ class _RadarPainter extends CustomPainter {
       final isActive = activeIdx == i;
       final p = pt(maxR, i);
       canvas.drawLine(
-        Offset(cx, cy), p,
+        Offset(cx, cy),
+        p,
         Paint()
-          ..color = isActive ? getThreshold(metrics[i].value).color.withOpacity(0.9) : _DS.blush.withOpacity(0.5)
+          ..color = isActive
+              ? getThreshold(metrics[i].value).color.withOpacity(0.9)
+              : _DS.blush.withOpacity(0.5)
           ..strokeWidth = isActive ? 2.0 : 1.2,
       );
     }
@@ -2546,14 +3371,29 @@ class _RadarPainter extends CustomPainter {
     }
     dataPath.close();
     // Soft glow behind polygon
-    canvas.drawPath(dataPath, Paint()
-      ..color = _DS.blushDark.withOpacity(0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeJoin = StrokeJoin.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-    canvas.drawPath(dataPath, Paint()..color = _DS.blushDark.withOpacity(0.18)..style = PaintingStyle.fill);
-    canvas.drawPath(dataPath, Paint()..color = _DS.blushDark..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeJoin = StrokeJoin.round);
+    canvas.drawPath(
+      dataPath,
+      Paint()
+        ..color = _DS.blushDark.withOpacity(0.12)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8
+        ..strokeJoin = StrokeJoin.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+    canvas.drawPath(
+      dataPath,
+      Paint()
+        ..color = _DS.blushDark.withOpacity(0.18)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      dataPath,
+      Paint()
+        ..color = _DS.blushDark
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeJoin = StrokeJoin.round,
+    );
 
     // Highlighted spoke line from center to data point (drawn on top of polygon)
     if (activeIdx != null && activeIdx! < n) {
@@ -2564,11 +3404,20 @@ class _RadarPainter extends CustomPainter {
       final fullP = pt(maxR, activeIdx!);
       // Line from center to full radius
       canvas.drawLine(
-        Offset(cx, cy), fullP,
-        Paint()..color = tc.color.withOpacity(0.5)..strokeWidth = 2.0,
+        Offset(cx, cy),
+        fullP,
+        Paint()
+          ..color = tc.color.withOpacity(0.5)
+          ..strokeWidth = 2.0,
       );
       // Glow dot at data point
-      canvas.drawCircle(dataP, 12, Paint()..color = tc.color.withOpacity(0.12)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+      canvas.drawCircle(
+        dataP,
+        12,
+        Paint()
+          ..color = tc.color.withOpacity(0.12)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
       canvas.drawCircle(dataP, 10, Paint()..color = tc.color.withOpacity(0.15));
       canvas.drawCircle(dataP, 6, Paint()..color = tc.color);
     }
@@ -2583,32 +3432,62 @@ class _RadarPainter extends CustomPainter {
 
       // Dot (skip active dot — already drawn above)
       if (!isActive) {
-        canvas.drawCircle(p, hasSelection ? 3 : 4, Paint()..color = tc.color.withOpacity(hasSelection ? 0.4 : 1.0));
+        canvas.drawCircle(
+          p,
+          hasSelection ? 3 : 4,
+          Paint()..color = tc.color.withOpacity(hasSelection ? 0.4 : 1.0),
+        );
       }
 
       // Label
       final labelPt = pt(maxR + 28, i);
-      final labelColor = isActive ? tc.color : (hasSelection ? _DS.grey400 : _DS.grey600);
+      final labelColor = isActive
+          ? tc.color
+          : (hasSelection ? _DS.grey400 : _DS.grey600);
       final textPainter = TextPainter(
         text: TextSpan(
           children: [
-            TextSpan(text: '${metrics[i].label}\n', style: TextStyle(fontSize: isActive ? 16 : 15, color: labelColor, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500)),
-            TextSpan(text: '${metrics[i].value.round()}', style: TextStyle(fontSize: isActive ? 18 : 17, color: tc.color.withOpacity(isActive ? 1.0 : (hasSelection ? 0.5 : 0.75)), fontWeight: FontWeight.w700)),
+            TextSpan(
+              text: '${metrics[i].label}\n',
+              style: TextStyle(
+                fontSize: isActive ? 16 : 15,
+                color: labelColor,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            TextSpan(
+              text: '${metrics[i].value.round()}',
+              style: TextStyle(
+                fontSize: isActive ? 18 : 17,
+                color: tc.color.withOpacity(
+                  isActive ? 1.0 : (hasSelection ? 0.5 : 0.75),
+                ),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
         textDirection: TextDirection.ltr,
-        textAlign: labelPt.dx < cx - 5 ? TextAlign.right : labelPt.dx > cx + 5 ? TextAlign.left : TextAlign.center,
+        textAlign: labelPt.dx < cx - 5
+            ? TextAlign.right
+            : labelPt.dx > cx + 5
+            ? TextAlign.left
+            : TextAlign.center,
       );
       textPainter.layout();
       final dx = labelPt.dx < cx - 5
           ? labelPt.dx - textPainter.width
           : labelPt.dx > cx + 5
-              ? labelPt.dx
-              : labelPt.dx - textPainter.width / 2;
-      textPainter.paint(canvas, Offset(dx, labelPt.dy - textPainter.height / 2));
+          ? labelPt.dx
+          : labelPt.dx - textPainter.width / 2;
+      textPainter.paint(
+        canvas,
+        Offset(dx, labelPt.dy - textPainter.height / 2),
+      );
     }
   }
 
   @override
-  bool shouldRepaint(_RadarPainter old) => old.activeIdx != activeIdx || old.metrics != metrics;
+  bool shouldRepaint(_RadarPainter old) =>
+      old.activeIdx != activeIdx || old.metrics != metrics;
 }

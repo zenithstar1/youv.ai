@@ -24,6 +24,7 @@ android {
         applicationId = "com.globalspace.youvai"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Keep minSdk >= 21 for broad device compatibility (and Flutter defaults).
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

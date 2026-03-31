@@ -442,7 +442,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         return;
       }
       // If face lost during countdown, abort
-      if (!_faceDetected) {
+      if (!_faceDetected && _countdown == 0 && !_holdSteady) {
         _cancelCountdown();
         return;
       }
@@ -579,15 +579,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       final bytes = await pic.readAsBytes();
       if (!mounted || _isDisposed || _hasNavigated) return;
 
-      if (kIsWeb && !widget.isHair) {
-        final hasFace = await web_face.validateCapturedFace(bytes);
-        if (!mounted || _isDisposed || _hasNavigated) return;
-        if (!hasFace) {
-          debugPrint('[CaptureFlow] web capture rejected: invalid final face');
-          await _rejectInvalidCapture(controller);
-          return;
-        }
-      }
+if (kIsWeb && !widget.isHair) {
+  // ✅ Use already confirmed live detection
+  if (!_faceDetected) {
+    debugPrint('[WEB] capture rejected: face lost before capture');
+    await _rejectInvalidCapture(controller);
+    return;
+  }
+}
 
       _capturedBytes = bytes;
       _capturedFileName = pic.name;
