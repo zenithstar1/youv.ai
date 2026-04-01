@@ -8,6 +8,12 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
+
+    // Register MediaPipe face detection plugin
+    if let registrar = self.registrar(forPlugin: "MediaPipeFaceDetectorPlugin") {
+      MediaPipeFaceDetectorPlugin.register(with: registrar)
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
