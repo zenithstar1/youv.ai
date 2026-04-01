@@ -1024,11 +1024,13 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   // Web-only: use JS face mesh detection (see `web/face_detector.js`) instead of ML Kit.
   Object? _webFaceDetectedListenerSub;
+  Object? _webFaceMetricsListenerSub;
   bool _webEyesAligned = false;
   Timer? _webStableAlignmentTimer;
   Timer? _webAutoCaptureTimer;
   bool _webAutoCaptureLocked = false;
   int _webStableFrames = 0;
+  bool _webFaceSizeOk = false;
 
   List<ResolutionPreset> _cameraResolutionFallbacks() {
     if (kIsWeb) {
@@ -1184,11 +1186,29 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         if (!mounted || _isDisposed || _hasNavigated) return;
         debugPrint("WEB ALIGN: $detected");
 
+        // Gate alignment on face-size metrics — reject when face is
+        // too close, too far, or off-center.
+        final effectiveAligned = detected && _webFaceSizeOk;
+
         final wasAligned = _webEyesAligned;
-        if (wasAligned != detected) {
-          setState(() => _webEyesAligned = detected);
+        if (wasAligned != effectiveAligned) {
+          setState(() => _webEyesAligned = effectiveAligned);
         }
-        _handleWebAlignmentChange(detected);
+        _handleWebAlignmentChange(effectiveAligned);
+      });
+
+      // Subscribe to detailed face metrics from JS to check face size.
+      _webFaceMetricsListenerSub = web_face.addFaceMetricsListener((metrics) {
+        if (!mounted || _isDisposed || _hasNavigated) return;
+        final fill = metrics.faceWidth > metrics.faceHeight
+            ? metrics.faceWidth
+            : metrics.faceHeight;
+        final centered =
+            metrics.centerOffsetX <= 0.15 && metrics.centerOffsetY <= 0.18;
+        final sizeOk = fill >= 0.18 && fill <= 0.60;
+        final verticalOk =
+            metrics.faceCenterY >= 0.32 && metrics.faceCenterY <= 0.65;
+        _webFaceSizeOk = metrics.detected && sizeOk && centered && verticalOk;
       });
     }
 
@@ -1650,6 +1670,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     if (kIsWeb && _webFaceDetectedListenerSub != null) {
       web_face.removeFaceDetectedListener(_webFaceDetectedListenerSub!);
       _webFaceDetectedListenerSub = null;
+      if (_webFaceMetricsListenerSub != null) {
+        web_face.removeFaceMetricsListener(_webFaceMetricsListenerSub!);
+        _webFaceMetricsListenerSub = null;
+      }
       _webStableAlignmentTimer?.cancel();
       _webStableAlignmentTimer = null;
       _webAutoCaptureTimer?.cancel();
@@ -1680,7 +1704,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
       children: [
         // Real camera preview
         if (_isCameraInitialized && _cameraController != null)
-          CameraPreview(_cameraController!)
+          kIsWeb ? _buildWebCameraPreview() : CameraPreview(_cameraController!)
         else
           Container(
             color: Colors.black87,
@@ -1711,6 +1735,56 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         if (widget.isHair) _buildCameraSwitchButton(),
         _buildBackButton(),
       ],
+    );
+  }
+
+  /// On web, CameraPreview stretches the <video> to fill its parent
+  /// regardless of the stream's native aspect ratio. This wrapper
+  /// constrains the preview to the camera's actual ratio and covers
+  /// the screen by overflowing/clipping — preventing the face from
+  /// appearing distorted/zoomed.
+  Widget _buildWebCameraPreview() {
+    final ctrl = _cameraController!;
+    final previewSize = ctrl.value.previewSize;
+
+    if (previewSize == null ||
+        previewSize.width <= 0 ||
+        previewSize.height <= 0) {
+      return CameraPreview(ctrl);
+    }
+
+    // previewSize is landscape (e.g. 1280×720)
+    final cameraAspect = previewSize.width / previewSize.height;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenW = constraints.maxWidth;
+        final screenH = constraints.maxHeight;
+        final screenAspect = screenW / screenH;
+
+        // Cover the screen while preserving aspect ratio
+        double renderW, renderH;
+        if (screenAspect > cameraAspect) {
+          renderW = screenW;
+          renderH = screenW / cameraAspect;
+        } else {
+          renderH = screenH;
+          renderW = screenH * cameraAspect;
+        }
+
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.center,
+            maxWidth: renderW,
+            maxHeight: renderH,
+            child: SizedBox(
+              width: renderW,
+              height: renderH,
+              child: CameraPreview(ctrl),
+            ),
+          ),
+        );
+      },
     );
   }
 

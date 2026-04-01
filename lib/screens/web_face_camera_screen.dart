@@ -397,39 +397,46 @@ class _WebFaceCameraScreenState extends State<WebFaceCameraScreen> {
     final ctrl = _cameraController!;
     final previewSize = ctrl.value.previewSize;
 
-    // Maintain aspect ratio: cover the screen without stretching
-    if (previewSize != null &&
-        previewSize.width > 0 &&
-        previewSize.height > 0) {
-      // previewSize is landscape (width > height), swap for portrait
-      final cameraAspect = previewSize.height / previewSize.width;
-
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final screenAspect = constraints.maxHeight / constraints.maxWidth;
-
-          // Cover the entire area – crop overflow
-          final scale = screenAspect > cameraAspect
-              ? constraints.maxHeight / (constraints.maxWidth * cameraAspect)
-              : constraints.maxWidth / (constraints.maxHeight / cameraAspect);
-
-          return ClipRect(
-            child: Transform.scale(
-              scale: scale.clamp(1.0, 2.0),
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 1 / cameraAspect,
-                  child: CameraPreview(ctrl),
-                ),
-              ),
-            ),
-          );
-        },
-      );
+    if (previewSize == null ||
+        previewSize.width <= 0 ||
+        previewSize.height <= 0) {
+      return CameraPreview(ctrl);
     }
 
-    // Fallback: let the widget stretch
-    return CameraPreview(ctrl);
+    // previewSize is landscape (e.g. 1280×720)
+    final cameraAspect = previewSize.width / previewSize.height;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenW = constraints.maxWidth;
+        final screenH = constraints.maxHeight;
+        final screenAspect = screenW / screenH;
+
+        // Cover the screen while preserving camera aspect ratio.
+        // This prevents the face from appearing stretched/zoomed.
+        double renderW, renderH;
+        if (screenAspect > cameraAspect) {
+          renderW = screenW;
+          renderH = screenW / cameraAspect;
+        } else {
+          renderH = screenH;
+          renderW = screenH * cameraAspect;
+        }
+
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.center,
+            maxWidth: renderW,
+            maxHeight: renderH,
+            child: SizedBox(
+              width: renderW,
+              height: renderH,
+              child: CameraPreview(ctrl),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildLoadingIndicator() {
