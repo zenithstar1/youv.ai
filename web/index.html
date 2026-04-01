@@ -44,6 +44,10 @@
 
     video {
       transform: scaleX(-1);
+      /* Override camera_web plugin's object-fit:cover which zooms the
+         face to fill the container.  'contain' preserves the native
+         aspect ratio so the full face is visible inside the oval guide. */
+      object-fit: contain !important;
     }
 
     #loading {

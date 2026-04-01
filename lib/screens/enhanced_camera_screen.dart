@@ -1034,7 +1034,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   List<ResolutionPreset> _cameraResolutionFallbacks() {
     if (kIsWeb) {
-      return const [ResolutionPreset.high, ResolutionPreset.medium];
+      // Use medium (480p/VGA) on web to prevent the browser from returning
+      // a high-res stream that it then crops/zooms via object-fit.  Lower
+      // resolution keeps the full face visible at a comfortable distance.
+      return const [ResolutionPreset.medium, ResolutionPreset.low];
     }
 
     // Android/iOS: start with veryHigh (1080p) for sharp captures.
@@ -1738,53 +1741,15 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     );
   }
 
-  /// On web, CameraPreview stretches the <video> to fill its parent
-  /// regardless of the stream's native aspect ratio. This wrapper
-  /// constrains the preview to the camera's actual ratio and covers
-  /// the screen by overflowing/clipping — preventing the face from
-  /// appearing distorted/zoomed.
+  /// On web, the camera_web plugin sets `object-fit: cover` on the
+  /// <video> element, which crops/zooms the feed.  index.html now
+  /// overrides this to `contain`, so the native aspect ratio is
+  /// preserved.  We just need to centre the preview and fill the
+  /// remaining space with black.
   Widget _buildWebCameraPreview() {
-    final ctrl = _cameraController!;
-    final previewSize = ctrl.value.previewSize;
-
-    if (previewSize == null ||
-        previewSize.width <= 0 ||
-        previewSize.height <= 0) {
-      return CameraPreview(ctrl);
-    }
-
-    // previewSize is landscape (e.g. 1280×720)
-    final cameraAspect = previewSize.width / previewSize.height;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenW = constraints.maxWidth;
-        final screenH = constraints.maxHeight;
-        final screenAspect = screenW / screenH;
-
-        // Cover the screen while preserving aspect ratio
-        double renderW, renderH;
-        if (screenAspect > cameraAspect) {
-          renderW = screenW;
-          renderH = screenW / cameraAspect;
-        } else {
-          renderH = screenH;
-          renderW = screenH * cameraAspect;
-        }
-
-        return ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.center,
-            maxWidth: renderW,
-            maxHeight: renderH,
-            child: SizedBox(
-              width: renderW,
-              height: renderH,
-              child: CameraPreview(ctrl),
-            ),
-          ),
-        );
-      },
+    return Container(
+      color: Colors.black,
+      child: Center(child: CameraPreview(_cameraController!)),
     );
   }
 

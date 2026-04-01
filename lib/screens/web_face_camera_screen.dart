@@ -98,7 +98,7 @@ class _WebFaceCameraScreenState extends State<WebFaceCameraScreen> {
       );
 
       CameraController? controller;
-      for (final preset in [ResolutionPreset.high, ResolutionPreset.medium]) {
+      for (final preset in [ResolutionPreset.medium, ResolutionPreset.low]) {
         controller = CameraController(frontCamera, preset, enableAudio: false);
         try {
           await controller.initialize();
@@ -394,48 +394,9 @@ class _WebFaceCameraScreenState extends State<WebFaceCameraScreen> {
   // ── Sub-widgets ─────────────────────────────────────────────────────────
 
   Widget _buildCameraPreview() {
-    final ctrl = _cameraController!;
-    final previewSize = ctrl.value.previewSize;
-
-    if (previewSize == null ||
-        previewSize.width <= 0 ||
-        previewSize.height <= 0) {
-      return CameraPreview(ctrl);
-    }
-
-    // previewSize is landscape (e.g. 1280×720)
-    final cameraAspect = previewSize.width / previewSize.height;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenW = constraints.maxWidth;
-        final screenH = constraints.maxHeight;
-        final screenAspect = screenW / screenH;
-
-        // Cover the screen while preserving camera aspect ratio.
-        // This prevents the face from appearing stretched/zoomed.
-        double renderW, renderH;
-        if (screenAspect > cameraAspect) {
-          renderW = screenW;
-          renderH = screenW / cameraAspect;
-        } else {
-          renderH = screenH;
-          renderW = screenH * cameraAspect;
-        }
-
-        return ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.center,
-            maxWidth: renderW,
-            maxHeight: renderH,
-            child: SizedBox(
-              width: renderW,
-              height: renderH,
-              child: CameraPreview(ctrl),
-            ),
-          ),
-        );
-      },
+    return Container(
+      color: Colors.black,
+      child: Center(child: CameraPreview(_cameraController!)),
     );
   }
 
