@@ -72,3 +72,62 @@ Future<bool> validateCapturedFace(Uint8List imageBytes) async {
   }
   return false;
 }
+
+class FaceMetrics {
+  final bool detected;
+  final double faceWidth;
+  final double faceHeight;
+  final double faceCenterX;
+  final double faceCenterY;
+  final double centerOffsetX;
+  final double centerOffsetY;
+
+  const FaceMetrics({
+    this.detected = false,
+    this.faceWidth = 0,
+    this.faceHeight = 0,
+    this.faceCenterX = 0.5,
+    this.faceCenterY = 0.5,
+    this.centerOffsetX = 0.5,
+    this.centerOffsetY = 0.5,
+  });
+}
+
+typedef FaceMetricsCallback = void Function(FaceMetrics metrics);
+
+Object addFaceMetricsListener(FaceMetricsCallback callback) {
+  void listener(html.Event event) {
+    final customEvent = event is html.CustomEvent ? event : null;
+    final detail = customEvent?.detail;
+
+    if (detail is String) {
+      try {
+        final map = jsonDecode(detail) as Map<String, dynamic>;
+        callback(
+          FaceMetrics(
+            detected: map['detected'] == true,
+            faceWidth: (map['faceWidth'] as num?)?.toDouble() ?? 0,
+            faceHeight: (map['faceHeight'] as num?)?.toDouble() ?? 0,
+            faceCenterX: (map['faceCenterX'] as num?)?.toDouble() ?? 0.5,
+            faceCenterY: (map['faceCenterY'] as num?)?.toDouble() ?? 0.5,
+            centerOffsetX: (map['centerOffsetX'] as num?)?.toDouble() ?? 0.5,
+            centerOffsetY: (map['centerOffsetY'] as num?)?.toDouble() ?? 0.5,
+          ),
+        );
+        return;
+      } catch (_) {}
+    }
+
+    callback(const FaceMetrics());
+  }
+
+  html.window.addEventListener('faceMetrics', listener);
+  return listener;
+}
+
+void removeFaceMetricsListener(Object subscription) {
+  html.window.removeEventListener(
+    'faceMetrics',
+    subscription as html.EventListener,
+  );
+}
