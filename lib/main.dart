@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
@@ -8,6 +10,18 @@ import 'services/camera_setup_noop.dart'
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Catch Flutter framework errors (widget build/layout/paint errors).
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[FlutterError] ${details.exception}');
+  };
+
+  // Catch all uncaught async errors so the app doesn't crash.
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[UncaughtError] $error\n$stack');
+    return true; // handled — don't crash
+  };
 
   // Force Camera2 API on Android (CameraX has ImageAnalysis INACTIVE bug).
   setupAndroidCamera();
@@ -67,7 +81,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late final AnimationController _glowController;
   late final Animation<double> _glowPulse;
   bool _showGetStarted = false;
-  bool _hasShownAtMidpoint = false;
 
   @override
   void initState() {
@@ -81,39 +94,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       curve: Curves.easeInOut,
     );
 
-    _videoController = VideoPlayerController.asset('assets/videos/intro.mp4')
+    _videoController = VideoPlayerController.asset('assets/videos/intro1.mp4')
       ..setLooping(true)
-      ..setVolume(0)
-      ..addListener(_onVideoProgress);
+      ..setVolume(0);
 
     _videoController.initialize().then((_) {
       if (!mounted) return;
       _videoController.play();
-      setState(() {});
-    });
-  }
-
-  void _onVideoProgress() {
-    if (_hasShownAtMidpoint) return;
-
-    final value = _videoController.value;
-    if (!value.isInitialized) return;
-
-    const revealAt = Duration(milliseconds: 2170);
-    if (value.position >= revealAt && mounted) {
-      _hasShownAtMidpoint = true;
       setState(() {
         _showGetStarted = true;
       });
-    }
+    });
   }
 
   @override
   void dispose() {
     _glowController.dispose();
-    _videoController
-      ..removeListener(_onVideoProgress)
-      ..dispose();
+    _videoController.dispose();
     super.dispose();
   }
 
@@ -279,11 +276,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             Positioned(
               left: 0,
               right: 0,
-              top: (h * 0.38).clamp(160.0, 320.0),
+              top: h * 0.05,
               child: Center(
                 child: SizedBox(
-                  width: (w * 0.97).clamp(isSmallPhone ? 320.0 : 340.0, isTablet ? 760.0 : 620.0),
-                  height: (h * 0.26).clamp(isSmallPhone ? 170.0 : 190.0, isTablet ? 360.0 : 300.0),
+                  width: w * 0.60,
                   child: FittedBox(
                     fit: BoxFit.contain,
                     child: Image.asset('assets/images/logo.png'),

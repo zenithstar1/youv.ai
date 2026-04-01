@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'image_preview_screen.dart';
 import 'dart:ui' as ui;
 import '../services/face_detection_service.dart';
@@ -76,7 +75,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
   Timer? _autoCaptureTimer;
   Object? _faceDetectedListenerSub;
-  FaceDetector? _finalImageFaceDetector;
   FaceDetectionService? _nativeFaceDetectionService;
   StreamSubscription<FaceDetectionFrame>? _nativeFaceSubscription;
   bool _isStartingNativeImageStream = false;
@@ -219,7 +217,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
       final controller = CameraController(
         cam,
-        kIsWeb ? ResolutionPreset.high : ResolutionPreset.medium,
+        kIsWeb ? ResolutionPreset.high : ResolutionPreset.veryHigh,
         enableAudio: false,
       );
       await controller.initialize();
@@ -567,15 +565,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       }
 
       final pic = await controller.takePicture();
-      if (!widget.isHair && !kIsWeb) {
-        final hasFace = await _capturedImageHasFace(pic.path);
-        if (!mounted || _isDisposed || _hasNavigated) return;
-        if (!hasFace) {
-          debugPrint('[CaptureFlow] capture rejected: no face in final image');
-          await _rejectInvalidCapture(controller);
-          return;
-        }
-      }
+      // Post-capture face re-validation removed: the user already passed
+      // live face detection + countdown timer, so re-checking the still
+      // JPEG is redundant and fails on devices with different JPEG
+      // rotation/mirroring/encoding.  The live detection is the gate.
       final bytes = await pic.readAsBytes();
       if (!mounted || _isDisposed || _hasNavigated) return;
 
@@ -644,28 +637,15 @@ if (kIsWeb && !widget.isHair) {
 
   Future<bool> _capturedImageHasFace(String imagePath) async {
     try {
-      final imageSize = await _readEncodedImageSize(imagePath);
-      if (imageSize == null) {
-        return false;
+      // Use MediaPipe via the shared FaceDetectionService to validate the
+      // captured image.  The service applies the same geometric thresholds
+      // that the old ML Kit validator used.
+      final service = _nativeFaceDetectionService;
+      if (service != null && service.isInitialized) {
+        return await service.validateCapturedImage(imagePath);
       }
-
-      final detector = _finalImageFaceDetector ??= FaceDetector(
-        options: FaceDetectorOptions(
-          performanceMode: FaceDetectorMode.accurate,
-          enableLandmarks: true,
-          enableClassification: false,
-          enableContours: false,
-        ),
-      );
-      final inputImage = InputImage.fromFilePath(imagePath);
-      final faces = await detector.processImage(inputImage);
-      return faces.any(
-        (face) => _isAcceptableSkinCaptureFace(
-          face,
-          imageWidth: imageSize.width,
-          imageHeight: imageSize.height,
-        ),
-      );
+      // Fallback: accept if service isn't available (web, init failure)
+      return true;
     } catch (e) {
       debugPrint('[CaptureFlow] final-image face validation error: $e');
       return false;
@@ -687,72 +667,6 @@ if (kIsWeb && !widget.isHair) {
       debugPrint('[CaptureFlow] image size read failed: $e');
       return null;
     }
-  }
-
-  bool _isAcceptableSkinCaptureFace(
-    Face face, {
-    required double imageWidth,
-    required double imageHeight,
-  }) {
-    final bounds = face.boundingBox;
-    if (imageWidth <= 0 || imageHeight <= 0) {
-      return false;
-    }
-
-    final faceWidthRatio = bounds.width / imageWidth;
-    final faceHeightRatio = bounds.height / imageHeight;
-    final faceAreaRatio = (bounds.width * bounds.height) / (imageWidth * imageHeight);
-    final aspectRatio = bounds.width / math.max(bounds.height, 1.0);
-
-    final centerX = bounds.left + (bounds.width / 2);
-    final centerY = bounds.top + (bounds.height / 2);
-    final offsetX = ((centerX - (imageWidth / 2)).abs() / (imageWidth / 2));
-    final offsetY = ((centerY - (imageHeight / 2)).abs() / (imageHeight / 2));
-
-    final leftEye = face.landmarks[FaceLandmarkType.leftEye];
-    final rightEye = face.landmarks[FaceLandmarkType.rightEye];
-    final nose = face.landmarks[FaceLandmarkType.noseBase];
-    final mouthLeft = face.landmarks[FaceLandmarkType.leftMouth];
-    final mouthRight = face.landmarks[FaceLandmarkType.rightMouth];
-
-    final hasCoreLandmarks =
-        leftEye != null &&
-        rightEye != null &&
-        nose != null &&
-        mouthLeft != null &&
-        mouthRight != null;
-    if (!hasCoreLandmarks) {
-      return false;
-    }
-
-    final eyeDx = (leftEye.position.x - rightEye.position.x).abs().toDouble();
-    final eyeDy = (leftEye.position.y - rightEye.position.y).abs().toDouble();
-    if (eyeDx <= 0) {
-      return false;
-    }
-
-    final eyesLevel = eyeDy / eyeDx;
-    final mouthWidth =
-        (mouthRight.position.x - mouthLeft.position.x).abs().toDouble();
-    final noseCenteredToEyes =
-        ((nose.position.x - ((leftEye.position.x + rightEye.position.x) / 2)).abs() /
-                eyeDx)
-            .toDouble();
-
-    final yaw = (face.headEulerAngleY ?? 0).abs();
-    final roll = (face.headEulerAngleZ ?? 0).abs();
-
-    if (faceWidthRatio < 0.18 || faceWidthRatio > 0.78) return false;
-    if (faceHeightRatio < 0.24 || faceHeightRatio > 0.86) return false;
-    if (faceAreaRatio < 0.06 || faceAreaRatio > 0.58) return false;
-    if (aspectRatio < 0.58 || aspectRatio > 1.28) return false;
-    if (offsetX > 0.28 || offsetY > 0.32) return false;
-    if (eyesLevel > 0.10) return false;
-    if (noseCenteredToEyes > 0.55) return false;
-    if (mouthWidth < eyeDx * 0.30 || mouthWidth > eyeDx * 1.30) return false;
-    if (yaw > 24 || roll > 14) return false;
-
-    return true;
   }
 
   /// =================================================
@@ -872,8 +786,6 @@ if (kIsWeb && !widget.isHair) {
     _nativeFaceDetectionService = null;
     _controller?.dispose();
     _controller = null;
-    unawaited(_finalImageFaceDetector?.close());
-    _finalImageFaceDetector = null;
     super.dispose();
   }
 

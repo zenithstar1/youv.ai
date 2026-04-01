@@ -28,6 +28,12 @@ class AutoCaptureController {
 
   int _validFaceFrames = 0;
 
+  /// Flicker tolerance: allow this many consecutive "not-ready" frames
+  /// while the capture timer is running before actually stopping it.
+  /// Prevents grayscale detection flicker from resetting the countdown.
+  static const int _flickerGraceFrames = 4;
+  int _notReadyStreak = 0;
+
   /// Current pitch angle from face detection
   double _currentPitch = 0.0;
 
@@ -314,22 +320,21 @@ class AutoCaptureController {
     final hasValidPose =
         rawPitch.isFinite && rawYaw.isFinite && rawRoll.isFinite;
 
-    // For non-hair mode, invalid pose must never trigger capture.
-    // For hair mode, keep previous pose and continue with geometry-based gating.
+    final geometryFallbackReady =
+        !useFaceFillCapture &&
+        _hasFace &&
+        _faceFillRatio >= 0.12 &&
+        _faceFillRatio <= 0.98 &&
+        _faceCenterOffsetX <= 0.42 &&
+        _faceCenterOffsetY <= 0.44;
+
+    // Some Android camera stacks intermittently provide invalid/empty Euler
+    // values. Keep auto-capture functional using geometry fallback.
     if (!hasValidPose && !useFaceFillCapture) {
       _currentPitch = 0.0;
       _currentYaw = 0.0;
       _currentRoll = 0.0;
       _hasPose = false;
-      _isBestAngle = false;
-      _isCaptureReady = false;
-      _poseQuality = 0.0;
-      _bestAngleSince = null;
-      _bestFrameStreak = 0;
-      _guidanceText = 'Place scalp area inside the circle';
-      _stopCaptureTimer();
-      _onStateChange?.call();
-      return;
     }
 
     if (hasValidPose) {
@@ -431,15 +436,27 @@ class AutoCaptureController {
             : 'Keep face straight with slight head tilt';
       }
     } else {
-      hasCapturePose =
+      final strictPoseReady =
+          hasValidPose &&
           isPerfectAngle &&
           hasCrownTilt &&
           isCenteredHead &&
           _poseQuality >= captureQualityThreshold;
-      _isBestAngle = isPerfectAngle && _poseQuality >= minPoseQualityForCapture;
-      _guidanceText = _isBestAngle
-          ? 'Great! Hold still for auto capture'
-          : 'Adjust tilt angle';
+
+      hasCapturePose = strictPoseReady || geometryFallbackReady;
+      _isBestAngle =
+          strictPoseReady ||
+          (geometryFallbackReady &&
+              _faceCenterOffsetX <= 0.32 &&
+              _faceCenterOffsetY <= 0.32);
+
+      if (strictPoseReady) {
+        _guidanceText = 'Great! Hold still for auto capture';
+      } else if (geometryFallbackReady) {
+        _guidanceText = 'Face aligned. Hold steady for capture';
+      } else {
+        _guidanceText = 'Align face to the guide lines';
+      }
     }
     if (hasCapturePose) {
       _bestAngleSince ??= DateTime.now();
@@ -462,9 +479,17 @@ class AutoCaptureController {
     if (wasCaptureReady != isCaptureReadyNow) {
       if (enableAutoCapture) {
         if (isCaptureReadyNow) {
+          _notReadyStreak = 0;
           _startCaptureTimer();
         } else {
-          _stopCaptureTimer();
+          // Flicker tolerance: don't kill the timer on brief detection drops.
+          // Only stop after several consecutive not-ready frames.
+          _notReadyStreak++;
+          final timerRunning = _captureTimer != null && _captureTimer!.isActive;
+          if (!timerRunning || _notReadyStreak > _flickerGraceFrames) {
+            _stopCaptureTimer();
+            _notReadyStreak = 0;
+          }
         }
       } else {
         _stopCaptureTimer();
@@ -472,6 +497,7 @@ class AutoCaptureController {
       // Immediate update when angle changes
       _onStateChange?.call();
     } else {
+      if (isCaptureReadyNow) _notReadyStreak = 0;
       // Only update UI periodically to reduce repaints
       _frameCount++;
       if (_frameCount >= frameThrottleInterval) {
@@ -551,6 +577,7 @@ class AutoCaptureController {
 
   /// Triggers the capture and provides haptic feedback
   void _triggerCapture() async {
+    debugPrint('[AUTO_CAPTURE] Timer completed — triggering capture');
     // Haptic feedback
     await HapticFeedback.mediumImpact();
     _onCapture?.call();
@@ -698,26 +725,28 @@ class MobileAutoCaptureController extends AutoCaptureController {
     required bool isHair,
     required bool disableAutoCapture,
   }) : super(
-         minPitch: isHair ? 36.0 : 36.0,
-         maxPitch: isHair ? 54.0 : 56.0,
-         maxYawDeviation: isHair ? 12.0 : 12.0,
-         maxRollDeviation: isHair ? 10.0 : 14.0,
+         // Wider pitch range to accommodate MediaPipe's different Euler
+         // angle calibration vs the old ML Kit values.
+         minPitch: isHair ? 30.0 : 30.0,
+         maxPitch: isHair ? 60.0 : 62.0,
+         maxYawDeviation: isHair ? 16.0 : 16.0,
+         maxRollDeviation: isHair ? 14.0 : 18.0,
          idealPitch: isHair ? 45.0 : 46.0,
-         bestPitchTolerance: isHair ? 6.0 : 6.5,
-         bestYawTolerance: isHair ? 8.0 : 8.0,
-         bestRollTolerance: isHair ? 6.0 : 10.0,
-         requiredStableMs: isHair ? 120 : 200,
+         bestPitchTolerance: isHair ? 10.0 : 12.0,
+         bestYawTolerance: isHair ? 12.0 : 12.0,
+         bestRollTolerance: isHair ? 10.0 : 14.0,
+         requiredStableMs: isHair ? 80 : 120,
          requiredConsecutiveBestFrames: 1,
-         minPoseQualityForCapture: isHair ? 0.45 : 0.50,
-         captureQualityRelaxation: isHair ? 0.10 : 0.20,
-         smoothingFactor: isHair ? 0.40 : 0.35,
+         minPoseQualityForCapture: isHair ? 0.30 : 0.35,
+         captureQualityRelaxation: isHair ? 0.15 : 0.25,
+         smoothingFactor: isHair ? 0.45 : 0.40,
          useFaceFillCapture: isHair && !disableAutoCapture,
          enableAutoCapture: !disableAutoCapture,
-         minFaceFillRatio: isHair ? 0.12 : 0.18,
+         minFaceFillRatio: isHair ? 0.10 : 0.14,
          maxFaceFillRatio: isHair ? 1.0 : 0.95,
          targetFaceFillRatio: isHair ? 0.45 : 0.42,
-         maxCenterOffsetRatio: isHair ? 0.48 : 0.32,
-         captureTimerMs: isHair ? 300 : 400,
+         maxCenterOffsetRatio: isHair ? 0.52 : 0.38,
+         captureTimerMs: isHair ? 250 : 350,
          hairPoseLossGraceMs: isHair ? 1500 : 0,
          frameThrottleInterval: 1,
        );
@@ -774,6 +803,54 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   Timer? _webAutoCaptureTimer;
   bool _webAutoCaptureLocked = false;
   int _webStableFrames = 0;
+
+  List<ResolutionPreset> _cameraResolutionFallbacks() {
+    if (kIsWeb) {
+      return const [ResolutionPreset.high, ResolutionPreset.medium];
+    }
+
+    // Android/iOS: start with veryHigh (1080p) for sharp captures.
+    // MediaPipe native plugin downscales to 640px internally for detection,
+    // so the higher stream resolution only improves final image quality.
+    return const [
+      ResolutionPreset.veryHigh,
+      ResolutionPreset.high,
+      ResolutionPreset.medium,
+    ];
+  }
+
+  Future<CameraController> _buildInitializedControllerWithFallback(
+    CameraDescription selectedCamera,
+  ) async {
+    Object? lastError;
+    for (final preset in _cameraResolutionFallbacks()) {
+      final controller = CameraController(
+        selectedCamera,
+        preset,
+        enableAudio: false,
+        // NV21 on Android: native format with consistent plane layout across
+        // all vendors.  YUV420 has device-specific stride issues that break
+        // ML Kit face detection on Samsung/MediaTek/Unisoc chipsets.
+        imageFormatGroup: kIsWeb
+            ? null
+            : (defaultTargetPlatform == TargetPlatform.android
+                  ? ImageFormatGroup.nv21
+                  : (defaultTargetPlatform == TargetPlatform.iOS
+                        ? ImageFormatGroup.bgra8888
+                        : null)),
+      );
+
+      try {
+        await controller.initialize();
+        return controller;
+      } catch (e) {
+        lastError = e;
+        await controller.dispose();
+      }
+    }
+
+    throw Exception('Failed to initialize camera with all presets: $lastError');
+  }
 
   bool _isValidFaceStructure(List<List<double>> landmarks) {
     if (landmarks.length < 5) return false;
@@ -896,40 +973,50 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   bool get _isWebAutoCaptureEnabled =>
       kIsWeb && !widget.isHair && !widget.disableAutoCapture;
 
-void _handleWebAlignmentChange(bool aligned) {
-  // ✅ IMPORTANT: This ensures mobile is untouched
-  if (!kIsWeb || widget.isHair) return;
+  void _handleWebAlignmentChange(bool aligned) {
+    // Keep this web-only so mobile capture flow remains unchanged.
+    if (!kIsWeb || widget.isHair) return;
 
-  // ❌ Reset if not aligned
-  if (!aligned) {
-    _webStableFrames = 0;
-    _webAutoCaptureLocked = false;
-    return;
+    if (!aligned) {
+      _webStableFrames = 0;
+      _webAutoCaptureLocked = false;
+      _webStableAlignmentTimer?.cancel();
+      _webStableAlignmentTimer = null;
+      _webAutoCaptureTimer?.cancel();
+      _webAutoCaptureTimer = null;
+      return;
+    }
+
+    if (!_isWebAutoCaptureEnabled) return;
+    if (_isCapturing || _hasNavigated || _isDisposed) return;
+    if (_webAutoCaptureLocked) return;
+
+    _webStableFrames++;
+
+    // Require both short frame consistency and a minimum time window.
+    if (_webStableAlignmentTimer == null) {
+      _webStableAlignmentTimer = Timer(const Duration(milliseconds: 520), () {
+        _webStableAlignmentTimer = null;
+        if (!mounted || _isDisposed || _hasNavigated || _isCapturing) return;
+        if (!_webEyesAligned || _webStableFrames < 3) return;
+
+        _webAutoCaptureLocked = true;
+        _webAutoCaptureTimer?.cancel();
+        _webAutoCaptureTimer = Timer(const Duration(milliseconds: 180), () {
+          if (!mounted || _isDisposed || _hasNavigated || _isCapturing) {
+            _webAutoCaptureLocked = false;
+            return;
+          }
+          if (_webEyesAligned) {
+            debugPrint('[WEB] Auto capture triggered');
+            _handleAutoCapture();
+          } else {
+            _webAutoCaptureLocked = false;
+          }
+        });
+      });
+    }
   }
-
-  // Safety checks
-  if (!_isWebAutoCaptureEnabled) return;
-  if (_isCapturing || _hasNavigated || _isDisposed) return;
-  if (_webAutoCaptureLocked) return;
-
-  // ✅ Frame-based stability (main fix)
-  _webStableFrames++;
-
-  if (_webStableFrames >= 6) {
-    _webAutoCaptureLocked = true;
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted || _isDisposed || _hasNavigated || _isCapturing) return;
-
-      if (_webEyesAligned) {
-        debugPrint("[WEB] Auto capture triggered");
-        _handleAutoCapture();
-      } else {
-        _webAutoCaptureLocked = false;
-      }
-    });
-  }
-}
 
   void _startWebFaceDetectionWithRetry([int attempt = 0]) {
     if (!kIsWeb || widget.isHair) return;
@@ -1002,35 +1089,22 @@ void _handleWebAlignmentChange(bool aligned) {
       await _cameraController?.dispose();
       _cameraController = null;
 
-      // Native (Android/iOS): ML Kit face detection from the camera image stream.
+      // Native (Android/iOS): MediaPipe face detection from the camera image stream.
       if (!kIsWeb) {
         _faceDetectionService ??= FaceDetectionService();
+        // initialize() now retries internally and won't throw — if it fails,
+        // face detection just stays disabled and geometry fallback handles auto-capture.
         await _faceDetectionService!.initialize();
-        // Configure ML Kit image rotation based on camera sensor orientation.
+        // Configure image rotation based on camera sensor orientation.
         _faceDetectionService!.setSensorRotation(
           selectedCamera.sensorOrientation,
         );
       }
 
-      // Initialize camera controller
-      _cameraController = CameraController(
+      // Initialize with high-quality-first fallback for better cross-device output.
+      _cameraController = await _buildInitializedControllerWithFallback(
         selectedCamera,
-        kIsWeb
-            ? ResolutionPreset.high
-            : (defaultTargetPlatform == TargetPlatform.android
-                  ? ResolutionPreset.low
-                  : ResolutionPreset.medium),
-        enableAudio: false,
-        imageFormatGroup: kIsWeb
-            ? null
-            : (defaultTargetPlatform == TargetPlatform.android
-                  ? ImageFormatGroup.yuv420
-                  : (defaultTargetPlatform == TargetPlatform.iOS
-                        ? ImageFormatGroup.bgra8888
-                        : null)),
       );
-
-      await _cameraController!.initialize();
 
       // Brief stabilization pause on mobile for Camera2 session setup.
       if (!kIsWeb) {
@@ -1105,6 +1179,9 @@ void _handleWebAlignmentChange(bool aligned) {
 
   /// Handles auto-capture trigger
   void _handleAutoCapture() {
+    debugPrint(
+      '[AUTO_CAPTURE] _handleAutoCapture: mounted=$mounted disposed=$_isDisposed navigated=$_hasNavigated capturing=$_isCapturing',
+    );
     if (!mounted || _isDisposed || _hasNavigated) return;
     _takePicture();
   }
@@ -1130,6 +1207,9 @@ void _handleWebAlignmentChange(bool aligned) {
       if (_cameraController!.value.isStreamingImages) {
         shouldRestartStream = true;
         await _cameraController!.stopImageStream();
+        // Camera2 needs a moment to switch from streaming to still capture
+        // mode. Without this, takePicture() fails on many devices.
+        await Future.delayed(const Duration(milliseconds: 300));
       }
 
       // Check again after async operation
@@ -1137,8 +1217,10 @@ void _handleWebAlignmentChange(bool aligned) {
         return;
       }
 
+      debugPrint('[CAPTURE] Taking picture...');
       // Take picture
       final XFile picture = await _cameraController!.takePicture();
+      debugPrint('[CAPTURE] Picture taken: ${picture.path}');
       final imageBytes = await picture.readAsBytes();
 
       shouldRestartStream = false;

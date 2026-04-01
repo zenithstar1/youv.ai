@@ -20,7 +20,6 @@
         "flutter",
         "flutter_bloc",
         "google_fonts",
-        "google_mlkit_face_detection",
         "google_sign_in",
         "http",
         "image",
@@ -72,14 +71,6 @@
         "archive",
         "meta",
         "xml"
-      ]
-    },
-    {
-      "name": "google_mlkit_face_detection",
-      "version": "0.10.1",
-      "dependencies": [
-        "flutter",
-        "google_mlkit_commons"
       ]
     },
     {
@@ -395,13 +386,6 @@
       "dependencies": [
         "path",
         "posix"
-      ]
-    },
-    {
-      "name": "google_mlkit_commons",
-      "version": "0.7.1",
-      "dependencies": [
-        "flutter"
       ]
     },
     {

@@ -326,18 +326,6 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "google_mlkit_commons",
-      "rootUri": "file:///C:/Users/amnsa/AppData/Local/Pub/Cache/hosted/pub.dev/google_mlkit_commons-0.7.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.16"
-    },
-    {
-      "name": "google_mlkit_face_detection",
-      "rootUri": "file:///C:/Users/amnsa/AppData/Local/Pub/Cache/hosted/pub.dev/google_mlkit_face_detection-0.10.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.16"
-    },
-    {
       "name": "google_sign_in",
       "rootUri": "file:///C:/Users/amnsa/AppData/Local/Pub/Cache/hosted/pub.dev/google_sign_in-7.2.0",
       "packageUri": "lib/",

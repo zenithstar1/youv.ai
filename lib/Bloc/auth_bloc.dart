@@ -1,11 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'auth_event.dart';
 import 'auth_state.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async';
 import 'dart:convert';
 
 // Switch between local and production backend:
@@ -13,8 +11,8 @@ import 'dart:convert';
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
 // Production                → 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth'
 const String _authBaseUrl =
-    // 'http://127.0.0.1:8000/api/auth';
-    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth';
+  'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth';
+  //'http://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
@@ -28,8 +26,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AcceptPolicyRequested>(_acceptPolicy);
   }
 
-  static const Duration _networkTimeout = Duration(seconds: 18);
-
   Future<void> _onLoginRequested(
     LoginRequested event,
     Emitter<AuthState> emit,
@@ -38,9 +34,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       print("login");
       final response = await http.post(
-        Uri.parse('$_authBaseUrl/login'),
+        Uri.parse(
+          '$_authBaseUrl/login',
+        ),
         body: {'email': event.email, 'password': event.password},
-      );
+      ).timeout(Duration(seconds: 10));
       print(response.body);
       print(response.statusCode);
 
@@ -106,7 +104,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       // Replace with your actual API endpoint
       final response = await http.post(
-        Uri.parse('$_authBaseUrl/register'),
+        Uri.parse(
+          '$_authBaseUrl/register',
+        ),
         body: {
           'name': event.name,
           'email': event.email,
@@ -115,7 +115,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'gender': event.gender ?? '',
           'phone': event.phone ?? '',
         },
-      );
+      ).timeout(Duration(seconds: 10));
       print(response.body);
 
       if (response.statusCode == 201) {
@@ -163,27 +163,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
-      if (kDebugMode) {
-        debugPrint(
-          '[AUTH] send-otp request flow=${event.flow} mobile=$normalizedPhone',
-        );
-      }
-      final response = await http
-          .post(
-            Uri.parse('$_authBaseUrl/send-otp'),
-            body: {
-              'mobile': normalizedPhone,
-              'flow': event.flow,
-              'type': event.flow,
-            },
-          )
-          .timeout(_networkTimeout);
-
-      if (kDebugMode) {
-        debugPrint(
-          '[AUTH] send-otp response status=${response.statusCode} body=${response.body}',
-        );
-      }
+      final response = await http.post(
+        Uri.parse(
+          '$_authBaseUrl/send-otp',
+        ),
+        body: {
+          'mobile': normalizedPhone,
+          'flow': event.flow,
+          'type': event.flow,
+        },
+      ).timeout(Duration(seconds: 10));
+      print('sendOtp flow=${event.flow} status=${response.statusCode}');
+      print(response.body);
 
       Map<String, dynamic>? responseData;
       String backendMessage = '';
@@ -220,7 +211,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (event.flow == 'signup' &&
           (response.statusCode == 409 || indicatesAlreadyExists)) {
         emit(
-          AuthError('This mobile number is already registered. Please login.'),
+          AuthError(
+            'This mobile number is already registered. Please login.',
+          ),
         );
         return;
       }
@@ -235,13 +228,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       if (response.statusCode == 200 && !businessFailure) {
-        emit(
-          AuthMessage(
-            backendMessage.isNotEmpty
-                ? backendMessage
-                : "OTP sent successfully!",
-          ),
-        );
+        emit(AuthMessage(
+          backendMessage.isNotEmpty ? backendMessage : "OTP sent successfully!",
+        ));
       } else {
         emit(
           AuthError(
@@ -251,12 +240,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           ),
         );
       }
-    } on TimeoutException catch (_) {
-      emit(
-        AuthError(
-          'Request timed out while sending OTP. Please check your connection and try again.',
-        ),
-      );
     } catch (e) {
       emit(AuthError('Failed to send OTP: $e'));
     }
@@ -268,28 +251,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      if (kDebugMode) {
-        debugPrint('[AUTH] mobile-login request phone=${event.phone}');
-      }
-      final response = await http
-          .post(
-            Uri.parse('$_authBaseUrl/mobile-login'),
-            body: {
-              'phone': event.phone,
-              'otp': event.otp,
-              'mobile': event.phone,
-              'name': event.name,
-              'email': event.email,
-              // 'password': event.password,
-            },
-          )
-          .timeout(_networkTimeout);
-
-      if (kDebugMode) {
-        debugPrint(
-          '[AUTH] mobile-login response status=${response.statusCode} body=${response.body}',
-        );
-      }
+      final response = await http.post(
+        Uri.parse(
+          '$_authBaseUrl/mobile-login',
+        ),
+        body: {
+          'phone': event.phone,
+          'otp': event.otp,
+          'mobile': event.phone,
+          'name': event.name,
+          'email': event.email,
+          // 'password': event.password,
+        },
+      ).timeout(Duration(seconds: 10));
+      print(response.body);
 
       if (response.statusCode == 200) {
         final prefs = await SharedPreferences.getInstance();
@@ -317,10 +292,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         } catch (_) {}
         emit(AuthError('Mobile verification failed: $backendMessage'));
       }
-    } on TimeoutException catch (_) {
-      emit(
-        AuthError('Request timed out while verifying OTP. Please try again.'),
-      );
     } catch (e) {
       emit(AuthError('Mobile verification failed: $e'));
     }
@@ -333,7 +304,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       final response = await http.post(
-        Uri.parse('$_authBaseUrl/google-login'),
+        Uri.parse(
+          '$_authBaseUrl/google-login',
+        ),
         body: {
           'google_id': googleLoginRequested.googleToken,
           'email': googleLoginRequested.email,
@@ -342,7 +315,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'image': googleLoginRequested.photoURL,
           'phone': googleLoginRequested.phoneNumber,
         },
-      );
+      ).timeout(Duration(seconds: 10));
       print(response.body);
 
       if (response.statusCode == 200) {
@@ -402,12 +375,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       print("Logging out...");
       await http.post(
-        Uri.parse('$_authBaseUrl/logout'),
+        Uri.parse(
+          '$_authBaseUrl/logout',
+        ),
         headers: {
           'Authorization':
               'Bearer ${((await SharedPreferences.getInstance()).getString('_token') ?? '')}',
         },
-      );
+      ).timeout(Duration(seconds: 10));
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('isLogin');
       await prefs.remove('userInfo');
@@ -415,6 +390,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await prefs.remove('isSubscribe');
       emit(AuthLogout());
     } catch (e) {
+      
       emit(AuthError('Logout failed: $e'));
     }
   }
@@ -429,7 +405,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final token = prefs.getString('_token') ?? '';
 
       final response = await http.post(
-        Uri.parse('$_authBaseUrl/update-profile'),
+        Uri.parse(
+          '$_authBaseUrl/update-profile',
+        ),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -438,7 +416,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'gender': event.gender,
           'date_of_birth': event.dateOfBirth?.toIso8601String(),
         }),
-      );
+      ).timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);

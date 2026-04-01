@@ -20,12 +20,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.globalspace.youvai"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // Keep minSdk >= 21 for broad device compatibility (and Flutter defaults).
-        minSdk = flutter.minSdkVersion
+        // MediaPipe Tasks Vision requires minSdk >= 24.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -33,11 +30,21 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Use non-optimizing ProGuard rules to avoid aggressive R8
+            // optimizations that can break MediaPipe's JNI/reflection code.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
+}
+
+dependencies {
+    // MediaPipe Tasks Vision – face landmarker with 478 landmarks.
+    // Bundled model, no Google Play Services dependency.
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
 }
 
 flutter {
