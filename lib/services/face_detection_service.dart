@@ -11,6 +11,8 @@ class FaceDetectionFrame {
   final double? headEulerAngleY;
   final double? headEulerAngleZ;
   final bool hasFace;
+  final double imageWidth;
+  final double imageHeight;
   final double faceWidthRatio;
   final double faceHeightRatio;
   final double faceCenterOffsetX;
@@ -24,6 +26,8 @@ class FaceDetectionFrame {
     this.headEulerAngleX,
     this.headEulerAngleY,
     this.headEulerAngleZ,
+    this.imageWidth = 1.0,
+    this.imageHeight = 1.0,
     this.faceWidthRatio = 0.0,
     this.faceHeightRatio = 0.0,
     this.faceCenterOffsetX = 1.0,
@@ -38,6 +42,8 @@ class FaceDetectionFrame {
       headEulerAngleX = null,
       headEulerAngleY = null,
       headEulerAngleZ = null,
+      imageWidth = 1.0,
+      imageHeight = 1.0,
       faceWidthRatio = 0.0,
       faceHeightRatio = 0.0,
       faceCenterOffsetX = 1.0,
@@ -108,7 +114,9 @@ class FaceDetectionService {
         _isInitialized = result == true;
         if (_isInitialized) {
           if (_debugLogs) {
-            debugPrint('[MediaPipe] FaceLandmarker initialized (attempt $attempt)');
+            debugPrint(
+              '[MediaPipe] FaceLandmarker initialized (attempt $attempt)',
+            );
           }
           return;
         }
@@ -119,7 +127,9 @@ class FaceDetectionService {
         await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
     }
-    debugPrint('[MediaPipe] All init attempts failed — face detection disabled');
+    debugPrint(
+      '[MediaPipe] All init attempts failed — face detection disabled',
+    );
   }
 
   /// Process camera frame and extract face landmarks via MediaPipe.
@@ -228,16 +238,17 @@ class FaceDetectionService {
   /// light safety net — not a strict gate.
   Future<bool> validateCapturedImage(String imagePath) async {
     if (!_isInitialized) {
-      debugPrint('[MediaPipe] validateCapturedImage: not initialized, accepting');
+      debugPrint(
+        '[MediaPipe] validateCapturedImage: not initialized, accepting',
+      );
       return true; // Accept — can't validate without service
     }
 
     try {
       final result = await _channel
-          .invokeMethod<Map<dynamic, dynamic>>(
-            'processImageFile',
-            {'imagePath': imagePath},
-          )
+          .invokeMethod<Map<dynamic, dynamic>>('processImageFile', {
+            'imagePath': imagePath,
+          })
           .timeout(const Duration(seconds: 3), onTimeout: () => null);
 
       if (result == null) {
@@ -245,7 +256,9 @@ class FaceDetectionService {
         return true; // Accept on timeout — user already passed live checks
       }
       if (result['hasFace'] != true) {
-        debugPrint('[MediaPipe] validateCapturedImage: no face detected in still image');
+        debugPrint(
+          '[MediaPipe] validateCapturedImage: no face detected in still image',
+        );
         return false;
       }
       return _isAcceptableSkinCaptureFace(result);
@@ -263,8 +276,7 @@ class FaceDetectionService {
   /// 3. The user already passed live auto-capture checks, so re-validation
   ///    should only reject truly bad captures (no face at all, extreme angle).
   bool _isAcceptableSkinCaptureFace(Map<dynamic, dynamic> result) {
-    final double imageWidth =
-        (result['imageWidth'] as num?)?.toDouble() ?? 1.0;
+    final double imageWidth = (result['imageWidth'] as num?)?.toDouble() ?? 1.0;
     final double imageHeight =
         (result['imageHeight'] as num?)?.toDouble() ?? 1.0;
     if (imageWidth <= 0 || imageHeight <= 0) return false;
@@ -287,16 +299,15 @@ class FaceDetectionService {
     // Landmarks check (10-point mapped format)
     final landmarksList = result['landmarks'] as List?;
     if (landmarksList == null || landmarksList.length < 7) {
-      debugPrint('[MediaPipe] Validation FAIL: insufficient landmarks (${landmarksList?.length})');
+      debugPrint(
+        '[MediaPipe] Validation FAIL: insufficient landmarks (${landmarksList?.length})',
+      );
       return false;
     }
 
     List<double> lm(int i) {
       final pt = landmarksList[i] as List;
-      return [
-        (pt[0] as num).toDouble(),
-        (pt[1] as num).toDouble(),
-      ];
+      return [(pt[0] as num).toDouble(), (pt[1] as num).toDouble()];
     }
 
     final leftEye = lm(1);
@@ -317,10 +328,12 @@ class FaceDetectionService {
     final yaw = ((result['eulerAngleY'] as num?) ?? 0).toDouble().abs();
     final roll = ((result['eulerAngleZ'] as num?) ?? 0).toDouble().abs();
 
-    debugPrint('[MediaPipe] Validation: faceW=$faceWidthRatio faceH=$faceHeightRatio '
-        'area=$faceAreaRatio aspect=$aspectRatio offX=$offsetX offY=$offsetY '
-        'eyesLevel=$eyesLevel noseCentered=$noseCenteredToEyes mouth=$mouthWidth eyeDx=$eyeDx '
-        'yaw=$yaw roll=$roll');
+    debugPrint(
+      '[MediaPipe] Validation: faceW=$faceWidthRatio faceH=$faceHeightRatio '
+      'area=$faceAreaRatio aspect=$aspectRatio offX=$offsetX offY=$offsetY '
+      'eyesLevel=$eyesLevel noseCentered=$noseCenteredToEyes mouth=$mouthWidth eyeDx=$eyeDx '
+      'yaw=$yaw roll=$roll',
+    );
 
     // Relaxed thresholds — user already passed live auto-capture checks.
     // Only reject truly bad captures.
@@ -342,12 +355,10 @@ class FaceDetectionService {
     if (_landmarksStream.isClosed) return;
 
     final landmarksList = result['landmarks'] as List?;
-    final landmarks = landmarksList?.map((lm) {
+    final landmarks =
+        landmarksList?.map((lm) {
           final list = lm as List;
-          return [
-            (list[0] as num).toDouble(),
-            (list[1] as num).toDouble(),
-          ];
+          return [(list[0] as num).toDouble(), (list[1] as num).toDouble()];
         }).toList() ??
         [];
 
@@ -367,7 +378,10 @@ class FaceDetectionService {
     final normalizedOffsetX =
         ((centerX - (imageWidth / 2)).abs() / (imageWidth / 2)).clamp(0.0, 1.0);
     final normalizedOffsetY =
-        ((centerY - (imageHeight / 2)).abs() / (imageHeight / 2)).clamp(0.0, 1.0);
+        ((centerY - (imageHeight / 2)).abs() / (imageHeight / 2)).clamp(
+          0.0,
+          1.0,
+        );
     final centerXRatio = (centerX / imageWidth).clamp(0.0, 1.0);
     final centerYRatio = (centerY / imageHeight).clamp(0.0, 1.0);
 
@@ -375,6 +389,8 @@ class FaceDetectionService {
       FaceDetectionFrame(
         landmarks: landmarks,
         hasFace: true,
+        imageWidth: imageWidth,
+        imageHeight: imageHeight,
         headEulerAngleX: (result['eulerAngleX'] as num?)?.toDouble(),
         headEulerAngleY: (result['eulerAngleY'] as num?)?.toDouble(),
         headEulerAngleZ: (result['eulerAngleZ'] as num?)?.toDouble(),

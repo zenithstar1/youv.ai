@@ -267,9 +267,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         _nativeMissedFaceFrames += 1;
       }
 
-      final detected = _faceDetected
-          ? _nativeMissedFaceFrames < 3
-          : _nativeValidFaceFrames >= 2;
+      // During countdown/hold-steady we must be strict: the moment the face
+      // is not fitted in the oval, drop detection and cancel.
+      final strictNow = _countdown > 0 || _holdSteady;
+      final detected = strictNow
+          ? candidateDetected
+          : (_faceDetected
+                ? _nativeMissedFaceFrames < 3
+                : _nativeValidFaceFrames >= 2);
       final wasDetected = _faceDetected;
       if (wasDetected != detected) {
         debugPrint('[SkinAuto] native face state: $detected');
@@ -320,7 +325,8 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   Future<void> _stopNativeImageStream() async {
     final controller = _controller;
     if (controller == null) return;
-    if (!controller.value.isInitialized || !controller.value.isStreamingImages) {
+    if (!controller.value.isInitialized ||
+        !controller.value.isStreamingImages) {
       return;
     }
 
@@ -339,6 +345,28 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     final fillRatio = math.max(faceWidthRatio, faceHeightRatio);
     final aspectRatio = faceWidthRatio / math.max(faceHeightRatio, 0.001);
 
+    // Reject clipped / half faces: bounding box must be fully inside the frame
+    // with a small margin (prevents "half-face still counts as detected").
+    const frameMargin = 0.04;
+    final halfW = (faceWidthRatio / 2).clamp(0.0, 0.5);
+    final halfH = (faceHeightRatio / 2).clamp(0.0, 0.5);
+    final minX = frame.faceCenterXRatio - halfW;
+    final maxX = frame.faceCenterXRatio + halfW;
+    final minY = frame.faceCenterYRatio - halfH;
+    final maxY = frame.faceCenterYRatio + halfH;
+    final bboxInFrame =
+        minX >= frameMargin &&
+        maxX <= (1.0 - frameMargin) &&
+        minY >= frameMargin &&
+        maxY <= (1.0 - frameMargin);
+    if (!bboxInFrame) return false;
+
+    // Must be positioned to fit the on-screen oval guide (centered overlay).
+    // These constraints intentionally bias towards "only capture when fitted".
+    if (frame.faceCenterYRatio < 0.42 || frame.faceCenterYRatio > 0.60) {
+      return false;
+    }
+
     if (faceWidthRatio < 0.10 || faceWidthRatio > 0.88) return false;
     if (faceHeightRatio < 0.14 || faceHeightRatio > 0.96) return false;
     if (fillRatio < 0.14) return false;
@@ -352,18 +380,19 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     final leftEye = frame.landmarks[1];
     final rightEye = frame.landmarks[2];
     final hasMouthLandmarks =
-      frame.landmarks.length >= 7 &&
-      frame.landmarks[5].length >= 2 &&
-      frame.landmarks[6].length >= 2 &&
-      frame.landmarks[5][0].isFinite &&
-      frame.landmarks[5][1].isFinite &&
-      frame.landmarks[6][0].isFinite &&
-      frame.landmarks[6][1].isFinite;
+        frame.landmarks.length >= 7 &&
+        frame.landmarks[5].length >= 2 &&
+        frame.landmarks[6].length >= 2 &&
+        frame.landmarks[5][0].isFinite &&
+        frame.landmarks[5][1].isFinite &&
+        frame.landmarks[6][0].isFinite &&
+        frame.landmarks[6][1].isFinite;
     final mouthLeft = hasMouthLandmarks ? frame.landmarks[5] : null;
     final mouthRight = hasMouthLandmarks ? frame.landmarks[6] : null;
 
-    final hasCoreLandmarks = [nose, leftEye, rightEye]
-        .every((point) => point.length >= 2 && point[0].isFinite && point[1].isFinite);
+    final hasCoreLandmarks = [nose, leftEye, rightEye].every(
+      (point) => point.length >= 2 && point[0].isFinite && point[1].isFinite,
+    );
     if (!hasCoreLandmarks) return false;
 
     final eyeDx = (leftEye[0] - rightEye[0]).abs();
@@ -375,6 +404,13 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs() / eyeDx;
 
     final eyeMidY = (leftEye[1] + rightEye[1]) / 2;
+
+    // Eyes must align with the guide-eye markers (two horizontal lines).
+    final eyeMidYRatio = (eyeMidY / math.max(frame.imageHeight, 1.0)).clamp(
+      0.0,
+      1.0,
+    );
+    if (eyeMidYRatio < 0.30 || eyeMidYRatio > 0.46) return false;
 
     if (eyesLevel > 0.18) return false;
     if (noseCenteredToEyes > 0.90) return false;
@@ -572,14 +608,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       final bytes = await pic.readAsBytes();
       if (!mounted || _isDisposed || _hasNavigated) return;
 
-if (kIsWeb && !widget.isHair) {
-  // ✅ Use already confirmed live detection
-  if (!_faceDetected) {
-    debugPrint('[WEB] capture rejected: face lost before capture');
-    await _rejectInvalidCapture(controller);
-    return;
-  }
-}
+      if (kIsWeb && !widget.isHair) {
+        // ✅ Use already confirmed live detection
+        if (!_faceDetected) {
+          debugPrint('[WEB] capture rejected: face lost before capture');
+          await _rejectInvalidCapture(controller);
+          return;
+        }
+      }
 
       _capturedBytes = bytes;
       _capturedFileName = pic.name;

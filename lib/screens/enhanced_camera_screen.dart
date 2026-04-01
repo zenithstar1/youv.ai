@@ -130,10 +130,31 @@ class AutoCaptureController {
   double _manualRefCenterYRatio = 0.66;
   bool _hasFace = false;
   double _faceFillRatio = 0.0;
+  double _faceWidthRatio = 0.0;
+  double _faceHeightRatio = 0.0;
   double _faceCenterOffsetX = 1.0;
   double _faceCenterOffsetY = 1.0;
+  double _faceCenterXRatio = 0.5;
   double _faceCenterYRatio = 0.5;
+  double _imageWidth = 1.0;
+  double _imageHeight = 1.0;
   String _guidanceText = 'Align your face in the circle';
+
+  /// Require eyes to align with the on-screen guide band before starting auto-capture.
+  final bool requireEyesAlignedForCapture;
+
+  /// Normalized y-band (0=top, 1=bottom) where the eye midpoint must sit.
+  final double eyeBandMinYRatio;
+  final double eyeBandMaxYRatio;
+
+  /// Normalized margin to avoid capturing when the face box is clipped at frame edges.
+  final double faceFrameMarginRatio;
+
+  /// Guide-circle radius as a ratio of the image width (matches UI: ~70% width).
+  final double guideCircleRadiusRatio;
+
+  /// Extra slack for the circle containment check (1.0 = strict, >1 = looser).
+  final double guideCircleSlackRatio;
 
   AutoCaptureController({
     this.minPitch = 42.0,
@@ -158,6 +179,12 @@ class AutoCaptureController {
     this.captureTimerMs = 600,
     this.hairPoseLossGraceMs = 700,
     this.frameThrottleInterval = 3, // Update UI on every Nth frame
+    this.requireEyesAlignedForCapture = true,
+    this.eyeBandMinYRatio = 0.31,
+    this.eyeBandMaxYRatio = 0.44,
+    this.faceFrameMarginRatio = 0.04,
+    this.guideCircleRadiusRatio = 0.35,
+    this.guideCircleSlackRatio = 1.06,
   }) {
     if (useFaceFillCapture && _hasGlobalHairReference) {
       _hasManualHairReference = true;
@@ -259,7 +286,10 @@ class AutoCaptureController {
     double faceHeightRatio = 0.0,
     double faceCenterOffsetX = 1.0,
     double faceCenterOffsetY = 1.0,
+    double faceCenterXRatio = 0.5,
     double faceCenterYRatio = 0.5,
+    double imageWidth = 1.0,
+    double imageHeight = 1.0,
   }) {
     if (kDebugMode)
       print(
@@ -267,13 +297,19 @@ class AutoCaptureController {
       );
     // Capture previous state BEFORE mutating angles.
     final wasCaptureReady = _isCaptureReady;
+    bool shouldStopTimerImmediately = false;
 
     _faceFillRatio = faceWidthRatio > faceHeightRatio
         ? faceWidthRatio
         : faceHeightRatio;
+    _faceWidthRatio = faceWidthRatio;
+    _faceHeightRatio = faceHeightRatio;
     _faceCenterOffsetX = faceCenterOffsetX;
     _faceCenterOffsetY = faceCenterOffsetY;
+    _faceCenterXRatio = faceCenterXRatio;
     _faceCenterYRatio = faceCenterYRatio;
+    _imageWidth = imageWidth <= 0 ? 1.0 : imageWidth;
+    _imageHeight = imageHeight <= 0 ? 1.0 : imageHeight;
 
     final rawPitch = HeadPoseCalculator.calculatePitch(
       landmarks,
@@ -299,11 +335,12 @@ class AutoCaptureController {
 
     // bool detectedFace =
     //     hasFace && isStructureValid && isFaceSizeValid && isAspectRatioValid;
+    final relaxStructureChecks = useFaceFillCapture;
     bool detectedFace =
         hasFace &&
         isFaceSizeValid &&
         isAspectRatioValid &&
-        (isStructureValid || _faceFillRatio > 0.35);
+        (isStructureValid || (relaxStructureChecks && _faceFillRatio > 0.35));
 
     // Require stable detection across frames
     if (detectedFace) {
@@ -436,21 +473,47 @@ class AutoCaptureController {
             : 'Keep face straight with slight head tilt';
       }
     } else {
+      final eyesAligned = _areEyesAlignedToGuideLine(landmarks);
+      final faceFullyInFrame = _isFaceFullyInFrame();
+      final faceInOval = _isFaceInOvalGuide(landmarks);
+      final criticalReady =
+          faceFullyInFrame &&
+          faceInOval &&
+          (!requireEyesAlignedForCapture || eyesAligned);
+      shouldStopTimerImmediately = !criticalReady;
+
       final strictPoseReady =
           hasValidPose &&
           isPerfectAngle &&
           hasCrownTilt &&
           isCenteredHead &&
-          _poseQuality >= captureQualityThreshold;
+          _poseQuality >= captureQualityThreshold &&
+          faceInOval &&
+          (!requireEyesAlignedForCapture || eyesAligned) &&
+          faceFullyInFrame;
 
-      hasCapturePose = strictPoseReady || geometryFallbackReady;
+      hasCapturePose =
+          strictPoseReady ||
+          (geometryFallbackReady &&
+              faceInOval &&
+              (!requireEyesAlignedForCapture || eyesAligned) &&
+              faceFullyInFrame);
       _isBestAngle =
           strictPoseReady ||
           (geometryFallbackReady &&
+              faceInOval &&
+              (!requireEyesAlignedForCapture || eyesAligned) &&
+              faceFullyInFrame &&
               _faceCenterOffsetX <= 0.32 &&
               _faceCenterOffsetY <= 0.32);
 
-      if (strictPoseReady) {
+      if (!faceFullyInFrame) {
+        _guidanceText = 'Keep your full face inside the frame';
+      } else if (!faceInOval) {
+        _guidanceText = _ovalFitGuidance();
+      } else if (requireEyesAlignedForCapture && !eyesAligned) {
+        _guidanceText = 'Align your eyes with the guide lines';
+      } else if (strictPoseReady) {
         _guidanceText = 'Great! Hold still for auto capture';
       } else if (geometryFallbackReady) {
         _guidanceText = 'Face aligned. Hold steady for capture';
@@ -486,7 +549,10 @@ class AutoCaptureController {
           // Only stop after several consecutive not-ready frames.
           _notReadyStreak++;
           final timerRunning = _captureTimer != null && _captureTimer!.isActive;
-          if (!timerRunning || _notReadyStreak > _flickerGraceFrames) {
+          if (shouldStopTimerImmediately) {
+            _stopCaptureTimer();
+            _notReadyStreak = 0;
+          } else if (!timerRunning || _notReadyStreak > _flickerGraceFrames) {
             _stopCaptureTimer();
             _notReadyStreak = 0;
           }
@@ -706,6 +772,166 @@ class AutoCaptureController {
     if (noseToEyeY < 5) return false;
 
     return true;
+  }
+
+  bool _isFaceFullyInFrame() {
+    if (!_hasFace) return false;
+
+    final halfW = (_faceWidthRatio / 2).clamp(0.0, 0.5);
+    final halfH = (_faceHeightRatio / 2).clamp(0.0, 0.5);
+    final minX = _faceCenterXRatio - halfW;
+    final maxX = _faceCenterXRatio + halfW;
+    final minY = _faceCenterYRatio - halfH;
+    final maxY = _faceCenterYRatio + halfH;
+
+    final m = faceFrameMarginRatio.clamp(0.0, 0.25);
+    return minX >= m && maxX <= (1.0 - m) && minY >= m && maxY <= (1.0 - m);
+  }
+
+  bool _areEyesAlignedToGuideLine(List<List<double>> landmarks) {
+    if (!_hasFace) return false;
+    if (!requireEyesAlignedForCapture) return true;
+    if (landmarks.length < 3) return false;
+
+    List<double>? safePoint(int index) {
+      if (index < 0 || index >= landmarks.length) return null;
+      final p = landmarks[index];
+      if (p.length < 2) return null;
+      final x = p[0];
+      final y = p[1];
+      if (!x.isFinite || !y.isFinite) return null;
+      return [x, y];
+    }
+
+    final nose = safePoint(0);
+    final leftEye = safePoint(1);
+    final rightEye = safePoint(2);
+    if (nose == null || leftEye == null || rightEye == null) return false;
+
+    final eyeDx = (leftEye[0] - rightEye[0]).abs();
+    final eyeDy = (leftEye[1] - rightEye[1]).abs();
+    if (eyeDx <= 1.0) return false;
+
+    // Half-face/clipped detections often place an eye too close to the edges.
+    final minEyeX = leftEye[0] < rightEye[0] ? leftEye[0] : rightEye[0];
+    final maxEyeX = leftEye[0] > rightEye[0] ? leftEye[0] : rightEye[0];
+    final edgePadX = _imageWidth * 0.05;
+    if (minEyeX < edgePadX || maxEyeX > (_imageWidth - edgePadX)) return false;
+
+    // Eyes should be roughly level for a frontal selfie.
+    final eyesLevel = (eyeDy / eyeDx).clamp(0.0, 99.0);
+    if (eyesLevel > 0.10) return false;
+
+    // Eyes must land in the guide band (matches web logic).
+    final eyeMidY = (leftEye[1] + rightEye[1]) / 2.0;
+    final eyeMidYRatio = (eyeMidY / _imageHeight).clamp(0.0, 1.0);
+    if (eyeMidYRatio < eyeBandMinYRatio || eyeMidYRatio > eyeBandMaxYRatio) {
+      return false;
+    }
+
+    // Nose should be below eyes (sanity check).
+    if (nose[1] <= eyeMidY) return false;
+
+    return true;
+  }
+
+  /// Whether the detected face fits inside the oval/circle guide overlay.
+  /// The guide covers ~70% of the screen width and is centered; this checks
+  /// that the face is properly centered and sized to match.
+  bool _isFaceInOvalGuide(List<List<double>> landmarks) {
+    if (!_hasFace) return false;
+
+    // Quick geometry gate (cheap, stable).
+    final isCentered = _faceCenterOffsetX <= 0.15 && _faceCenterOffsetY <= 0.18;
+    final isRightSize = _faceFillRatio >= 0.28 && _faceFillRatio <= 0.75;
+    final isVerticalCenterOk =
+        _faceCenterYRatio >= 0.40 && _faceCenterYRatio <= 0.64;
+    if (!(isCentered && isRightSize && isVerticalCenterOk)) return false;
+
+    // Stronger containment check: key landmarks (plus derived forehead/chin)
+    // must be inside the on-screen guide circle. This blocks half-face and
+    // "not fully inside oval" captures.
+    if (landmarks.length < 7) return true;
+
+    List<double>? pointAt(int index) {
+      if (index < 0 || index >= landmarks.length) return null;
+      final p = landmarks[index];
+      if (p.length < 2) return null;
+      final x = p[0];
+      final y = p[1];
+      if (!x.isFinite || !y.isFinite) return null;
+      return [x, y];
+    }
+
+    final nose = pointAt(0);
+    final leftEye = pointAt(1);
+    final rightEye = pointAt(2);
+    final leftCheek = pointAt(7);
+    final rightCheek = pointAt(8);
+    final mouthBottom = pointAt(9);
+
+    if (nose == null ||
+        leftEye == null ||
+        rightEye == null ||
+        mouthBottom == null) {
+      return true;
+    }
+
+    final eyeMidX = (leftEye[0] + rightEye[0]) / 2.0;
+    final eyeMidY = (leftEye[1] + rightEye[1]) / 2.0;
+
+    final foreheadX = eyeMidX;
+    final foreheadY = eyeMidY - ((nose[1] - eyeMidY) * 0.90);
+    final chinX = mouthBottom[0];
+    final chinY = mouthBottom[1] + ((mouthBottom[1] - nose[1]) * 0.65);
+
+    final circleCx = _imageWidth / 2.0;
+    final circleCy = _imageHeight / 2.0;
+    final radius = (_imageWidth * guideCircleRadiusRatio).clamp(
+      1.0,
+      _imageWidth,
+    );
+    final slack = guideCircleSlackRatio.clamp(1.0, 1.30);
+    final r2 = (radius * slack) * (radius * slack);
+
+    bool inside(double x, double y) {
+      final dx = x - circleCx;
+      final dy = y - circleCy;
+      return (dx * dx + dy * dy) <= r2;
+    }
+
+    final pointsToCheck = <List<double>>[
+      leftEye,
+      rightEye,
+      nose,
+      mouthBottom,
+      [foreheadX, foreheadY],
+      [chinX, chinY],
+      if (leftCheek != null) leftCheek,
+      if (rightCheek != null) rightCheek,
+    ];
+
+    var insideCount = 0;
+    for (final p in pointsToCheck) {
+      if (inside(p[0], p[1])) insideCount++;
+    }
+
+    // Require most points to be inside the guide circle (tolerate 1–2 noisy points).
+    final requiredInside = (pointsToCheck.length * 0.75).ceil();
+    return insideCount >= requiredInside;
+  }
+
+  /// Guidance text explaining how to fit face into the oval.
+  String _ovalFitGuidance() {
+    if (!_hasFace) return 'Position your face inside the oval';
+    if (_faceFillRatio < 0.28) return 'Move closer to fill the oval';
+    if (_faceFillRatio > 0.75) return 'Move back to fit inside the oval';
+    if (_faceCenterYRatio < 0.40) return 'Lower your face into the oval';
+    if (_faceCenterYRatio > 0.64) return 'Raise your face into the oval';
+    if (_faceCenterOffsetX > 0.15 || _faceCenterOffsetY > 0.18) {
+      return 'Center your face inside the oval';
+    }
+    return 'Align your face in the oval';
   }
 
   /// Dispose the controller
@@ -1126,7 +1352,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             faceHeightRatio: frame.faceHeightRatio,
             faceCenterOffsetX: frame.faceCenterOffsetX,
             faceCenterOffsetY: frame.faceCenterOffsetY,
+            faceCenterXRatio: frame.faceCenterXRatio,
             faceCenterYRatio: frame.faceCenterYRatio,
+            imageWidth: frame.imageWidth,
+            imageHeight: frame.imageHeight,
           );
         });
 
