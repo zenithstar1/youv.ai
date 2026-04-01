@@ -33,6 +33,42 @@ function dispatchFaceDetected(detected) {
   );
 }
 
+function computeFaceMetrics(landmarks) {
+  if (!landmarks || landmarks.length < 468) {
+    return { detected: false, faceWidth: 0, faceHeight: 0, faceCenterX: 0.5, faceCenterY: 0.5, centerOffsetX: 0.5, centerOffsetY: 0.5 };
+  }
+
+  let minX = 1, minY = 1, maxX = 0, maxY = 0;
+  for (let i = 0; i < landmarks.length; i++) {
+    const p = landmarks[i];
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  const faceWidth = maxX - minX;
+  const faceHeight = maxY - minY;
+  const faceCenterX = (minX + maxX) / 2;
+  const faceCenterY = (minY + maxY) / 2;
+
+  return {
+    detected: true,
+    faceWidth: faceWidth,
+    faceHeight: faceHeight,
+    faceCenterX: faceCenterX,
+    faceCenterY: faceCenterY,
+    centerOffsetX: Math.abs(faceCenterX - 0.5),
+    centerOffsetY: Math.abs(faceCenterY - 0.5),
+  };
+}
+
+function dispatchFaceMetrics(metrics) {
+  window.dispatchEvent(
+    new CustomEvent("faceMetrics", { detail: JSON.stringify(metrics) })
+  );
+}
+
 function getVideoScore(video) {
   if (!video || video.tagName !== "VIDEO") return -1;
   if (!video.isConnected) return -1;
@@ -574,6 +610,13 @@ window.startFaceDetection = function(videoElement) {
       }
 
       dispatchFaceDetected(detected);
+
+      // Dispatch detailed face metrics for oval alignment feedback
+      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        dispatchFaceMetrics(computeFaceMetrics(results.multiFaceLandmarks[0]));
+      } else {
+        dispatchFaceMetrics({ detected: false, faceWidth: 0, faceHeight: 0, faceCenterX: 0.5, faceCenterY: 0.5, centerOffsetX: 0.5, centerOffsetY: 0.5 });
+      }
     });
 
     console.log("FaceMesh model initializing...");
