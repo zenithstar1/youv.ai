@@ -6,17 +6,32 @@ import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/skin_analysis_model.dart';
 
+class SkinAnalyzeResponse {
+  final SkinAnalysisModel analysis;
+  final Map<String, dynamic> rawJson;
+  final Map<String, dynamic>? symmetryData;
+
+  const SkinAnalyzeResponse({
+    required this.analysis,
+    required this.rawJson,
+    required this.symmetryData,
+  });
+}
+
 class ApiService {
   // Use live backend endpoints.
   static const String baseUrl =
-    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
   static const String localBaseUrl = baseUrl;
   static const String liveReportBaseUrl =
-    'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+   'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+      // 'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api';
   // static const String skinAnalyzeEndpoint =
   //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
   static const String skinAnalyzeEndpoint =
-      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+  //     'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api/secondary-analyze-skin';
+  // // static const String skinAnalyzeEndpoint =
+   'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(milliseconds: 500);
   static const Duration requestTimeout = Duration(seconds: 120);
@@ -31,7 +46,7 @@ class ApiService {
   /// Retries up to 3 times on failure
   /// Analyzes skin from uploaded image bytes (for web)
   /// Retries up to 3 times on failure
-  Future<SkinAnalysisModel> analyzeSkinWithImageBytes(
+  Future<SkinAnalyzeResponse> analyzeSkinWithImageBytes(
     Uint8List imageBytes,
     String fileName,
   ) async {
@@ -42,8 +57,9 @@ class ApiService {
     // const List<String> multipartFieldCandidates = ['file[]', 'file', 'file[0]'];
     const String currentFieldName = 'file';
 
-    final effectiveFileName =
-      fileName.trim().isEmpty ? 'capture.jpg' : fileName.trim();
+    final effectiveFileName = fileName.trim().isEmpty
+        ? 'capture.jpg'
+        : fileName.trim();
 
     while (attemptCount < maxRetries) {
       attemptCount++;
@@ -87,12 +103,56 @@ class ApiService {
 
         print('Response status: ${response.statusCode}');
         final responsePreview = response.body.length > 500
-          ? '${response.body.substring(0, 500)}...'
-          : response.body;
+            ? '${response.body.substring(0, 500)}...'
+            : response.body;
         print('Response body: $responsePreview');
 
         if (response.statusCode == 200) {
-          final jsonData = json.decode(response.body);
+          final jsonData = json.decode(response.body) as Map<String, dynamic>;
+          final analysisPayload = (jsonData['analysis'] is Map<String, dynamic>)
+              ? (jsonData['analysis'] as Map<String, dynamic>)
+              : jsonData;
+          Map<String, dynamic>? symmetryData =
+              (analysisPayload['symmetry_data'] is Map)
+              ? Map<String, dynamic>.from(
+                  (analysisPayload['symmetry_data'] as Map)
+                      .cast<String, dynamic>(),
+                )
+              : null;
+
+          // New backend returns `image_blob_url` instead of embedding base64.
+          // Fetch and inject as `image_base64` so existing FaceRatioData parsing works.
+          if (symmetryData != null) {
+            final existingBase64 =
+                symmetryData['image_base64']?.toString() ?? '';
+            final blobUrl = symmetryData['image_blob_url']?.toString() ?? '';
+            if (existingBase64.isEmpty && blobUrl.isNotEmpty) {
+              try {
+                final blobRes = await http
+                    .get(Uri.parse(blobUrl), headers: {'Accept': '*/*'})
+                    .timeout(const Duration(seconds: 30));
+                if (blobRes.statusCode == 200) {
+                  final raw = blobRes.body.trim();
+                  // Blob may contain either a raw data-url/base64 string or JSON.
+                  String? extracted;
+                  if (raw.startsWith('{')) {
+                    try {
+                      final parsed = json.decode(raw);
+                      if (parsed is Map) {
+                        extracted = parsed['image_base64']?.toString();
+                      }
+                    } catch (_) {}
+                  }
+                  extracted ??= raw;
+                  if (extracted.isNotEmpty) {
+                    symmetryData['image_base64'] = extracted;
+                  }
+                }
+              } catch (e) {
+                print('⚠️ Failed to fetch symmetry image_blob_url: $e');
+              }
+            }
+          }
 
           // Parse the model first
           final model = SkinAnalysisModel.fromJson(jsonData);
@@ -105,7 +165,11 @@ class ApiService {
           }
 
           print('✅ Success on attempt $attemptCount');
-          return model;
+          return SkinAnalyzeResponse(
+            analysis: model,
+            rawJson: jsonData,
+            symmetryData: symmetryData,
+          );
         } else if (response.statusCode == 422) {
           // Don't retry on validation errors
           throw Exception(
@@ -114,14 +178,19 @@ class ApiService {
         } else if (response.statusCode >= 500) {
           // Server error - retry
           final responseBodyLower = response.body.toLowerCase();
-          final isUploadFailure = responseBodyLower.contains('failed to upload') ||
+          final isUploadFailure =
+              responseBodyLower.contains('failed to upload') ||
               responseBodyLower.contains('file failed to upload');
 
           if (isUploadFailure) {
             uploadBytes = _compressForRetry(uploadBytes);
             nextRetryDelay = const Duration(milliseconds: 600);
-            lastException = Exception('Server upload failed (payload adjusted)');
-            print('⚠️ Upload failed on server, retrying with smaller image (${uploadBytes.length} bytes)');
+            lastException = Exception(
+              'Server upload failed (payload adjusted)',
+            );
+            print(
+              '⚠️ Upload failed on server, retrying with smaller image (${uploadBytes.length} bytes)',
+            );
           } else {
             nextRetryDelay = retryDelay;
             lastException = Exception('Server error (${response.statusCode})');
@@ -196,9 +265,10 @@ class ApiService {
   }
 
   Uint8List _compressForRetry(Uint8List currentBytes) {
-    final nextTarget = (currentBytes.length * 0.7)
-        .round()
-        .clamp(minimumUploadBytes, preferredUploadBytes);
+    final nextTarget = (currentBytes.length * 0.7).round().clamp(
+      minimumUploadBytes,
+      preferredUploadBytes,
+    );
     return _compressJpegToTarget(
       currentBytes,
       targetBytes: nextTarget,
@@ -266,8 +336,8 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
-final userInfo = json.decode(userInfoStr);
-final token = userInfo['token'] ?? '';
+      final userInfo = json.decode(userInfoStr);
+      final token = userInfo['token'] ?? '';
 
       if (token.isEmpty) {
         throw Exception('User not authenticated');
@@ -302,8 +372,8 @@ final token = userInfo['token'] ?? '';
     try {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
-final userInfo = json.decode(userInfoStr);
-final token = userInfo['token'] ?? '';
+      final userInfo = json.decode(userInfoStr);
+      final token = userInfo['token'] ?? '';
 
       if (token.isEmpty) {
         throw Exception('User not authenticated');
@@ -331,8 +401,8 @@ final token = userInfo['token'] ?? '';
     try {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
-final userInfo = json.decode(userInfoStr);
-final token = userInfo['token'] ?? '';
+      final userInfo = json.decode(userInfoStr);
+      final token = userInfo['token'] ?? '';
 
       if (token.isEmpty) {
         throw Exception('User not authenticated');
@@ -365,8 +435,8 @@ final token = userInfo['token'] ?? '';
     try {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
-final userInfo = json.decode(userInfoStr);
-final token = userInfo['token'] ?? '';
+      final userInfo = json.decode(userInfoStr);
+      final token = userInfo['token'] ?? '';
 
       print('Generating PDF for analysis_id: $analysisId');
 
@@ -412,9 +482,9 @@ final token = userInfo['token'] ?? '';
     try {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
-final userInfo = json.decode(userInfoStr);
-final token = userInfo['token'] ?? '';
-     
+      final userInfo = json.decode(userInfoStr);
+      final token = userInfo['token'] ?? '';
+
       final userName = userInfo['user']?['name'] ?? userInfo['name'] ?? 'User';
       final userPhone = userInfo['user']?['phone'] ?? userInfo['phone'] ?? '';
       final userEmail = userInfo['user']?['email'] ?? userInfo['email'] ?? '';
@@ -424,7 +494,8 @@ final token = userInfo['token'] ?? '';
       print('Starting report send process for analysis_id: $analysisId');
 
       // Step 1: Generate PDF (no auth required)
-      final pdfGenUrl = '$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId';
+      final pdfGenUrl =
+          '$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId';
       print('Generate PDF URL: $pdfGenUrl');
 
       final pdfResponse = await http.post(
@@ -460,15 +531,15 @@ final token = userInfo['token'] ?? '';
       if (userPhone.isNotEmpty) {
         try {
           final whatsappUrl =
-  //'http://127.0.0.1:8000/api/send-template-report';
-         'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report';
+              //'http://127.0.0.1:8000/api/send-template-report';
+              'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report';
           print('WhatsApp send URL: $whatsappUrl');
 
           final waPayload = {
-              'to': userPhone,
-              'pdf_url': pdfUrl, // ✅ IMPORTANT
-              'value1': userName,
-              'value2': 'CPLSS',
+            'to': userPhone,
+            'pdf_url': pdfUrl, // ✅ IMPORTANT
+            'value1': userName,
+            'value2': 'YouV.ai Team',
           };
           print('DEBUG WhatsApp payload: ${jsonEncode(waPayload)}');
 
