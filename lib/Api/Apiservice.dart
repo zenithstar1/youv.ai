@@ -24,14 +24,14 @@ class ApiService {
       'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
   static const String localBaseUrl = baseUrl;
   static const String liveReportBaseUrl =
-   'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
-      // 'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api';
+      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  // 'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api';
   // static const String skinAnalyzeEndpoint =
   //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
   static const String skinAnalyzeEndpoint =
-  //     'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api/secondary-analyze-skin';
-  // // static const String skinAnalyzeEndpoint =
-   'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+      //     'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api/secondary-analyze-skin';
+      // // static const String skinAnalyzeEndpoint =
+      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(milliseconds: 500);
   static const Duration requestTimeout = Duration(seconds: 120);

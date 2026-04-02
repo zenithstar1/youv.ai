@@ -1160,7 +1160,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
       if (result['success'] == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Report sent! Check your email.'),
+            content: Text('Report sent! Check your Whatsapp.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -3005,7 +3005,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             // Secondary
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.14),
                 borderRadius: BorderRadius.circular(50),
