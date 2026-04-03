@@ -113,6 +113,52 @@
       history.scrollRestoration = 'manual';
     }
 
+    var backGuardActive = false;
+
+    function isEditableElement(el) {
+      if (!el) return false;
+      var tag = (el.tagName || '').toUpperCase();
+      return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
+    }
+
+    function hasActiveEditable() {
+      return isEditableElement(document.activeElement);
+    }
+
+    function isKeyboardLikelyOpen() {
+      if (!window.visualViewport) return false;
+      return window.visualViewport.height < (window.innerHeight * 0.9);
+    }
+
+    function armBackGuard() {
+      if (backGuardActive) return;
+      try {
+        history.pushState({ __kbGuard: true }, document.title);
+        backGuardActive = true;
+      } catch (e) {}
+    }
+
+    function consumeBackForKeyboard() {
+      if (!backGuardActive && !hasActiveEditable() && !isKeyboardLikelyOpen()) {
+        return false;
+      }
+
+      var active = document.activeElement;
+      if (active && typeof active.blur === 'function') {
+        active.blur();
+      }
+
+      scheduleViewportResync();
+      setTimeout(scheduleViewportResync, 120);
+
+      try {
+        history.pushState({ __kbGuard: true }, document.title);
+        backGuardActive = true;
+      } catch (e) {}
+
+      return true;
+    }
+
     var viewportResyncTimer = null;
     var viewportWatchdog = null;
 
@@ -152,11 +198,27 @@
     window.addEventListener('resize', setAppViewportHeight);
     window.addEventListener('orientationchange', scheduleViewportResync);
     window.addEventListener('pageshow', scheduleViewportResync);
-    window.addEventListener('popstate', scheduleViewportResync);
+    window.addEventListener('popstate', function () {
+      if (!consumeBackForKeyboard()) {
+        scheduleViewportResync();
+      }
+    });
     window.addEventListener('focus', scheduleViewportResync);
     window.addEventListener('blur', scheduleViewportResync);
-    document.addEventListener('focusin', scheduleViewportResync);
-    document.addEventListener('focusout', scheduleViewportResync);
+    document.addEventListener('focusin', function () {
+      scheduleViewportResync();
+      if (hasActiveEditable()) {
+        armBackGuard();
+      }
+    });
+    document.addEventListener('focusout', function () {
+      scheduleViewportResync();
+      setTimeout(function () {
+        if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
+          backGuardActive = false;
+        }
+      }, 120);
+    });
     window.addEventListener('beforeunload', function () {
       if (viewportWatchdog) {
         clearInterval(viewportWatchdog);
@@ -179,7 +241,11 @@
     }
 
     window.addEventListener('pageshow', resetViewportAfterHistoryNav);
-    window.addEventListener('popstate', resetViewportAfterHistoryNav);
+    window.addEventListener('popstate', function () {
+      if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
+        resetViewportAfterHistoryNav();
+      }
+    });
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
