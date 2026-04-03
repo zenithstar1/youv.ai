@@ -1,0 +1,38 @@
+{
+    "name": "Skin Analysis",
+    "short_name": "Skin Analysis",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F5E6E8",
+    "theme_color": "#D4999F",
+    "description": "AI-powered skin analysis application",
+    "orientation": "portrait-primary",
+    "permissions": [
+        "camera",
+        "storage"
+    ],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
