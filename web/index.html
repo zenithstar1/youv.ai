@@ -30,9 +30,32 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      height: 100dvh;
+      height: 100vh; /* fallback for older browsers */
       overflow: hidden;
       background-color: #FDF8F3;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    /* Force Flutter canvas to always fill the real screen */
+    flutter-view,
+    flt-glass-pane,
+    flt-scene-host,
+    flt-scene {
+      display: block !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      min-height: 100vh !important;
+      min-height: 100dvh !important;
+      overflow: hidden !important;
     }
 
     video {
@@ -94,67 +117,113 @@
   </div>
 
   <script>
-    // ── Android back-button keyboard viewport fix ──
-    // Two-pronged approach:
-    // 1) visualViewport.resize: detect keyboard close and force recalculate
-    // 2) focusout on inputs: whenever ANY text field loses focus, force viewport reset
+    // ── Android keyboard viewport fix ──
+    // Core problem: When Android back button dismisses keyboard, Chrome
+    // leaves window.innerHeight at the reduced (keyboard-open) value.
+    // Flutter sizes its canvas to window.innerHeight, so a gap appears.
+    //
+    // Fix: Directly measure the real screen height and force it onto
+    // Flutter's canvas elements every time the viewport changes.
     (function () {
       var vv = window.visualViewport;
-      var stableH = (vv ? vv.height : window.innerHeight) || window.innerHeight;
-      var kbOpen = false;
 
-      // Force Chrome to recalculate viewport by toggling meta viewport
+      // Get the REAL full screen height
+      function getRealHeight() {
+        // screen.availHeight is the OS-reported available height (never affected by keyboard)
+        // visualViewport.height when keyboard is closed = real height
+        // window.outerHeight is the browser window height
+        var candidates = [
+          window.screen ? window.screen.availHeight : 0,
+          window.outerHeight || 0,
+          vv ? vv.height : 0,
+          window.innerHeight || 0
+        ];
+        return Math.max.apply(null, candidates);
+      }
+
+      var fullHeight = getRealHeight();
+
+      // Apply the real height to all Flutter canvas elements
+      function enforceFullHeight() {
+        var h = getRealHeight();
+        // Only update fullHeight upward (keyboard can't make screen taller)
+        if (h > fullHeight) fullHeight = h;
+
+        var px = fullHeight + 'px';
+        var targets = document.querySelectorAll('flutter-view, flt-glass-pane, flt-scene-host, flt-scene');
+        for (var i = 0; i < targets.length; i++) {
+          var el = targets[i];
+          if (el.style.height !== px) {
+            el.style.setProperty('height', px, 'important');
+            el.style.setProperty('min-height', px, 'important');
+          }
+        }
+
+        // Also fix html/body
+        document.documentElement.style.height = px;
+        document.body.style.height = px;
+      }
+
+      // Force Chrome to recalculate by toggling meta viewport
       function forceViewportRecalc() {
         window.scrollTo(0, 0);
-        document.documentElement.style.height = '100%';
-        document.body.style.height = '100%';
-
         var vp = document.querySelector('meta[name="viewport"]');
         if (vp) {
           var orig = vp.getAttribute('content');
           vp.setAttribute('content', orig + ', minimum-scale=0.99');
           requestAnimationFrame(function () {
             vp.setAttribute('content', orig);
+            enforceFullHeight();
             window.dispatchEvent(new Event('resize'));
           });
-        } else {
-          window.dispatchEvent(new Event('resize'));
         }
-
-        // Extra nudges for slower devices
-        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 100);
-        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 300);
-        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 600);
+        enforceFullHeight();
+        window.dispatchEvent(new Event('resize'));
       }
 
-      // Prong 1: visualViewport resize detection
+      // Detect keyboard open/close via visualViewport
       if (vv) {
+        var kbOpen = false;
         vv.addEventListener('resize', function () {
           var h = vv.height;
-
-          if (h < stableH - 60) {
+          if (h < fullHeight - 100) {
             kbOpen = true;
           }
-
-          if (kbOpen && h >= stableH - 30) {
+          if (kbOpen && h >= fullHeight - 50) {
             kbOpen = false;
             forceViewportRecalc();
+            setTimeout(forceViewportRecalc, 200);
+            setTimeout(forceViewportRecalc, 500);
           }
-
-          if (!kbOpen) stableH = h;
         });
       }
 
-      // Prong 2: focusout on any input/textarea — user's suggestion
-      // When ANY text field loses focus, force viewport reset after short delay
+      // On any input losing focus, force recalc
       document.addEventListener('focusout', function (e) {
         var tag = (e.target && e.target.tagName || '').toUpperCase();
         if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) {
-          // Small delay to let the keyboard animation complete
-          setTimeout(forceViewportRecalc, 150);
-          setTimeout(forceViewportRecalc, 400);
+          setTimeout(forceViewportRecalc, 100);
+          setTimeout(forceViewportRecalc, 300);
+          setTimeout(forceViewportRecalc, 600);
         }
       });
+
+      // Continuous watchdog: check every 500ms and fix if needed
+      setInterval(enforceFullHeight, 500);
+
+      // Also run on resize, orientation change
+      window.addEventListener('resize', enforceFullHeight);
+      window.addEventListener('orientationchange', function () {
+        fullHeight = 0; // reset so it picks up new orientation height
+        setTimeout(enforceFullHeight, 200);
+        setTimeout(enforceFullHeight, 600);
+      });
+
+      // Run immediately and after short delays
+      enforceFullHeight();
+      setTimeout(enforceFullHeight, 100);
+      setTimeout(enforceFullHeight, 500);
+      setTimeout(enforceFullHeight, 1500);
     })();
 
     // Clean up stale service workers
