@@ -49,6 +49,15 @@ class _CreateAnalysisProfileScreenState
     super.dispose();
   }
 
+  Future<bool> _onWillPop() async {
+    final focused = FocusManager.instance.primaryFocus;
+    if (focused != null && focused.hasFocus) {
+      focused.unfocus();
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final W = MediaQuery.of(context).size.width;
@@ -86,11 +95,8 @@ class _CreateAnalysisProfileScreenState
     return Scaffold(
       backgroundColor: kIvory,
       resizeToAvoidBottomInset: true,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
+      body: WillPopScope(
+        onWillPop: _onWillPop,
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -298,7 +304,7 @@ class _CreateAnalysisProfileScreenState
                                     style: TextButton.styleFrom(
                                       foregroundColor: kMutedGrey,
                                       padding: EdgeInsets.zero,
-                                      minimumSize: Size(0, 0),
+                                      minimumSize: Size.zero,
                                       tapTargetSize:
                                           MaterialTapTargetSize.shrinkWrap,
                                     ),
@@ -483,11 +489,6 @@ class _UnderlineTextFieldState extends State<UnderlineTextField>
             ),
             cursorColor: kBlush,
             textInputAction: TextInputAction.next,
-            inputFormatters: widget.isPhone
-                ? [
-                    // Only allow numbers after +91
-                  ]
-                : null,
           ),
         ),
         AnimatedBuilder(
