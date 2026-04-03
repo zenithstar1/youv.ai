@@ -118,6 +118,12 @@
   <script src="face_detector.js"></script>
 
   <!-- Flutter LAST -->
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loading = document.getElementById('loading');
+      if (loading) loading.style.display = 'none';
+    });
+  </script>
 <script src="flutter_bootstrap.js"></script>
   <script>
     function openRazorpayCheckout(orderId, key, amount, name, email, number) {
