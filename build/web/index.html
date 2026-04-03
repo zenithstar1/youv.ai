@@ -26,34 +26,13 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <style>
-    :root {
-      --app-height: 100lvh;
-    }
-
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
-      height: var(--app-height);
-      min-height: var(--app-height);
+      height: 100%;
       overflow: hidden;
       background-color: #FDF8F3;
-    }
-
-    flutter-view,
-    flt-glass-pane,
-    flt-scene-host,
-    flt-scene {
-      position: fixed !important;
-      top: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: var(--app-height) !important;
-      min-height: var(--app-height) !important;
-      max-height: var(--app-height) !important;
-      transform: translateZ(0);
     }
 
     video {
@@ -71,8 +50,7 @@
       align-items: center;
       position: fixed;
       inset: 0;
-      height: var(--app-height);
-      min-height: var(--app-height);
+      height: 100%;
       background-color: #FDF8F3;
       z-index: 9999;
       opacity: 1;
@@ -116,216 +94,65 @@
   </div>
 
   <script>
-    if ('scrollRestoration' in history) {
-      history.scrollRestoration = 'manual';
-    }
+    // ── Android Chrome back-button keyboard-dismiss viewport fix ──
+    // When the Android back button closes the soft keyboard, Chrome
+    // sometimes fails to resize Flutter's canvas.  We detect the
+    // keyboard closing via visualViewport.resize and force the browser
+    // to recalculate the viewport by toggling the <meta viewport> tag,
+    // then dispatch a resize event so Flutter re-measures.
+    (function () {
+      var vv = window.visualViewport;
+      if (!vv) return;
 
-    var backGuardActive = false;
-    var keyboardRecentUntil = 0;
+      var stableH = vv.height;
+      var kbOpen  = false;
 
-    function isEditableElement(el) {
-      if (!el) return false;
-      var tag = (el.tagName || '').toUpperCase();
-      return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
-    }
+      vv.addEventListener('resize', function () {
+        var h = vv.height;
 
-    function hasActiveEditable() {
-      return isEditableElement(document.activeElement);
-    }
-
-    function isKeyboardLikelyOpen() {
-      if (!window.visualViewport) return false;
-      return window.visualViewport.height < (window.innerHeight * 0.9);
-    }
-
-    function keyboardActiveOrRecent() {
-      return hasActiveEditable() || isKeyboardLikelyOpen() || Date.now() < keyboardRecentUntil;
-    }
-
-    function armBackGuard() {
-      if (backGuardActive) return;
-      try {
-        history.pushState({ __kbGuard: true }, document.title);
-        backGuardActive = true;
-      } catch (e) {}
-    }
-
-    function consumeBackForKeyboard() {
-      if (!backGuardActive && !hasActiveEditable() && !isKeyboardLikelyOpen()) {
-        return false;
-      }
-
-      var active = document.activeElement;
-      if (active && typeof active.blur === 'function') {
-        active.blur();
-      }
-
-      scheduleViewportResync();
-      setTimeout(scheduleViewportResync, 120);
-
-      try {
-        history.pushState({ __kbGuard: true }, document.title);
-        backGuardActive = true;
-      } catch (e) {}
-
-      return true;
-    }
-
-    function trapBackWhenKeyboardActive(event) {
-      if (!keyboardActiveOrRecent()) {
-        return;
-      }
-
-      var active = document.activeElement;
-      if (active && typeof active.blur === 'function') {
-        active.blur();
-      }
-
-      scheduleViewportResync();
-      setTimeout(scheduleViewportResync, 120);
-
-      try {
-        history.pushState({ __kbGuard: true }, document.title);
-      } catch (e) {}
-
-      if (event && typeof event.stopImmediatePropagation === 'function') {
-        event.stopImmediatePropagation();
-      }
-      if (event && typeof event.stopPropagation === 'function') {
-        event.stopPropagation();
-      }
-
-      // Last-resort workaround for device/browser viewport bugs after back-key
-      // keyboard dismiss: hard-reload to reset the canvas metrics.
-      setTimeout(function () {
-        window.location.reload();
-      }, 80);
-    }
-
-    var viewportResyncTimer = null;
-    var viewportWatchdog = null;
-    var maxAppHeight = 0;
-
-    function setAppViewportHeight() {
-      var visualH = window.visualViewport ? window.visualViewport.height : 0;
-      var innerH = window.innerHeight || 0;
-      var docH = document.documentElement ? document.documentElement.clientHeight : 0;
-      var measured = Math.max(visualH, innerH, docH);
-
-      if (measured > maxAppHeight) {
-        maxAppHeight = measured;
-      }
-
-      var nextValue = Math.round(maxAppHeight || measured) + 'px';
-      if (document.documentElement.style.getPropertyValue('--app-height') !== nextValue) {
-        document.documentElement.style.setProperty('--app-height', nextValue);
-      }
-    }
-
-    function scheduleViewportResync() {
-      if (viewportResyncTimer) {
-        clearInterval(viewportResyncTimer);
-      }
-
-      var ticks = 0;
-      viewportResyncTimer = setInterval(function () {
-        setAppViewportHeight();
-        window.dispatchEvent(new Event('resize'));
-        ticks += 1;
-        if (ticks >= 14) {
-          clearInterval(viewportResyncTimer);
-          viewportResyncTimer = null;
+        // Keyboard opened (viewport shrank significantly)
+        if (h < stableH - 60) {
+          kbOpen = true;
         }
-      }, 45);
-    }
 
-    setAppViewportHeight();
-    setTimeout(setAppViewportHeight, 60);
-    setTimeout(setAppViewportHeight, 220);
+        // Keyboard closed (viewport returned near stable height)
+        if (kbOpen && h >= stableH - 30) {
+          kbOpen = false;
 
-    // Guaranteed workaround: while keyboard is active, browser back should only
-    // close keyboard and must not propagate to Flutter route pop handlers.
-    window.addEventListener('popstate', trapBackWhenKeyboardActive, true);
+          window.scrollTo(0, 0);
 
-    // Some Android browsers don't reliably emit viewport events on back-key
-    // keyboard dismiss; this watchdog keeps height in sync.
-    viewportWatchdog = setInterval(setAppViewportHeight, 250);
+          // Toggle meta-viewport to force Chrome to recalculate innerHeight
+          var vp = document.querySelector('meta[name="viewport"]');
+          if (vp) {
+            var orig = vp.getAttribute('content');
+            vp.setAttribute('content', orig + ', minimum-scale=0.99');
+            requestAnimationFrame(function () {
+              vp.setAttribute('content', orig);
+              window.dispatchEvent(new Event('resize'));
+            });
+          } else {
+            window.dispatchEvent(new Event('resize'));
+          }
 
-    window.addEventListener('resize', setAppViewportHeight);
-    window.addEventListener('orientationchange', function () {
-      maxAppHeight = 0;
-      scheduleViewportResync();
-    });
-    window.addEventListener('pageshow', scheduleViewportResync);
-    window.addEventListener('popstate', function () {
-      if (!consumeBackForKeyboard()) {
-        scheduleViewportResync();
-      }
-    });
-    window.addEventListener('focus', scheduleViewportResync);
-    window.addEventListener('blur', scheduleViewportResync);
-    document.addEventListener('focusin', function () {
-      scheduleViewportResync();
-      keyboardRecentUntil = Date.now() + 5000;
-      if (hasActiveEditable()) {
-        armBackGuard();
-      }
-    });
-    document.addEventListener('focusout', function () {
-      scheduleViewportResync();
-      keyboardRecentUntil = Date.now() + 1500;
-      setTimeout(function () {
-        if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
-          backGuardActive = false;
+          // Second nudge after a short delay for slower devices
+          setTimeout(function () {
+            window.dispatchEvent(new Event('resize'));
+          }, 150);
         }
-      }, 120);
-    });
-    window.addEventListener('beforeunload', function () {
-      if (viewportWatchdog) {
-        clearInterval(viewportWatchdog);
-      }
-    });
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) {
-        scheduleViewportResync();
-      }
-    });
 
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', setAppViewportHeight);
-      window.visualViewport.addEventListener('scroll', setAppViewportHeight);
-    }
+        // Track stable height only when keyboard is closed
+        if (!kbOpen) stableH = h;
+      });
+    })();
 
-    function resetViewportAfterHistoryNav() {
-      window.scrollTo(0, 0);
-      scheduleViewportResync();
-    }
-
-    window.addEventListener('pageshow', resetViewportAfterHistoryNav);
-    window.addEventListener('popstate', function () {
-      if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
-        resetViewportAfterHistoryNav();
-      }
-    });
-
+    // Clean up stale service workers
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-          registration.unregister();
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
         }
       });
     }
-
-    if (window.caches) {
-      caches.keys().then(function(names) {
-        for (let name of names) {
-          caches.delete(name);
-        }
-      });
-    }
-
-    localStorage.clear();
-    sessionStorage.clear();
   </script>
 
   <!-- MediaPipe Face Mesh -->

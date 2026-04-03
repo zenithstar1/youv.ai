@@ -46,66 +46,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlobalBackKeyboardGuard(
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        builder: (context, child) {
-          final media = MediaQuery.of(context);
-          final shortestSide = media.size.shortestSide;
-          final maxScale = shortestSide >= 600 ? 1.18 : 1.10;
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final shortestSide = media.size.shortestSide;
+        final maxScale = shortestSide >= 600 ? 1.18 : 1.10;
 
-          return MediaQuery(
-            data: media.copyWith(
-              textScaler: media.textScaler.clamp(
-                minScaleFactor: 0.90,
-                maxScaleFactor: maxScale,
-              ),
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: media.textScaler.clamp(
+              minScaleFactor: 0.90,
+              maxScaleFactor: maxScale,
             ),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
-        home: const OnboardingScreen(),
-      ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: const OnboardingScreen(),
     );
   }
-}
-
-class _GlobalBackKeyboardGuard extends StatefulWidget {
-  final Widget child;
-
-  const _GlobalBackKeyboardGuard({required this.child});
-
-  @override
-  State<_GlobalBackKeyboardGuard> createState() =>
-      _GlobalBackKeyboardGuardState();
-}
-
-class _GlobalBackKeyboardGuardState extends State<_GlobalBackKeyboardGuard>
-    with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  Future<bool> didPopRoute() async {
-    final focused = FocusManager.instance.primaryFocus;
-    if (focused != null && focused.hasFocus) {
-      focused.unfocus();
-      return true;
-    }
-    return false;
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
 
 class OnboardingScreen extends StatefulWidget {
