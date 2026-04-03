@@ -46,6 +46,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return const _KeyboardViewportFix(child: _AppShell());
+  }
+}
+
+class _AppShell extends StatelessWidget {
+  const _AppShell();
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
@@ -66,6 +75,52 @@ class MyApp extends StatelessWidget {
       home: const OnboardingScreen(),
     );
   }
+}
+
+class _KeyboardViewportFix extends StatefulWidget {
+  final Widget child;
+
+  const _KeyboardViewportFix({required this.child});
+
+  @override
+  State<_KeyboardViewportFix> createState() => _KeyboardViewportFixState();
+}
+
+class _KeyboardViewportFixState extends State<_KeyboardViewportFix>
+    with WidgetsBindingObserver {
+  double _lastBottomInset = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    final bottomInset = view.viewInsets.bottom / view.devicePixelRatio;
+
+    if (_lastBottomInset > 0 && bottomInset == 0) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    }
+
+    _lastBottomInset = bottomInset;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class OnboardingScreen extends StatefulWidget {
@@ -123,19 +178,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final isSmallPhone = shortestSide < 360;
     final isTablet = shortestSide >= 600;
 
-    final buttonWidth =
-      (w * (isTablet ? 0.46 : (isSmallPhone ? 0.78 : 0.66))).clamp(200.0, 420.0);
-    final buttonHeight =
-      (h * (isTablet ? 0.07 : 0.072)).clamp(isSmallPhone ? 48.0 : 52.0, 74.0);
-    final bottomOffset =
-      (h * (isTablet ? 0.06 : 0.05)).clamp(14.0, 56.0);
+    final buttonWidth = (w * (isTablet ? 0.46 : (isSmallPhone ? 0.78 : 0.66)))
+        .clamp(200.0, 420.0);
+    final buttonHeight = (h * (isTablet ? 0.07 : 0.072)).clamp(
+      isSmallPhone ? 48.0 : 52.0,
+      74.0,
+    );
+    final bottomOffset = (h * (isTablet ? 0.06 : 0.05)).clamp(14.0, 56.0);
     final sidePadding = (w * 0.08).clamp(14.0, 40.0);
 
     final isVideoReady = _videoController.value.isInitialized;
-    final videoAspect = isVideoReady ? _videoController.value.aspectRatio : (16 / 9);
+    final videoAspect = isVideoReady
+        ? _videoController.value.aspectRatio
+        : (16 / 9);
     final aspectDelta = (screenAspect - videoAspect).abs();
     final useContainForSafety = aspectDelta > 0.42;
-    final adaptiveVideoFit = useContainForSafety ? BoxFit.contain : BoxFit.cover;
+    final adaptiveVideoFit = useContainForSafety
+        ? BoxFit.contain
+        : BoxFit.cover;
 
     return Scaffold(
       body: Stack(
@@ -189,7 +249,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   child: SafeArea(
                     top: false,
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: isTablet ? 520 : 460),
+                      constraints: BoxConstraints(
+                        maxWidth: isTablet ? 520 : 460,
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -198,8 +260,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.montserrat(
-                              fontSize: (h * (isTablet ? 0.017 : 0.018))
-                                  .clamp(isSmallPhone ? 13.0 : 14.0, 20.0),
+                              fontSize: (h * (isTablet ? 0.017 : 0.018)).clamp(
+                                isSmallPhone ? 13.0 : 14.0,
+                                20.0,
+                              ),
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.2,
                               color: const Color(0xE6FFFFFF),
@@ -208,60 +272,72 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                           SizedBox(height: (h * 0.010).clamp(6.0, 11.0)),
                           GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const OnboardingFlow()),
-                          );
-                        },
-                        child: AnimatedBuilder(
-                          animation: _glowPulse,
-                          builder: (context, child) {
-                            final pulse = _glowPulse.value;
-                            final glowScale = isSmallPhone ? 0.65 : (isTablet ? 0.9 : 1.0);
-                            final glowOpacity = (0.16 + (0.20 * pulse)) * glowScale;
-                            final glowBlur = (10.0 + (14.0 * pulse)) * glowScale;
-                            final glowSpread = (0.6 + (2.0 * pulse)) * glowScale;
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const OnboardingFlow(),
+                                ),
+                              );
+                            },
+                            child: AnimatedBuilder(
+                              animation: _glowPulse,
+                              builder: (context, child) {
+                                final pulse = _glowPulse.value;
+                                final glowScale = isSmallPhone
+                                    ? 0.65
+                                    : (isTablet ? 0.9 : 1.0);
+                                final glowOpacity =
+                                    (0.16 + (0.20 * pulse)) * glowScale;
+                                final glowBlur =
+                                    (10.0 + (14.0 * pulse)) * glowScale;
+                                final glowSpread =
+                                    (0.6 + (2.0 * pulse)) * glowScale;
 
-                            return Container(
-                              width: buttonWidth,
-                              height: buttonHeight,
-                              decoration: BoxDecoration(
-                                color: const Color(0x99FFFFFF),
-                                borderRadius: BorderRadius.circular(36),
-                                border: Border.all(
-                                  color: const Color(0xCCA6553F),
-                                  width: 1.2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFF5C36A)
-                                        .withOpacity(glowOpacity),
-                                    blurRadius: glowBlur,
-                                    spreadRadius: glowSpread,
+                                return Container(
+                                  width: buttonWidth,
+                                  height: buttonHeight,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0x99FFFFFF),
+                                    borderRadius: BorderRadius.circular(36),
+                                    border: Border.all(
+                                      color: const Color(0xCCA6553F),
+                                      width: 1.2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFFF5C36A,
+                                        ).withOpacity(glowOpacity),
+                                        blurRadius: glowBlur,
+                                        spreadRadius: glowSpread,
+                                      ),
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.12),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                  child: Center(
+                                    child: Text(
+                                      "Start Your Scan",
+                                      style: GoogleFonts.montserrat(
+                                        fontSize:
+                                            (h * (isTablet ? 0.018 : 0.02))
+                                                .clamp(
+                                                  isSmallPhone ? 14.0 : 15.0,
+                                                  21.0,
+                                                ),
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.25,
+                                        color: const Color(0xFF7A3F47),
+                                      ),
+                                    ),
                                   ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "Start Your Scan",
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: (h * (isTablet ? 0.018 : 0.02))
-                                        .clamp(isSmallPhone ? 14.0 : 15.0, 21.0),
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.25,
-                                    color: const Color(0xFF7A3F47),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                                );
+                              },
+                            ),
                           ),
                         ],
                       ),
