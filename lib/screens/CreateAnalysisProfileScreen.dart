@@ -10,10 +10,12 @@ class CreateAnalysisProfileScreen extends StatefulWidget {
   const CreateAnalysisProfileScreen({super.key});
 
   @override
-  State<CreateAnalysisProfileScreen> createState() => _CreateAnalysisProfileScreenState();
+  State<CreateAnalysisProfileScreen> createState() =>
+      _CreateAnalysisProfileScreenState();
 }
 
-class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScreen>
+class _CreateAnalysisProfileScreenState
+    extends State<CreateAnalysisProfileScreen>
     with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _mobileController = TextEditingController(text: "+91");
@@ -31,8 +33,10 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
       duration: const Duration(milliseconds: 250),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
   }
 
@@ -52,232 +56,250 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
     final compactScale = (H / 850.0).clamp(0.78, 1.0).toDouble();
     final horizontalPadding = (W * 0.07).clamp(16.0, 28.0).toDouble();
     final topSpacing = (H * 0.045 * compactScale).clamp(12.0, 40.0).toDouble();
-    final betweenLabelHeading =
-        (H * 0.018 * compactScale).clamp(8.0, 18.0).toDouble();
-    final betweenHeadingSub =
-        (H * 0.014 * compactScale).clamp(8.0, 16.0).toDouble();
-    final betweenSubCard =
-        (H * 0.018 * compactScale).clamp(8.0, 16.0).toDouble();
+    final betweenLabelHeading = (H * 0.018 * compactScale)
+        .clamp(8.0, 18.0)
+        .toDouble();
+    final betweenHeadingSub = (H * 0.014 * compactScale)
+        .clamp(8.0, 16.0)
+        .toDouble();
+    final betweenSubCard = (H * 0.018 * compactScale)
+        .clamp(8.0, 16.0)
+        .toDouble();
     final cardPadding = (W * 0.034 * compactScale).clamp(10.0, 14.0).toDouble();
     final cardRadius = (W * 0.05).clamp(14.0, 22.0).toDouble();
     final fieldSpacing = (H * 0.012 * compactScale).clamp(6.0, 12.0).toDouble();
-    final labelInputGap =
-        (H * 0.008 * compactScale).clamp(4.0, 10.0).toDouble();
+    final labelInputGap = (H * 0.008 * compactScale)
+        .clamp(4.0, 10.0)
+        .toDouble();
     final inputHeight = (H * 0.045 * compactScale).clamp(32.0, 42.0).toDouble();
-    final consentSpacing =
-        (H * 0.014 * compactScale).clamp(6.0, 12.0).toDouble();
-    final buttonSpacing =
-        (H * 0.014 * compactScale).clamp(6.0, 12.0).toDouble();
-    final buttonHeight = (H * 0.048 * compactScale).clamp(38.0, 46.0).toDouble();
+    final consentSpacing = (H * 0.014 * compactScale)
+        .clamp(6.0, 12.0)
+        .toDouble();
+    final buttonSpacing = (H * 0.014 * compactScale)
+        .clamp(6.0, 12.0)
+        .toDouble();
+    final buttonHeight = (H * 0.048 * compactScale)
+        .clamp(38.0, 46.0)
+        .toDouble();
     final checkboxSize = (W * 0.045).clamp(18.0, 22.0).toDouble();
 
     return Scaffold(
-        backgroundColor: kIvory,
-        resizeToAvoidBottomInset: true,
-        body: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                child: FadeTransition(
-                  opacity: _fadeAnim,
-                  child: SlideTransition(
-                    position: _slideAnim,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SizedBox(height: topSpacing),
-                        Text(
-                          "AI FACIAL ANALYSIS",
-                          style: TextStyle(
-                            fontSize: (W * 0.030 * compactScale)
-                                .clamp(10.0, 13.0)
-                                .toDouble(),
-                            color: kGrey,
-                            letterSpacing: 2.2,
-                            fontWeight: FontWeight.w500,
-                          ),
+      backgroundColor: kIvory,
+      resizeToAvoidBottomInset: true,
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(height: topSpacing),
+                      Text(
+                        "AI FACIAL ANALYSIS",
+                        style: TextStyle(
+                          fontSize: (W * 0.030 * compactScale)
+                              .clamp(10.0, 13.0)
+                              .toDouble(),
+                          color: kGrey,
+                          letterSpacing: 2.2,
+                          fontWeight: FontWeight.w500,
                         ),
-                        SizedBox(height: betweenLabelHeading),
-                        Text(
-                          "Create Your Analysis Profile",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Serif',
-                            fontSize:
-                                (W * 0.066 * compactScale).clamp(24.0, 32.0).toDouble(),
-                            color: Colors.black87,
-                            fontWeight: FontWeight.w400,
-                            height: 1.18,
-                          ),
+                      ),
+                      SizedBox(height: betweenLabelHeading),
+                      Text(
+                        "Create Your Analysis Profile",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Serif',
+                          fontSize: (W * 0.066 * compactScale)
+                              .clamp(24.0, 32.0)
+                              .toDouble(),
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w400,
+                          height: 1.18,
                         ),
-                        SizedBox(height: betweenHeadingSub),
-                        Text(
-                          "Your personalized report will be securely stored under this profile.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize:
-                                (W * 0.038 * compactScale).clamp(12.0, 16.0).toDouble(),
-                            color: kGrey,
-                            fontWeight: FontWeight.w400,
-                          ),
+                      ),
+                      SizedBox(height: betweenHeadingSub),
+                      Text(
+                        "Your personalized report will be securely stored under this profile.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: (W * 0.038 * compactScale)
+                              .clamp(12.0, 16.0)
+                              .toDouble(),
+                          color: kGrey,
+                          fontWeight: FontWeight.w400,
                         ),
-                        SizedBox(height: betweenSubCard),
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: kCardCream,
-                            borderRadius: BorderRadius.circular(cardRadius),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x1A000000),
-                                blurRadius: 18,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          padding: EdgeInsets.all(cardPadding),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              AdaptiveInputField(
-                                label: "Full Name",
-                                controller: _nameController,
-                                keyboardType: TextInputType.name,
-                                labelInputGap: labelInputGap,
-                                inputHeight: inputHeight,
-                              ),
-                              SizedBox(height: fieldSpacing),
-                              AdaptiveInputField(
-                                label: "Mobile Number",
-                                controller: _mobileController,
-                                keyboardType: TextInputType.phone,
-                                labelInputGap: labelInputGap,
-                                inputHeight: inputHeight,
-                                prefixText: "+91",
-                                isPhone: true,
-                                microText: "OTP verification required.",
-                              ),
-                              SizedBox(height: fieldSpacing),
-                              AdaptiveInputField(
-                                label: "City",
-                                controller: _cityController,
-                                keyboardType: TextInputType.text,
-                                labelInputGap: labelInputGap,
-                                inputHeight: inputHeight,
-                              ),
-                              SizedBox(height: consentSpacing),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: checkboxSize,
-                                    height: checkboxSize,
-                                    child: Checkbox(
-                                      value: _consent,
-                                      onChanged: (v) => setState(() => _consent = v ?? false),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      SizedBox(height: betweenSubCard),
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: kCardCream,
+                          borderRadius: BorderRadius.circular(cardRadius),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x1A000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        padding: EdgeInsets.all(cardPadding),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AdaptiveInputField(
+                              label: "Full Name",
+                              controller: _nameController,
+                              keyboardType: TextInputType.name,
+                              labelInputGap: labelInputGap,
+                              inputHeight: inputHeight,
+                            ),
+                            SizedBox(height: fieldSpacing),
+                            AdaptiveInputField(
+                              label: "Mobile Number",
+                              controller: _mobileController,
+                              keyboardType: TextInputType.phone,
+                              labelInputGap: labelInputGap,
+                              inputHeight: inputHeight,
+                              prefixText: "+91",
+                              isPhone: true,
+                              microText: "OTP verification required.",
+                            ),
+                            SizedBox(height: fieldSpacing),
+                            AdaptiveInputField(
+                              label: "City",
+                              controller: _cityController,
+                              keyboardType: TextInputType.text,
+                              labelInputGap: labelInputGap,
+                              inputHeight: inputHeight,
+                            ),
+                            SizedBox(height: consentSpacing),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: checkboxSize,
+                                  height: checkboxSize,
+                                  child: Checkbox(
+                                    value: _consent,
+                                    onChanged: (v) =>
+                                        setState(() => _consent = v ?? false),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    side: BorderSide(color: kGrey, width: 1),
+                                    activeColor: kBlush,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Wrap(
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        "I agree to the ",
+                                        style: TextStyle(
+                                          fontSize: W * 0.032,
+                                          color: kMutedGrey,
+                                        ),
                                       ),
-                                      side: BorderSide(color: kGrey, width: 1),
-                                      activeColor: kBlush,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Wrap(
-                                      crossAxisAlignment: WrapCrossAlignment.center,
-                                      children: [
-                                        Text(
-                                          "I agree to the ",
+                                      GestureDetector(
+                                        onTap: () {},
+                                        child: Text(
+                                          "Terms",
                                           style: TextStyle(
                                             fontSize: W * 0.032,
-                                            color: kMutedGrey,
+                                            color: kBlush,
+                                            decoration:
+                                                TextDecoration.underline,
                                           ),
                                         ),
-                                        GestureDetector(
-                                          onTap: () {},
-                                          child: Text(
-                                            "Terms",
-                                            style: TextStyle(
-                                              fontSize: W * 0.032,
-                                              color: kBlush,
-                                              decoration: TextDecoration.underline,
-                                            ),
-                                          ),
+                                      ),
+                                      Text(
+                                        " & ",
+                                        style: TextStyle(
+                                          fontSize: W * 0.032,
+                                          color: kMutedGrey,
                                         ),
-                                        Text(
-                                          " & ",
+                                      ),
+                                      GestureDetector(
+                                        onTap: () {},
+                                        child: Text(
+                                          "Privacy Policy",
                                           style: TextStyle(
                                             fontSize: W * 0.032,
-                                            color: kMutedGrey,
+                                            color: kBlush,
+                                            decoration:
+                                                TextDecoration.underline,
                                           ),
                                         ),
-                                        GestureDetector(
-                                          onTap: () {},
-                                          child: Text(
-                                            "Privacy Policy",
-                                            style: TextStyle(
-                                              fontSize: W * 0.032,
-                                              color: kBlush,
-                                              decoration: TextDecoration.underline,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              SizedBox(height: buttonSpacing),
-                              PrimaryCTAButton(
-                                text: "Create My Analysis Profile",
-                                enabled: _consent,
-                                height: buttonHeight,
-                                onPressed: _consent ? () {} : null,
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: H * 0.04),
-                        Center(
-                          child: TextButton(
-                            onPressed: () {},
-                            style: TextButton.styleFrom(
-                              foregroundColor: kMutedGrey,
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size(0, 0),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              "Already have a profile? Login",
-                              style: TextStyle(
-                                fontSize:
-                                    (W * 0.032 * compactScale).clamp(11.0, 14.0).toDouble(),
-                                color: kMutedGrey,
-                                fontWeight: FontWeight.w400,
-                                decoration: TextDecoration.none,
-                              ),
+                            SizedBox(height: buttonSpacing),
+                            PrimaryCTAButton(
+                              text: "Create My Analysis Profile",
+                              enabled: _consent,
+                              height: buttonHeight,
+                              onPressed: _consent ? () {} : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: H * 0.04),
+                      Center(
+                        child: TextButton(
+                          onPressed: () {},
+                          style: TextButton.styleFrom(
+                            foregroundColor: kMutedGrey,
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            "Already have a profile? Login",
+                            style: TextStyle(
+                              fontSize: (W * 0.032 * compactScale)
+                                  .clamp(11.0, 14.0)
+                                  .toDouble(),
+                              color: kMutedGrey,
+                              fontWeight: FontWeight.w400,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                         ),
-                        SizedBox(height: (H * 0.02 * compactScale).clamp(8.0, 20.0)),
-                      ],
-                    ),
+                      ),
+                      SizedBox(
+                        height: (H * 0.02 * compactScale).clamp(8.0, 20.0),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -377,9 +399,10 @@ class _UnderlineTextFieldState extends State<UnderlineTextField>
       vsync: this,
       duration: const Duration(milliseconds: 220),
     );
-    _underlineAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
+    _underlineAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) {
         _animController.forward();

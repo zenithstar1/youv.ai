@@ -26,18 +26,22 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <style>
+    :root {
+      --app-height: 100dvh;
+    }
+
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      height: var(--app-height);
       overflow: hidden;
       background-color: #F5E6E8;
     }
 
     #flutter_host {
       width: 100vw;
-      height: 100vh;
+      height: var(--app-height);
       position: fixed;
       inset: 0;
     }
@@ -57,7 +61,7 @@
       align-items: center;
       position: fixed;
       inset: 0;
-      height: 100vh;
+      height: var(--app-height);
       background-color: #F5E6E8;
       z-index: 9999;
       opacity: 1;
@@ -73,6 +77,8 @@
     flt-glass-pane {
       position: fixed !important;
       inset: 0;
+      width: 100vw !important;
+      height: var(--app-height) !important;
     }
 
     .loader {
@@ -136,6 +142,20 @@
   <!-- Flutter LAST -->
 <script src="flutter_bootstrap.js"></script>
   <script>
+    function syncViewportHeight() {
+      var appHeight = (window.visualViewport && window.visualViewport.height)
+          ? window.visualViewport.height
+          : window.innerHeight;
+      document.documentElement.style.setProperty('--app-height', appHeight + 'px');
+    }
+
+    syncViewportHeight();
+    window.addEventListener('resize', syncViewportHeight);
+    window.addEventListener('orientationchange', syncViewportHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', syncViewportHeight);
+    }
+
     function hideLoadingOverlay() {
       var loader = document.getElementById('loading');
       if (!loader || loader.classList.contains('hidden')) return;
