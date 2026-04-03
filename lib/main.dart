@@ -46,15 +46,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _KeyboardViewportFix(child: _AppShell());
-  }
-}
-
-class _AppShell extends StatelessWidget {
-  const _AppShell();
-
-  @override
-  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
@@ -75,52 +66,6 @@ class _AppShell extends StatelessWidget {
       home: const OnboardingScreen(),
     );
   }
-}
-
-class _KeyboardViewportFix extends StatefulWidget {
-  final Widget child;
-
-  const _KeyboardViewportFix({required this.child});
-
-  @override
-  State<_KeyboardViewportFix> createState() => _KeyboardViewportFixState();
-}
-
-class _KeyboardViewportFixState extends State<_KeyboardViewportFix>
-    with WidgetsBindingObserver {
-  double _lastBottomInset = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    final view = WidgetsBinding.instance.platformDispatcher.views.first;
-    final bottomInset = view.viewInsets.bottom / view.devicePixelRatio;
-
-    if (_lastBottomInset > 0 && bottomInset == 0) {
-      FocusManager.instance.primaryFocus?.unfocus();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {});
-        }
-      });
-    }
-
-    _lastBottomInset = bottomInset;
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
 
 class OnboardingScreen extends StatefulWidget {
