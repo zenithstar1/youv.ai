@@ -17,7 +17,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   // STEP 2 — ADD STRING CONSTANTS
   final String termsText = '''
   By using this application, you agree to the following terms and conditions.
@@ -184,6 +184,7 @@ class _LoginPageState extends State<LoginPage>
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  double _lastKeyboardInset = 0;
 
   Color? get lowMutedText => null;
 
@@ -192,6 +193,7 @@ class _LoginPageState extends State<LoginPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _authBloc = AuthBloc();
     _animController = AnimationController(
       vsync: this,
@@ -202,11 +204,32 @@ class _LoginPageState extends State<LoginPage>
       begin: const Offset(0, 0.06),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    _lastKeyboardInset = view.viewInsets.bottom / view.devicePixelRatio;
     _animController.forward();
   }
 
   @override
+  void didChangeMetrics() {
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    final currentInset = view.viewInsets.bottom / view.devicePixelRatio;
+    final keyboardJustClosed = _lastKeyboardInset > 0 && currentInset == 0;
+    _lastKeyboardInset = currentInset;
+
+    if (keyboardJustClosed && mounted) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      // Rebuild after metrics settle so tap targets stay responsive on Android web.
+      Future.delayed(const Duration(milliseconds: 80), () {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authBloc.close();
     _animController.dispose();
     _nameController.dispose();
