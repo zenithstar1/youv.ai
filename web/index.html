@@ -114,10 +114,14 @@
     }
 
     var viewportResyncTimer = null;
+    var viewportWatchdog = null;
 
     function setAppViewportHeight() {
       var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-      document.documentElement.style.setProperty('--app-height', Math.round(h) + 'px');
+      var nextValue = Math.round(h) + 'px';
+      if (document.documentElement.style.getPropertyValue('--app-height') !== nextValue) {
+        document.documentElement.style.setProperty('--app-height', nextValue);
+      }
     }
 
     function scheduleViewportResync() {
@@ -141,11 +145,23 @@
     setTimeout(setAppViewportHeight, 60);
     setTimeout(setAppViewportHeight, 220);
 
+    // Some Android browsers don't reliably emit viewport events on back-key
+    // keyboard dismiss; this watchdog keeps height in sync.
+    viewportWatchdog = setInterval(setAppViewportHeight, 250);
+
     window.addEventListener('resize', setAppViewportHeight);
     window.addEventListener('orientationchange', scheduleViewportResync);
     window.addEventListener('pageshow', scheduleViewportResync);
     window.addEventListener('popstate', scheduleViewportResync);
     window.addEventListener('focus', scheduleViewportResync);
+    window.addEventListener('blur', scheduleViewportResync);
+    document.addEventListener('focusin', scheduleViewportResync);
+    document.addEventListener('focusout', scheduleViewportResync);
+    window.addEventListener('beforeunload', function () {
+      if (viewportWatchdog) {
+        clearInterval(viewportWatchdog);
+      }
+    });
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) {
         scheduleViewportResync();
