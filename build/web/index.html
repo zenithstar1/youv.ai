@@ -94,54 +94,66 @@
   </div>
 
   <script>
-    // ── Android Chrome back-button keyboard-dismiss viewport fix ──
-    // When the Android back button closes the soft keyboard, Chrome
-    // sometimes fails to resize Flutter's canvas.  We detect the
-    // keyboard closing via visualViewport.resize and force the browser
-    // to recalculate the viewport by toggling the <meta viewport> tag,
-    // then dispatch a resize event so Flutter re-measures.
+    // ── Android back-button keyboard viewport fix ──
+    // Two-pronged approach:
+    // 1) visualViewport.resize: detect keyboard close and force recalculate
+    // 2) focusout on inputs: whenever ANY text field loses focus, force viewport reset
     (function () {
       var vv = window.visualViewport;
-      if (!vv) return;
+      var stableH = (vv ? vv.height : window.innerHeight) || window.innerHeight;
+      var kbOpen = false;
 
-      var stableH = vv.height;
-      var kbOpen  = false;
+      // Force Chrome to recalculate viewport by toggling meta viewport
+      function forceViewportRecalc() {
+        window.scrollTo(0, 0);
+        document.documentElement.style.height = '100%';
+        document.body.style.height = '100%';
 
-      vv.addEventListener('resize', function () {
-        var h = vv.height;
-
-        // Keyboard opened (viewport shrank significantly)
-        if (h < stableH - 60) {
-          kbOpen = true;
+        var vp = document.querySelector('meta[name="viewport"]');
+        if (vp) {
+          var orig = vp.getAttribute('content');
+          vp.setAttribute('content', orig + ', minimum-scale=0.99');
+          requestAnimationFrame(function () {
+            vp.setAttribute('content', orig);
+            window.dispatchEvent(new Event('resize'));
+          });
+        } else {
+          window.dispatchEvent(new Event('resize'));
         }
 
-        // Keyboard closed (viewport returned near stable height)
-        if (kbOpen && h >= stableH - 30) {
-          kbOpen = false;
+        // Extra nudges for slower devices
+        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 100);
+        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 300);
+        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 600);
+      }
 
-          window.scrollTo(0, 0);
+      // Prong 1: visualViewport resize detection
+      if (vv) {
+        vv.addEventListener('resize', function () {
+          var h = vv.height;
 
-          // Toggle meta-viewport to force Chrome to recalculate innerHeight
-          var vp = document.querySelector('meta[name="viewport"]');
-          if (vp) {
-            var orig = vp.getAttribute('content');
-            vp.setAttribute('content', orig + ', minimum-scale=0.99');
-            requestAnimationFrame(function () {
-              vp.setAttribute('content', orig);
-              window.dispatchEvent(new Event('resize'));
-            });
-          } else {
-            window.dispatchEvent(new Event('resize'));
+          if (h < stableH - 60) {
+            kbOpen = true;
           }
 
-          // Second nudge after a short delay for slower devices
-          setTimeout(function () {
-            window.dispatchEvent(new Event('resize'));
-          }, 150);
-        }
+          if (kbOpen && h >= stableH - 30) {
+            kbOpen = false;
+            forceViewportRecalc();
+          }
 
-        // Track stable height only when keyboard is closed
-        if (!kbOpen) stableH = h;
+          if (!kbOpen) stableH = h;
+        });
+      }
+
+      // Prong 2: focusout on any input/textarea — user's suggestion
+      // When ANY text field loses focus, force viewport reset after short delay
+      document.addEventListener('focusout', function (e) {
+        var tag = (e.target && e.target.tagName || '').toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) {
+          // Small delay to let the keyboard animation complete
+          setTimeout(forceViewportRecalc, 150);
+          setTimeout(forceViewportRecalc, 400);
+        }
       });
     })();
 

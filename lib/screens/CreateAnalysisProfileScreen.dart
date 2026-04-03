@@ -94,7 +94,7 @@ class _CreateAnalysisProfileScreenState
 
     return Scaffold(
       backgroundColor: kIvory,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: WillPopScope(
         onWillPop: _onWillPop,
         child: SafeArea(

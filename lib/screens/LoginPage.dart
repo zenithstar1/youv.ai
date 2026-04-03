@@ -16,9 +16,10 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
-    // STEP 2 — ADD STRING CONSTANTS
-    final String termsText = '''
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
+  // STEP 2 — ADD STRING CONSTANTS
+  final String termsText = '''
   By using this application, you agree to the following terms and conditions.
 
   1. Purpose of the App
@@ -72,7 +73,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   We may update, modify, or discontinue parts of the service at any time without prior notice.
   ''';
 
-      final String privacyText = '''
+  final String privacyText = '''
         This Privacy Policy explains how we collect, use, and protect your information when you use our App.
 
         1. Information We Collect
@@ -103,66 +104,77 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         We never sell your data to third parties.
     ''';
 
-    // STEP 1 — ADD DIALOG FUNCTION
-    void _showPolicyDialog({
-      required String title,
-      required String content,
-    }) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: 600),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.lora(
-                      fontSize: 25,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF3A2A22),
-                      letterSpacing: 0.2,
-                    ),
+  // STEP 1 — ADD DIALOG FUNCTION
+  void _showPolicyDialog({required String title, required String content}) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: 600),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lora(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF3A2A22),
+                    letterSpacing: 0.2,
                   ),
-                  const SizedBox(height: 18),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        content,
-                        style: GoogleFonts.lora(
-                          fontSize: 14,
-                          color: const Color(0xFF3A2A22),
-                        ),
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Text(
+                      content,
+                      style: GoogleFonts.lora(
+                        fontSize: 14,
+                        color: const Color(0xFF3A2A22),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close', style: TextStyle(color: Color(0xFFE8B4BA))),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(color: Color(0xFFE8B4BA)),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
+
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController(text: '+91');
+  final TextEditingController _phoneController = TextEditingController(
+    text: '+91',
+  );
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _citySearchController = TextEditingController();
   final List<String> _cities = [
-    'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune',
-    'Hyderabad', 'Ahmedabad', 'Jaipur', 'Lucknow'
+    'Mumbai',
+    'Delhi',
+    'Bangalore',
+    'Chennai',
+    'Kolkata',
+    'Pune',
+    'Hyderabad',
+    'Ahmedabad',
+    'Jaipur',
+    'Lucknow',
   ];
   String? _selectedCity;
   final bool _showCitySearch = false;
@@ -172,9 +184,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
-  
+
   Color? get lowMutedText => null;
-  
+
   Color? get headlineText => null;
 
   @override
@@ -186,8 +198,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       duration: const Duration(milliseconds: 250),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
   }
 
@@ -213,14 +227,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final phone = _normalizedPhone();
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+        const SnackBar(
+          content: Text('Please enter a valid 10-digit mobile number'),
+        ),
       );
       return;
     }
 
-    _authBloc.add(
-      SendOtpRequested(phone: phone, flow: 'signup'),
-    );
+    _authBloc.add(SendOtpRequested(phone: phone, flow: 'signup'));
   }
 
   @override
@@ -228,19 +242,33 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
     final compactScale = (H / 900.0).clamp(0.90, 1.0).toDouble();
-    final horizontalPadding = (W * 0.06 * compactScale).clamp(16.0, 24.0).toDouble();
+    final horizontalPadding = (W * 0.06 * compactScale)
+        .clamp(16.0, 24.0)
+        .toDouble();
     final topSpacing = (H * 0.05 * compactScale).clamp(14.0, 34.0).toDouble();
-    final betweenLabelHeading = (H * 0.018 * compactScale).clamp(8.0, 16.0).toDouble();
-    final betweenHeadingSub = (H * 0.012 * compactScale).clamp(6.0, 12.0).toDouble();
-    final betweenSubCard = (H * 0.026 * compactScale).clamp(10.0, 20.0).toDouble();
+    final betweenLabelHeading = (H * 0.018 * compactScale)
+        .clamp(8.0, 16.0)
+        .toDouble();
+    final betweenHeadingSub = (H * 0.012 * compactScale)
+        .clamp(6.0, 12.0)
+        .toDouble();
+    final betweenSubCard = (H * 0.026 * compactScale)
+        .clamp(10.0, 20.0)
+        .toDouble();
     final cardPadding = (W * 0.04 * compactScale).clamp(10.0, 16.0).toDouble();
     final cardRadius = W * 0.05;
     final fieldSpacing = (H * 0.015 * compactScale).clamp(8.0, 14.0).toDouble();
     final labelInputGap = (H * 0.007 * compactScale).clamp(4.0, 9.0).toDouble();
     final inputHeight = (H * 0.056 * compactScale).clamp(38.0, 50.0).toDouble();
-    final consentSpacing = (H * 0.018 * compactScale).clamp(8.0, 14.0).toDouble();
-    final buttonSpacing = (H * 0.018 * compactScale).clamp(8.0, 14.0).toDouble();
-    final buttonHeight = (H * 0.058 * compactScale).clamp(42.0, 52.0).toDouble();
+    final consentSpacing = (H * 0.018 * compactScale)
+        .clamp(8.0, 14.0)
+        .toDouble();
+    final buttonSpacing = (H * 0.018 * compactScale)
+        .clamp(8.0, 14.0)
+        .toDouble();
+    final buttonHeight = (H * 0.058 * compactScale)
+        .clamp(42.0, 52.0)
+        .toDouble();
     final checkboxSize = W * 0.045 > 18 ? W * 0.045 : 18.0;
 
     return BlocProvider.value(
@@ -271,400 +299,677 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               ),
             );
           } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.error)));
           }
         },
         child: SafeArea(
           child: Scaffold(
-        backgroundColor: const Color(0xFFF9F0EC),
-        resizeToAvoidBottomInset: true,
-        body: LayoutBuilder(
-          builder: (context, viewport) {
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: viewport.maxHeight),
-                child: IntrinsicHeight(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                        child: FadeTransition(
-                          opacity: _fadeAnim,
-                          child: SlideTransition(
-                            position: _slideAnim,
-                            child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
+            backgroundColor: const Color(0xFFF9F0EC),
+            resizeToAvoidBottomInset: false,
+            body: LayoutBuilder(
+              builder: (context, viewport) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: viewport.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 420),
                           child: Padding(
-                            padding: EdgeInsets.only(
-                              top: topSpacing,
-                              bottom: betweenSubCard,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding,
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'AI FACIAL ANALYSIS',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.lora(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 2.0,
-                                    color: lowMutedText ?? const Color(0xFFA89B93),
-                                  ),
-                                ),
-                                SizedBox(height: betweenLabelHeading),
-                                Text(
-                                  'Create Your Analysis Profile',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.lora(
-                                    fontSize: (27 * compactScale).clamp(22.0, 30.0).toDouble(),
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.3,
-                                    color: headlineText,
-                                  ),
-                                ),
-                                SizedBox(height: betweenHeadingSub),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                  child: Text(
-                                    'Your personalized report will be securely stored under this profile.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: (W * 0.039 * compactScale).clamp(13.0, 16.5).toDouble(),
-                                      color: const Color(0xFFB0B0B0),
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    maxLines: 2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBF7),
-                            borderRadius: BorderRadius.circular(cardRadius),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x1A000000),
-                                blurRadius: 18,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          padding: EdgeInsets.all(cardPadding),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Full Name Card
-                              Container(
-                                margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(8 * compactScale),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
+                            child: FadeTransition(
+                              opacity: _fadeAnim,
+                              child: SlideTransition(
+                                position: _slideAnim,
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.max,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Text('Full Name', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: labelInputGap),
-                                    TextField(
-                                      controller: _nameController,
-                                      style: TextStyle(
-                                        fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: 'Enter your name',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          top: topSpacing,
+                                          bottom: betweenSubCard,
                                         ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Mobile Number Card
-                              Container(
-                                margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(8 * compactScale),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Mobile Number', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: labelInputGap),
-                                    TextField(
-                                      controller: _phoneController,
-                                      keyboardType: TextInputType.phone,
-                                      style: TextStyle(
-                                        fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: 'Enter your mobile number',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(height: (3 * compactScale).clamp(2.0, 4.0)),
-                                    Text('OTP verification required.', style: TextStyle(fontSize: (12 * compactScale).clamp(10.5, 13.0).toDouble(), color: Colors.black54)),
-                                  ],
-                                ),
-                              ),
-                              // City Card with Dropdown
-                              Container(
-                                margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(8 * compactScale),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('City', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: labelInputGap),
-                                    DropdownButtonFormField<String>(
-                                      initialValue: _selectedCity,
-                                      items: _cities.map((city) => DropdownMenuItem(
-                                        value: city,
-                                        child: Text(city),
-                                      )).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedCity = value;
-                                          _cityController.text = value ?? '';
-                                        });
-                                      },
-                                      decoration: InputDecoration(
-                                        hintText: 'Select your city',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: consentSpacing),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: checkboxSize,
-                                    height: checkboxSize,
-                                    child: Checkbox(
-                                      value: _consent,
-                                      onChanged: (v) => setState(() => _consent = v ?? false),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                      side: const BorderSide(color: Color(0xFFB0B0B0), width: 1),
-                                      activeColor: const Color(0xFFE8B4BA),
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Wrap(
-                                      crossAxisAlignment: WrapCrossAlignment.center,
-                                      children: [
-                                        Text(
-                                          'I agree to the ',
-                                          style: TextStyle(
-                                            fontSize: (W * 0.030 * compactScale).clamp(11.0, 13.0).toDouble(),
-                                            
-                                            color: const Color(0xFF8C8C8C),
-                                          ),
-                                        ),
-                                        GestureDetector(
-                                          onTap: () {
-                                            _showPolicyDialog(
-                                              title: "Terms of Use",
-                                              content: termsText,
-                                            );
-                                          },
-                                          child: Text(
-                                            'Terms',
-                                            style: TextStyle(
-                                              fontSize: (W * 0.033 * compactScale).clamp(11.5, 14.0).toDouble(),
-                                              color: const Color(0xFFE8B4BA),
-                                              decoration: TextDecoration.underline,
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          ' & ',
-                                          style: TextStyle(
-                                            fontSize: (W * 0.033 * compactScale).clamp(11.5, 14.0).toDouble(),
-                                            color: const Color(0xFF8C8C8C),
-                                          ),
-                                        ),
-                                        GestureDetector(
-                                          onTap: () {
-                                            _showPolicyDialog(
-                                              title: "Privacy Policy",
-                                              content: privacyText,
-                                            );
-                                          },
-                                          child: Text(
-                                            'Privacy Policy',
-                                            style: TextStyle(
-                                              fontSize: (W * 0.033 * compactScale).clamp(11.5, 14.0).toDouble(),
-                                              color: const Color(0xFFE8B4BA),
-                                              decoration: TextDecoration.underline,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: buttonSpacing),
-                              // Verify & Start Scan Button
-                              Builder(
-                                builder: (context) {
-                                  final allFilled = _nameController.text.trim().isNotEmpty &&
-                                      _phoneController.text.trim().isNotEmpty &&
-                                      _selectedCity != null && _selectedCity!.trim().isNotEmpty && _consent;
-                                  final anyFilled = _nameController.text.trim().isNotEmpty ||
-                                      _phoneController.text.trim().isNotEmpty ||
-                                      (_selectedCity != null && _selectedCity!.trim().isNotEmpty);
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      ElevatedButton(
-                                        onPressed: (allFilled && !_isSendingOtp)
-                                            ? _requestOtpForSignup
-                                            : null,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: allFilled
-                                              ? const Color(0xFFE4B3B8)
-                                              : Colors.grey.shade400,
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(24),
-                                          ),
-                                          minimumSize: Size(double.infinity, buttonHeight),
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: (10 * compactScale).clamp(8.0, 12.0).toDouble(),
-                                          ),
-                                        ),
-                                        child: _isSendingOtp
-                                            ? const SizedBox(
-                                                height: 22,
-                                                width: 22,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white,
-                                                ),
-                                              )
-                                            : Text('Verify & Start Scan', style: TextStyle(fontSize: (16.5 * compactScale).clamp(14.0, 17.5).toDouble(), fontWeight: FontWeight.w600)),
-                                      ),
-                                      SizedBox(height: (8 * compactScale).clamp(6.0, 10.0)),
-                                      Center(
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => AlreadyLoginScreen(),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'AI FACIAL ANALYSIS',
+                                              textAlign: TextAlign.center,
+                                              style: GoogleFonts.lora(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 2.0,
+                                                color:
+                                                    lowMutedText ??
+                                                    const Color(0xFFA89B93),
                                               ),
-                                            );
-                                          },
-                                          child: Text(
-                                            'Already registered user?',
-                                            style: TextStyle(
-                                              color: Colors.blueGrey.shade700,
-                                              fontSize: (15 * compactScale).clamp(12.5, 16.0).toDouble(),
-                                              fontWeight: FontWeight.w500,
-                                              decoration: TextDecoration.underline,
                                             ),
-                                          ),
+                                            SizedBox(
+                                              height: betweenLabelHeading,
+                                            ),
+                                            Text(
+                                              'Create Your Analysis Profile',
+                                              textAlign: TextAlign.center,
+                                              style: GoogleFonts.lora(
+                                                fontSize: (27 * compactScale)
+                                                    .clamp(22.0, 30.0)
+                                                    .toDouble(),
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.3,
+                                                color: headlineText,
+                                              ),
+                                            ),
+                                            SizedBox(height: betweenHeadingSub),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8.0,
+                                                  ),
+                                              child: Text(
+                                                'Your personalized report will be securely stored under this profile.',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontSize:
+                                                      (W * 0.039 * compactScale)
+                                                          .clamp(13.0, 16.5)
+                                                          .toDouble(),
+                                                  color: const Color(
+                                                    0xFFB0B0B0,
+                                                  ),
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                                maxLines: 2,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ],
-                                  );
-                                },
+                                    ),
+                                    Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBF7),
+                                        borderRadius: BorderRadius.circular(
+                                          cardRadius,
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x1A000000),
+                                            blurRadius: 18,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      padding: EdgeInsets.all(cardPadding),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          // Full Name Card
+                                          Container(
+                                            margin: EdgeInsets.only(
+                                              bottom: fieldSpacing,
+                                            ),
+                                            padding: EdgeInsets.all(
+                                              8 * compactScale,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black12,
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Full Name',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        (14.5 * compactScale)
+                                                            .clamp(12.5, 16.0)
+                                                            .toDouble(),
+                                                    color: Colors.black87,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                SizedBox(height: labelInputGap),
+                                                TextField(
+                                                  controller: _nameController,
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        (15 * compactScale)
+                                                            .clamp(13.0, 16.0)
+                                                            .toDouble(),
+                                                  ),
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Enter your name',
+                                                    isDense: true,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical:
+                                                              (11 * compactScale)
+                                                                  .clamp(
+                                                                    9.0,
+                                                                    13.0,
+                                                                  )
+                                                                  .toDouble(),
+                                                        ),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide:
+                                                          const BorderSide(
+                                                            color: Color(
+                                                              0xFFE6E2DD,
+                                                            ),
+                                                          ),
+                                                    ),
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // Mobile Number Card
+                                          Container(
+                                            margin: EdgeInsets.only(
+                                              bottom: fieldSpacing,
+                                            ),
+                                            padding: EdgeInsets.all(
+                                              8 * compactScale,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black12,
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Mobile Number',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        (14.5 * compactScale)
+                                                            .clamp(12.5, 16.0)
+                                                            .toDouble(),
+                                                    color: Colors.black87,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                SizedBox(height: labelInputGap),
+                                                TextField(
+                                                  controller: _phoneController,
+                                                  keyboardType:
+                                                      TextInputType.phone,
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        (15 * compactScale)
+                                                            .clamp(13.0, 16.0)
+                                                            .toDouble(),
+                                                  ),
+                                                  decoration: InputDecoration(
+                                                    hintText:
+                                                        'Enter your mobile number',
+                                                    isDense: true,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical:
+                                                              (11 * compactScale)
+                                                                  .clamp(
+                                                                    9.0,
+                                                                    13.0,
+                                                                  )
+                                                                  .toDouble(),
+                                                        ),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide:
+                                                          const BorderSide(
+                                                            color: Color(
+                                                              0xFFE6E2DD,
+                                                            ),
+                                                          ),
+                                                    ),
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  height: (3 * compactScale)
+                                                      .clamp(2.0, 4.0),
+                                                ),
+                                                Text(
+                                                  'OTP verification required.',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        (12 * compactScale)
+                                                            .clamp(10.5, 13.0)
+                                                            .toDouble(),
+                                                    color: Colors.black54,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // City Card with Dropdown
+                                          Container(
+                                            margin: EdgeInsets.only(
+                                              bottom: fieldSpacing,
+                                            ),
+                                            padding: EdgeInsets.all(
+                                              8 * compactScale,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black12,
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'City',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        (14.5 * compactScale)
+                                                            .clamp(12.5, 16.0)
+                                                            .toDouble(),
+                                                    color: Colors.black87,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                SizedBox(height: labelInputGap),
+                                                DropdownButtonFormField<String>(
+                                                  initialValue: _selectedCity,
+                                                  items: _cities
+                                                      .map(
+                                                        (city) =>
+                                                            DropdownMenuItem(
+                                                              value: city,
+                                                              child: Text(city),
+                                                            ),
+                                                      )
+                                                      .toList(),
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      _selectedCity = value;
+                                                      _cityController.text =
+                                                          value ?? '';
+                                                    });
+                                                  },
+                                                  decoration: InputDecoration(
+                                                    hintText:
+                                                        'Select your city',
+                                                    isDense: true,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical:
+                                                              (11 * compactScale)
+                                                                  .clamp(
+                                                                    9.0,
+                                                                    13.0,
+                                                                  )
+                                                                  .toDouble(),
+                                                        ),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide:
+                                                          const BorderSide(
+                                                            color: Color(
+                                                              0xFFE6E2DD,
+                                                            ),
+                                                          ),
+                                                    ),
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          SizedBox(height: consentSpacing),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            children: [
+                                              SizedBox(
+                                                width: checkboxSize,
+                                                height: checkboxSize,
+                                                child: Checkbox(
+                                                  value: _consent,
+                                                  onChanged: (v) => setState(
+                                                    () => _consent = v ?? false,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          5,
+                                                        ),
+                                                  ),
+                                                  side: const BorderSide(
+                                                    color: Color(0xFFB0B0B0),
+                                                    width: 1,
+                                                  ),
+                                                  activeColor: const Color(
+                                                    0xFFE8B4BA,
+                                                  ),
+                                                  materialTapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Wrap(
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
+                                                  children: [
+                                                    Text(
+                                                      'I agree to the ',
+                                                      style: TextStyle(
+                                                        fontSize:
+                                                            (W *
+                                                                    0.030 *
+                                                                    compactScale)
+                                                                .clamp(
+                                                                  11.0,
+                                                                  13.0,
+                                                                )
+                                                                .toDouble(),
+
+                                                        color: const Color(
+                                                          0xFF8C8C8C,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    GestureDetector(
+                                                      onTap: () {
+                                                        _showPolicyDialog(
+                                                          title: "Terms of Use",
+                                                          content: termsText,
+                                                        );
+                                                      },
+                                                      child: Text(
+                                                        'Terms',
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              (W *
+                                                                      0.033 *
+                                                                      compactScale)
+                                                                  .clamp(
+                                                                    11.5,
+                                                                    14.0,
+                                                                  )
+                                                                  .toDouble(),
+                                                          color: const Color(
+                                                            0xFFE8B4BA,
+                                                          ),
+                                                          decoration:
+                                                              TextDecoration
+                                                                  .underline,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      ' & ',
+                                                      style: TextStyle(
+                                                        fontSize:
+                                                            (W *
+                                                                    0.033 *
+                                                                    compactScale)
+                                                                .clamp(
+                                                                  11.5,
+                                                                  14.0,
+                                                                )
+                                                                .toDouble(),
+                                                        color: const Color(
+                                                          0xFF8C8C8C,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    GestureDetector(
+                                                      onTap: () {
+                                                        _showPolicyDialog(
+                                                          title:
+                                                              "Privacy Policy",
+                                                          content: privacyText,
+                                                        );
+                                                      },
+                                                      child: Text(
+                                                        'Privacy Policy',
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              (W *
+                                                                      0.033 *
+                                                                      compactScale)
+                                                                  .clamp(
+                                                                    11.5,
+                                                                    14.0,
+                                                                  )
+                                                                  .toDouble(),
+                                                          color: const Color(
+                                                            0xFFE8B4BA,
+                                                          ),
+                                                          decoration:
+                                                              TextDecoration
+                                                                  .underline,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: buttonSpacing),
+                                          // Verify & Start Scan Button
+                                          Builder(
+                                            builder: (context) {
+                                              final allFilled =
+                                                  _nameController.text
+                                                      .trim()
+                                                      .isNotEmpty &&
+                                                  _phoneController.text
+                                                      .trim()
+                                                      .isNotEmpty &&
+                                                  _selectedCity != null &&
+                                                  _selectedCity!
+                                                      .trim()
+                                                      .isNotEmpty &&
+                                                  _consent;
+                                              final anyFilled =
+                                                  _nameController.text
+                                                      .trim()
+                                                      .isNotEmpty ||
+                                                  _phoneController.text
+                                                      .trim()
+                                                      .isNotEmpty ||
+                                                  (_selectedCity != null &&
+                                                      _selectedCity!
+                                                          .trim()
+                                                          .isNotEmpty);
+                                              return Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  ElevatedButton(
+                                                    onPressed:
+                                                        (allFilled &&
+                                                            !_isSendingOtp)
+                                                        ? _requestOtpForSignup
+                                                        : null,
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: allFilled
+                                                          ? const Color(
+                                                              0xFFE4B3B8,
+                                                            )
+                                                          : Colors
+                                                                .grey
+                                                                .shade400,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      elevation: 0,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              24,
+                                                            ),
+                                                      ),
+                                                      minimumSize: Size(
+                                                        double.infinity,
+                                                        buttonHeight,
+                                                      ),
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            vertical:
+                                                                (10 * compactScale)
+                                                                    .clamp(
+                                                                      8.0,
+                                                                      12.0,
+                                                                    )
+                                                                    .toDouble(),
+                                                          ),
+                                                    ),
+                                                    child: _isSendingOtp
+                                                        ? const SizedBox(
+                                                            height: 22,
+                                                            width: 22,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
+                                                          )
+                                                        : Text(
+                                                            'Verify & Start Scan',
+                                                            style: TextStyle(
+                                                              fontSize:
+                                                                  (16.5 * compactScale)
+                                                                      .clamp(
+                                                                        14.0,
+                                                                        17.5,
+                                                                      )
+                                                                      .toDouble(),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                  ),
+                                                  SizedBox(
+                                                    height: (8 * compactScale)
+                                                        .clamp(6.0, 10.0),
+                                                  ),
+                                                  Center(
+                                                    child: GestureDetector(
+                                                      onTap: () {
+                                                        Navigator.of(
+                                                          context,
+                                                        ).push(
+                                                          MaterialPageRoute(
+                                                            builder: (_) =>
+                                                                AlreadyLoginScreen(),
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: Text(
+                                                        'Already registered user?',
+                                                        style: TextStyle(
+                                                          color: Colors
+                                                              .blueGrey
+                                                              .shade700,
+                                                          fontSize:
+                                                              (15 * compactScale)
+                                                                  .clamp(
+                                                                    12.5,
+                                                                    16.0,
+                                                                  )
+                                                                  .toDouble(),
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                          decoration:
+                                                              TextDecoration
+                                                                  .underline,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: (H * 0.02).clamp(8.0, 16.0),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                        SizedBox(height: (H * 0.02).clamp(8.0, 16.0)),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
           ),
         ),
       ),
@@ -675,8 +980,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Phone Number',
-          style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500),
+        Text(
+          'Phone Number',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         SizedBox(height: 6),
         TextField(
@@ -692,16 +1002,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     'assets/images/india_flag.png',
                     width: 22,
                     height: 18,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.flag, size: 18, color: Colors.black26),
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.flag, size: 18, color: Colors.black26),
                   ),
                   SizedBox(width: 4),
-                  Text('+91', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                  Text(
+                    '+91',
+                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                  ),
                 ],
               ),
             ),
             hintText: 'Enter your phone number',
             floatingLabelBehavior: FloatingLabelBehavior.auto,
-            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
@@ -747,7 +1064,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           prefixText: prefix,
           hintText: hint,
           floatingLabelBehavior: FloatingLabelBehavior.auto,
-          contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 16,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
             borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
@@ -771,8 +1091,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('City',
-          style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500),
+        Text(
+          'City',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         // ...existing code...
       ],
@@ -811,7 +1136,11 @@ class AdaptiveInputField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         SizedBox(height: labelInputGap),
         UnderlineTextField(
@@ -858,7 +1187,8 @@ class UnderlineTextField extends StatefulWidget {
   State<UnderlineTextField> createState() => _UnderlineTextFieldState();
 }
 
-class _UnderlineTextFieldState extends State<UnderlineTextField> with SingleTickerProviderStateMixin {
+class _UnderlineTextFieldState extends State<UnderlineTextField>
+    with SingleTickerProviderStateMixin {
   late FocusNode _focusNode;
   late AnimationController _animController;
   late Animation<double> _underlineAnim;
@@ -871,9 +1201,10 @@ class _UnderlineTextFieldState extends State<UnderlineTextField> with SingleTick
       vsync: this,
       duration: const Duration(milliseconds: 220),
     );
-    _underlineAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
+    _underlineAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) {
         _animController.forward();
@@ -937,7 +1268,9 @@ class _UnderlineTextFieldState extends State<UnderlineTextField> with SingleTick
                     height: 2,
                     width: W * 0.88 * _underlineAnim.value,
                     decoration: BoxDecoration(
-                      color: _focusNode.hasFocus ? const Color(0xFFE8B4BA) : const Color(0xFFB0B0B0).withOpacity(0.4),
+                      color: _focusNode.hasFocus
+                          ? const Color(0xFFE8B4BA)
+                          : const Color(0xFFB0B0B0).withOpacity(0.4),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -1017,7 +1350,10 @@ class OTPVerificationScreen extends StatefulWidget {
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   bool _loading = false;
   String _error = '';
   int _timer = 30;
@@ -1044,7 +1380,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       return;
     }
 
-    setState(() { _loading = true; });
+    setState(() {
+      _loading = true;
+    });
     context.read<AuthBloc>().add(
       VerifyLoginMobile(
         phone: widget.phone,
@@ -1057,7 +1395,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _resendCode() {
-    setState(() { _timer = 30; });
+    setState(() {
+      _timer = 30;
+    });
     _startTimer();
     context.read<AuthBloc>().add(
       SendOtpRequested(phone: widget.phone, flow: 'signup'),
@@ -1082,9 +1422,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           );
         } else if (state is AuthMessage) {
           setState(() => _loading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         } else if (state is AuthError) {
           setState(() {
             _loading = false;
@@ -1095,80 +1435,88 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF9F0EC),
         body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: W * 0.07, vertical: 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 30),
-              Text('Verify Your Number',
-                style: GoogleFonts.poppins(
-                  fontSize: W * 0.06,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: W * 0.07, vertical: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 30),
+                Text(
+                  'Verify Your Number',
+                  style: GoogleFonts.poppins(
+                    fontSize: W * 0.06,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-              SizedBox(height: 12),
-              Text('Enter the 6-digit code sent to +91 ${widget.phone}',
-                style: GoogleFonts.poppins(
-                  fontSize: W * 0.035,
-                  color: Colors.black54,
+                SizedBox(height: 12),
+                Text(
+                  'Enter the 6-digit code sent to +91 ${widget.phone}',
+                  style: GoogleFonts.poppins(
+                    fontSize: W * 0.035,
+                    color: Colors.black54,
+                  ),
                 ),
-              ),
-              SizedBox(height: 32),
-              Center(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: List.generate(6, (i) => _buildOtpBox(i)),
+                SizedBox(height: 32),
+                Center(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: List.generate(6, (i) => _buildOtpBox(i)),
+                  ),
                 ),
-              ),
-              if (_error.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(_error, style: const TextStyle(color: Colors.red)),
-                ),
-              SizedBox(height: 32),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: _timer == 0 ? _resendCode : null,
+                if (_error.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
                     child: Text(
-                      _timer == 0 ? 'Resend Code' : 'Resend in $_timer s',
-                      style: GoogleFonts.poppins(
-                        fontSize: W * 0.032,
-                        color: Colors.black,
-                      ),
+                      _error,
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ),
-                ],
-              ),
-              SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: !_loading ? _verifyOtp : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE4B3B8),
-                    foregroundColor: Colors.black87,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  ),
-                  child: _loading
-                      ? const CircularProgressIndicator()
-                      : Text('Verify & Start Scan',
-                          style: GoogleFonts.poppins(
-                            fontSize: W * 0.045,
-                            fontWeight: FontWeight.w600,
-                          ),
+                SizedBox(height: 32),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: _timer == 0 ? _resendCode : null,
+                      child: Text(
+                        _timer == 0 ? 'Resend Code' : 'Resend in $_timer s',
+                        style: GoogleFonts.poppins(
+                          fontSize: W * 0.032,
+                          color: Colors.black,
                         ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: !_loading ? _verifyOtp : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE4B3B8),
+                      foregroundColor: Colors.black87,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator()
+                        : Text(
+                            'Verify & Start Scan',
+                            style: GoogleFonts.poppins(
+                              fontSize: W * 0.045,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -1237,23 +1585,23 @@ class _LoginPageContentState extends State<LoginPageContent> {
     try {
       final GoogleAuthProvider googleProvider = GoogleAuthProvider();
 
-      final UserCredential userCredential =
-          await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithPopup(googleProvider);
 
       if (userCredential.user != null) {
         final user = userCredential.user!;
 
         if (mounted) {
           context.read<AuthBloc>().add(
-                GoogleLoginRequested(
-                  googleToken: user.uid,
-                  email: user.email ?? '',
-                  displayName: user.displayName ?? '',
-                  uid: user.uid,
-                  photoURL: user.photoURL ?? '',
-                  phoneNumber: user.phoneNumber ?? '',
-                ),
-              );
+            GoogleLoginRequested(
+              googleToken: user.uid,
+              email: user.email ?? '',
+              displayName: user.displayName ?? '',
+              uid: user.uid,
+              photoURL: user.photoURL ?? '',
+              phoneNumber: user.phoneNumber ?? '',
+            ),
+          );
         }
       } else {
         setState(() {
@@ -1407,8 +1755,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
                               width: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(
+                                valueColor: AlwaysStoppedAnimation<Color>(
                                   Color(0xFFD4999F),
                                 ),
                               ),
@@ -1452,11 +1799,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      Icon(Icons.info_outline, color: Colors.white, size: 20),
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
