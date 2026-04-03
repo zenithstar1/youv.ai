@@ -96,6 +96,22 @@
   </div>
 
   <script>
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+
+    function resetViewportAfterHistoryNav() {
+      window.scrollTo(0, 0);
+      document.documentElement.style.height = '100%';
+      document.body.style.height = '100%';
+      setTimeout(function () {
+        window.dispatchEvent(new Event('resize'));
+      }, 40);
+    }
+
+    window.addEventListener('pageshow', resetViewportAfterHistoryNav);
+    window.addEventListener('popstate', resetViewportAfterHistoryNav);
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for(let registration of registrations) {
