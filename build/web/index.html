@@ -55,8 +55,24 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      position: fixed;
+      inset: 0;
       height: 100vh;
       background-color: #F5E6E8;
+      z-index: 9999;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    flt-glass-pane {
+      position: fixed !important;
+      inset: 0;
     }
 
     .loader {
@@ -120,6 +136,32 @@
   <!-- Flutter LAST -->
 <script src="flutter_bootstrap.js"></script>
   <script>
+    function hideLoadingOverlay() {
+      var loader = document.getElementById('loading');
+      if (!loader || loader.classList.contains('hidden')) return;
+      loader.classList.add('hidden');
+      setTimeout(function () {
+        if (loader && loader.parentNode) {
+          loader.parentNode.removeChild(loader);
+        }
+      }, 260);
+    }
+
+    window.addEventListener('flutter-first-frame', hideLoadingOverlay);
+
+    var flutterReadyObserver = new MutationObserver(function () {
+      var pane = document.querySelector('flt-glass-pane');
+      if (pane) {
+        hideLoadingOverlay();
+        flutterReadyObserver.disconnect();
+      }
+    });
+
+    flutterReadyObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
     function openRazorpayCheckout(orderId, key, amount, name, email, number) {
       console.log('Opening Razorpay Checkout...');
 
