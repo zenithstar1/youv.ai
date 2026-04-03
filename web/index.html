@@ -27,7 +27,7 @@
 
   <style>
     :root {
-      --app-height: 100dvh;
+      --app-height: 100lvh;
     }
 
     html, body {
@@ -193,10 +193,19 @@
 
     var viewportResyncTimer = null;
     var viewportWatchdog = null;
+    var maxAppHeight = 0;
 
     function setAppViewportHeight() {
-      var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-      var nextValue = Math.round(h) + 'px';
+      var visualH = window.visualViewport ? window.visualViewport.height : 0;
+      var innerH = window.innerHeight || 0;
+      var docH = document.documentElement ? document.documentElement.clientHeight : 0;
+      var measured = Math.max(visualH, innerH, docH);
+
+      if (measured > maxAppHeight) {
+        maxAppHeight = measured;
+      }
+
+      var nextValue = Math.round(maxAppHeight || measured) + 'px';
       if (document.documentElement.style.getPropertyValue('--app-height') !== nextValue) {
         document.documentElement.style.setProperty('--app-height', nextValue);
       }
@@ -232,7 +241,10 @@
     viewportWatchdog = setInterval(setAppViewportHeight, 250);
 
     window.addEventListener('resize', setAppViewportHeight);
-    window.addEventListener('orientationchange', scheduleViewportResync);
+    window.addEventListener('orientationchange', function () {
+      maxAppHeight = 0;
+      scheduleViewportResync();
+    });
     window.addEventListener('pageshow', scheduleViewportResync);
     window.addEventListener('popstate', function () {
       if (!consumeBackForKeyboard()) {
