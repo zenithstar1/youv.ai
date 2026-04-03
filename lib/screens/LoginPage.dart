@@ -915,17 +915,34 @@ class _LoginPageState extends State<LoginPage>
                                                         .clamp(6.0, 10.0),
                                                   ),
                                                   Center(
-                                                    child: GestureDetector(
-                                                      onTap: () {
+                                                    child: TextButton(
+                                                      onPressed: () {
+                                                        FocusScope.of(
+                                                          context,
+                                                        ).unfocus();
                                                         Navigator.of(
                                                           context,
                                                         ).push(
                                                           MaterialPageRoute(
                                                             builder: (_) =>
-                                                                AlreadyLoginScreen(),
+                                                                const AlreadyLoginScreen(),
                                                           ),
                                                         );
                                                       },
+                                                      style: TextButton.styleFrom(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 6,
+                                                            ),
+                                                        minimumSize: const Size(
+                                                          44,
+                                                          36,
+                                                        ),
+                                                        tapTargetSize:
+                                                            MaterialTapTargetSize
+                                                                .shrinkWrap,
+                                                      ),
                                                       child: Text(
                                                         'Already registered user?',
                                                         style: TextStyle(
