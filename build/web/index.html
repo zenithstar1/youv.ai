@@ -121,6 +121,7 @@
     }
 
     var backGuardActive = false;
+    var keyboardRecentUntil = 0;
 
     function isEditableElement(el) {
       if (!el) return false;
@@ -135,6 +136,10 @@
     function isKeyboardLikelyOpen() {
       if (!window.visualViewport) return false;
       return window.visualViewport.height < (window.innerHeight * 0.9);
+    }
+
+    function keyboardActiveOrRecent() {
+      return hasActiveEditable() || isKeyboardLikelyOpen() || Date.now() < keyboardRecentUntil;
     }
 
     function armBackGuard() {
@@ -167,7 +172,7 @@
     }
 
     function trapBackWhenKeyboardActive(event) {
-      if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
+      if (!keyboardActiveOrRecent()) {
         return;
       }
 
@@ -189,6 +194,12 @@
       if (event && typeof event.stopPropagation === 'function') {
         event.stopPropagation();
       }
+
+      // Last-resort workaround for device/browser viewport bugs after back-key
+      // keyboard dismiss: hard-reload to reset the canvas metrics.
+      setTimeout(function () {
+        window.location.reload();
+      }, 80);
     }
 
     var viewportResyncTimer = null;
@@ -255,12 +266,14 @@
     window.addEventListener('blur', scheduleViewportResync);
     document.addEventListener('focusin', function () {
       scheduleViewportResync();
+      keyboardRecentUntil = Date.now() + 5000;
       if (hasActiveEditable()) {
         armBackGuard();
       }
     });
     document.addEventListener('focusout', function () {
       scheduleViewportResync();
+      keyboardRecentUntil = Date.now() + 1500;
       setTimeout(function () {
         if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
           backGuardActive = false;
