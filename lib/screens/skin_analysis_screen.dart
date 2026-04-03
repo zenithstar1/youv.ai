@@ -251,12 +251,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     super.initState();
     selectedColorIndex = (widget.analysisData?.fitzpatrickType ?? 1) - 1;
     _pageController = PageController(
-    viewportFraction: 0.9,
-    initialPage: 0,
-    keepPage: true,
-   );
+      viewportFraction: 0.9,
+      initialPage: 0,
+      keepPage: true,
+    );
     _scrollController = ScrollController();
-
 
     // COMMENTED OUT: Payment initialization
     // checkSubscriptionStatus();
@@ -1072,6 +1071,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFE8B4BA),
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Complete Skin Analysis'),
         backgroundColor: const Color(0xFFD4999F),
@@ -1091,57 +1091,71 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = MediaQuery.of(context).size.width;
-            return Container(
-              color: const Color(0xFFE8B4BA),
-              child: CustomScrollView(
+        return Container(
+          color: const Color(0xFFE8B4BA),
+          child: CustomScrollView(
             controller: _scrollController,
-            cacheExtent: 2000,   // increased for smoother scrolling on iPhone
+            cacheExtent: 2000, // increased for smoother scrolling on iPhone
             slivers: [
-             SliverToBoxAdapter(
-              child: Column(
-                children: [
-                // ==================== SECTION 1: SKIN HEALTH ANALYSIS ====================
-                _buildSkinHealthSection(skinHealthScore, screenWidth),
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    // ==================== SECTION 1: SKIN HEALTH ANALYSIS ====================
+                    _buildSkinHealthSection(skinHealthScore, screenWidth),
 
-                const SizedBox(height: 30),
+                    const SizedBox(height: 30),
 
-                // ==================== SECTION 2: FACIAL SYMMETRY ANALYSIS ====================
-                _buildFacialSymmetrySection(symmetryScore, screenWidth),
-                const SizedBox(height: 20),
-                
-                // Arrow to detailed report
-                Center(
-                  child: GestureDetector(
-                    onTap: _scrollToBottom,
-                    child: Column(
-                      children: const [
-                        Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.grey),
-                        SizedBox(height: 4),
-                        Text('Get detailed report', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      ],
+                    // ==================== SECTION 2: FACIAL SYMMETRY ANALYSIS ====================
+                    _buildFacialSymmetrySection(symmetryScore, screenWidth),
+                    const SizedBox(height: 20),
+
+                    // Arrow to detailed report
+                    Center(
+                      child: GestureDetector(
+                        onTap: _scrollToBottom,
+                        child: Column(
+                          children: const [
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 28,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Get detailed report',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 30),
+                    const SizedBox(height: 30),
 
-                // DISCLAIMER SECTION
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-                  child: _buildDisclaimerSection(screenWidth),
-                ),
-                const SizedBox(height: 20),
+                    // DISCLAIMER SECTION
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.04,
+                      ),
+                      child: _buildDisclaimerSection(screenWidth),
+                    ),
+                    const SizedBox(height: 20),
 
-                // REPORT SECTION (REPLACED PAYMENT SECTION)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-                  child: _buildReportSection(screenWidth),
+                    // REPORT SECTION (REPLACED PAYMENT SECTION)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.04,
+                      ),
+                      child: _buildReportSection(screenWidth),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
                 ),
-               const SizedBox(height: 30),
-             ],
-            ),
-           ),
-          ],
-         ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1217,10 +1231,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(20),
@@ -1235,11 +1246,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.stars,
-                  color: Color(0xFF9B7653),
-                  size: 24,
-                ),
+                const Icon(Icons.stars, color: Color(0xFF9B7653), size: 24),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1500,15 +1507,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                                  'Skin Health Score',
+                            'Skin Health Score',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.black54,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                                Text(
-                                  skinHealthScore.toStringAsFixed(1),
+                          Text(
+                            skinHealthScore.toStringAsFixed(1),
                             style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -1531,7 +1538,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 children: const [
                   Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.grey),
                   SizedBox(height: 4),
-                  Text('Get detailed report', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Get detailed report',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             ),
@@ -1578,7 +1588,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     top: 20,
                     child: AnalysisPoint(
                       label: 'Pigmentation',
-                      color: _colorForScore(widget.analysisData!.pigmentationScore),
+                      color: _colorForScore(
+                        widget.analysisData!.pigmentationScore,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -1586,7 +1598,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     top: 60,
                     child: AnalysisPoint(
                       label: 'Hydration',
-                      color: _colorForScore(widget.analysisData!.hydrationScore),
+                      color: _colorForScore(
+                        widget.analysisData!.hydrationScore,
+                      ),
                     ),
                   ),
                 ],
@@ -1598,15 +1612,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                          const Text(
-                            'This score reflects visible characteristics captured in this scan',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                const Text(
+                  'This score reflects visible characteristics captured in this scan',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
 
                 Row(
@@ -1686,7 +1700,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -1927,13 +1944,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           borderRadius: BorderRadius.circular(20),
           child: Stack(
             children: [
-                  // Main content
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: _RatioCardContent(data: data, mode: mode),
-                    ),
-                  ),
+              // Main content
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _RatioCardContent(data: data, mode: mode),
+                ),
+              ),
 
               // Mode badge
               Positioned(
@@ -1996,9 +2013,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                       onTap: _scrollToBottom,
                       child: Column(
                         children: const [
-                          Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.grey),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 28,
+                            color: Colors.grey,
+                          ),
                           SizedBox(height: 4),
-                          Text('Get detailed report', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          Text(
+                            'Get detailed report',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
                         ],
                       ),
                     ),
@@ -2058,7 +2082,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD4999F).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFFD4999F).withValues(alpha: 0.3),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -2080,7 +2106,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
   Color _colorForScore(double score) {
     final t = (score.clamp(0.0, 100.0) / 100.0);
-    return Color.lerp(const Color(0xFFFF6B6B), const Color(0xFF6BCB77), t) ?? const Color(0xFF9B7653);
+    return Color.lerp(const Color(0xFFFF6B6B), const Color(0xFF6BCB77), t) ??
+        const Color(0xFF9B7653);
   }
 
   String _ageLabel(int age) {
@@ -2194,12 +2221,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 ),
               ],
             ),
-            crossFadeState: _disclaimerExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: _disclaimerExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 250),
           ),
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () => setState(() => _disclaimerExpanded = !_disclaimerExpanded),
+            onTap: () =>
+                setState(() => _disclaimerExpanded = !_disclaimerExpanded),
             child: Text(
               _disclaimerExpanded ? 'Read less' : 'Read more',
               style: TextStyle(

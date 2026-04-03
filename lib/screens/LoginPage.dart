@@ -1434,6 +1434,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF9F0EC),
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: W * 0.07, vertical: 40),
@@ -1652,6 +1653,7 @@ class _LoginPageContentState extends State<LoginPageContent> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFE8B4BA),
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: const Color(0xFFD4999F),
           title: const Text(

@@ -26,6 +26,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     if (!kIsWeb) {
       return Scaffold(
         backgroundColor: Colors.black,
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: Colors.black,
           elevation: 0,
@@ -35,7 +36,8 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
           ),
         ),
         body: const Center(
-          child: Text( 'Web camera is not available on mobile.\nUse EnhancedCameraScreen with real camera instead.',
+          child: Text(
+            'Web camera is not available on mobile.\nUse EnhancedCameraScreen with real camera instead.',
             style: TextStyle(color: Colors.white70, fontSize: 14),
             textAlign: TextAlign.center,
           ),
@@ -47,6 +49,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     // In production, integrate with dart:html for web implementation
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,

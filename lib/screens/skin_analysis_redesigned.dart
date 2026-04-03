@@ -1219,6 +1219,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
 
     return Scaffold(
       backgroundColor: _DS.pageBg,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [

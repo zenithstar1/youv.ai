@@ -13,10 +13,7 @@ import 'standard_camera_screen.dart';
 class ImageCaptureScreen extends StatefulWidget {
   final bool isHair;
 
-  const ImageCaptureScreen({
-    super.key,
-    this.isHair = false,
-  });
+  const ImageCaptureScreen({super.key, this.isHair = false});
 
   @override
   State<ImageCaptureScreen> createState() => _ImageCaptureScreenState();
@@ -45,16 +42,16 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
     if (!mounted) return;
 
     /// wait until first frame renders
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-  if (_navigated) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_navigated) return;
 
-  if (widget.isHair) {
-    _instructionsShown = true;
-    _showInstructionsDialog();
-  } else {
-    _takePhoto(); // open camera immediately for face
-  }
-});
+      if (widget.isHair) {
+        _instructionsShown = true;
+        _showInstructionsDialog();
+      } else {
+        _takePhoto(); // open camera immediately for face
+      }
+    });
   }
 
   // ================= USER =================
@@ -95,7 +92,8 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         MaterialPageRoute(
           builder: (_) => EnhancedCameraScreen(
             isHair: widget.isHair,
-            onImageCaptured: (_, __) {}, // Camera screens handle navigation directly
+            onImageCaptured:
+                (_, __) {}, // Camera screens handle navigation directly
           ),
         ),
       );
@@ -117,8 +115,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   // ================= UPLOAD =================
 
   Future<void> _uploadFromDevice() async {
-    final result =
-        await FilePicker.platform.pickFiles(type: FileType.image);
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
 
     if (result != null && mounted) {
       final file = result.files.first;
@@ -142,9 +139,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
 
   void _showInstructionsDialog() {
     /// prevents duplicate dialogs
-    if (!mounted ||
-        _navigated ||
-        ModalRoute.of(context)?.isCurrent != true) {
+    if (!mounted || _navigated || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
 
@@ -152,8 +147,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
             Icon(Icons.lightbulb_outline, color: Color(0xFF6B3E3E)),
@@ -161,8 +155,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
             Expanded(
               child: Text(
                 "How to take a great shot",
-                style: TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
               ),
             ),
           ],
@@ -172,29 +165,48 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: widget.isHair
               ? const [
-                  _TipItem(icon: Icons.wb_sunny_outlined, text: 'Use even lighting'),
-                  _TipItem(icon: Icons.content_cut, text: 'Expose scalp clearly'),
-                  _TipItem(icon: Icons.center_focus_strong, text: 'Keep head centered'),
+                  _TipItem(
+                    icon: Icons.wb_sunny_outlined,
+                    text: 'Use even lighting',
+                  ),
+                  _TipItem(
+                    icon: Icons.content_cut,
+                    text: 'Expose scalp clearly',
+                  ),
+                  _TipItem(
+                    icon: Icons.center_focus_strong,
+                    text: 'Keep head centered',
+                  ),
                   _TipItem(icon: Icons.water_drop, text: 'Hair should be dry'),
                 ]
               : const [
                   _TipItem(icon: Icons.face, text: 'Face camera directly'),
-                  _TipItem(icon: Icons.wb_sunny_outlined, text: 'Use bright lighting'),
-                  _TipItem(icon: Icons.sentiment_neutral, text: 'Neutral expression'),
-                  _TipItem(icon: Icons.no_photography_outlined, text: 'Remove makeup'),
+                  _TipItem(
+                    icon: Icons.wb_sunny_outlined,
+                    text: 'Use bright lighting',
+                  ),
+                  _TipItem(
+                    icon: Icons.sentiment_neutral,
+                    text: 'Neutral expression',
+                  ),
+                  _TipItem(
+                    icon: Icons.no_photography_outlined,
+                    text: 'Remove makeup',
+                  ),
                 ],
         ),
         actions: [
           TextButton(
-           onPressed: () {
-  Navigator.pop(context);
-  _takePhoto();
-},
+            onPressed: () {
+              Navigator.pop(context);
+              _takePhoto();
+            },
             child: const Text(
               "Got it!",
               style: TextStyle(
-                  color: Color(0xFF6B3E3E),
-                  fontWeight: FontWeight.w600),
+                color: Color(0xFF6B3E3E),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -205,12 +217,13 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   // ================= UI =================
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: _navigated ? Colors.black : const Color(0xFFF5E6E8),
-    body: _buildBody(),
-  );
-}
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _navigated ? Colors.black : const Color(0xFFF5E6E8),
+      resizeToAvoidBottomInset: false,
+      body: _buildBody(),
+    );
+  }
 
   Widget _buildBody() {
     return Padding(
@@ -229,9 +242,7 @@ Widget build(BuildContext context) {
           const SizedBox(height: 20),
 
           Text(
-            widget.isHair
-                ? "Capture Hair Image"
-                : "Capture Face Image",
+            widget.isHair ? "Capture Hair Image" : "Capture Face Image",
             style: GoogleFonts.lora(
               fontSize: 24,
               fontWeight: FontWeight.w600,

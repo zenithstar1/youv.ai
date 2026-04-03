@@ -15563,7 +15563,7 @@ _.r=g
 _.w=h
 _.x=i},
 a4w:function a4w(){},
-oB(a,b,c,d){return new A.Ie(a,c,b,d,null)},
+oB(a,b,c,d){return new A.Ie(a,c,b,!1,null)},
 aXn(a){var s=a.pu(t.Np)
 if(s!=null)return s
 throw A.c(A.pY(A.b([A.mb("Scaffold.of() called with a context that does not contain a Scaffold."),A.bS("No Scaffold ancestor could be found starting from the context that was passed to Scaffold.of(). This usually happens when the context provided is from the same StatefulWidget as that whose build function actually creates the Scaffold widget being sought."),A.EF('There are several ways to avoid this problem. The simplest is to use a Builder to get a context that is "under" the Scaffold. For an example of this, please see the documentation for Scaffold.of():\n  https://api.flutter.dev/flutter/material/Scaffold/of.html'),A.EF("A more efficient solution is to split your build function into several widgets. This introduces a new context from which you can obtain the Scaffold. In this solution, you would have an outer widget that creates the Scaffold populated by instances of your new inner widgets, and then in these inner widgets you would use Scaffold.of().\nA less elegant but more expedient solution is assign a GlobalKey to the Scaffold, then use the key.currentState property to obtain the ScaffoldState rather than using the Scaffold.of() function."),a.ay_("The context used was")],t.E)))},
@@ -64846,8 +64846,8 @@ alN(){var s,r=this.c
 r.toString
 s=A.Hn(r)
 if(s!=null&&s.f.length!==0)s.lv(0,B.Ki,B.cU)},
-gtV(){var s=this.a.dy
-return s!==!1},
+gtV(){this.a.toString
+return!1},
 aC(){var s,r=this,q=null
 r.aW()
 s=r.c
@@ -111400,7 +111400,7 @@ g===$&&A.a()
 f=t.D
 f=A.b([c,A.hj(p,A.hd(A.CM(new A.aV(new A.a_(o,0,o,0),A.lo(!0,new A.eD(new A.an(0,j,0,1/0),A.bM(A.b([h,i,A.es(d,A.h2(g,new A.aGx(e,a1,a2,s,q,b),d),B.W,!1,d,d,d,d,d,d,d,d,d,d,d,d,d,d,new A.aGy(a3),d,d,d,d,d,d)],f),B.t,B.o,B.aw),d),!1),d),B.bR,B.L6,k),!r,d),d,d,0,0,d,d)],f)
 if(e.r)f.push(A.hj(d,A.dJ(A.aI(A.F0(B.T,A.aPL("assets/images/logo.png",d,d),B.ej),d,a*0.6),d,d),d,d,0,0,b*0.05,d))
-return A.oB(d,d,A.fT(B.bi,f,B.J,B.bu,d),d)}}
+return A.oB(d,d,A.fT(B.bi,f,B.J,B.bu,d),!1)}}
 A.aGA.prototype={
 $1(a){var s,r=this.a
 if(r.c==null)return
@@ -111538,7 +111538,7 @@ c=a2.$1(16)
 b=A.bc(s.b9(0,40))
 a=A.fK(B.JP,0.6)
 a0=A.b([new A.aP(1,B.r,B.eo.pX(0.1),B.j,14),B.Gj],t.V)
-return A.oB(a1,B.fA,A.lo(!0,A.dJ(new A.eD(B.G3,A.Y0(A.bM(A.b([n,m,l,k,j,new A.aV(new A.a_(i,0,i,0),h,a1),g,new A.a1C(p,a1),f,B.abW,e,B.abV,d,A.es(B.av,A.bs(a1,A.dJ(A.ag("Create My Analysis Profile",a1,a1,a1,a1,A.ht().$4$color$fontSize$fontWeight$letterSpacing(B.J5,s.cC(15),B.aa,0.4),a1,a1),a1,a1),B.n,a1,a1,new A.b0(B.A,a1,a,b,a0,B.Oi,B.B),a1,a1,a1,a1,new A.a_(0,c,0,c),a1,a1,1/0),B.W,!1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,this.ganP(),a1,a1,a1,a1,a1,a1),A.aI(a1,a2.$1(16),a1)],t.D),B.de,B.o,B.p),new A.a_(a3,o,a3,o),a1),a1),a1,a1),!0),a1)}}
+return A.oB(a1,B.fA,A.lo(!0,A.dJ(new A.eD(B.G3,A.Y0(A.bM(A.b([n,m,l,k,j,new A.aV(new A.a_(i,0,i,0),h,a1),g,new A.a1C(p,a1),f,B.abW,e,B.abV,d,A.es(B.av,A.bs(a1,A.dJ(A.ag("Create My Analysis Profile",a1,a1,a1,a1,A.ht().$4$color$fontSize$fontWeight$letterSpacing(B.J5,s.cC(15),B.aa,0.4),a1,a1),a1,a1),B.n,a1,a1,new A.b0(B.A,a1,a,b,a0,B.Oi,B.B),a1,a1,a1,a1,new A.a_(0,c,0,c),a1,a1,1/0),B.W,!1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,a1,this.ganP(),a1,a1,a1,a1,a1,a1),A.aI(a1,a2.$1(16),a1)],t.D),B.de,B.o,B.p),new A.a_(a3,o,a3,o),a1),a1),a1,a1),!0),!1)}}
 A.aHe.prototype={
 $1(a){var s=this.a.c
 if(s==null)return
@@ -111790,7 +111790,7 @@ i.push(A.aI(p,32,p))
 m=!q.e?q.gauo():p
 l=A.afG(p,p,B.A,p,p,p,4,p,p,B.V,p,p,p,p,new A.dl(A.bc(24),B.w),p,p,p,p,p)
 i.push(A.aI(A.afF(!1,q.e?B.po:A.ag("Verify & Start Scan",p,p,p,p,A.kM().$2$fontSize$fontWeight(o*0.045,B.a8),p,p),p,p,p,p,p,p,m,p,l),52,1/0))
-return A.aOO(A.oB(p,B.fA,A.lo(!0,new A.aV(new A.a_(n,40,n,40),A.bM(i,B.a7,B.o,B.p),p),!0),p),new A.aGv(q),t.tj,t.FB)},
+return A.aOO(A.oB(p,B.fA,A.lo(!0,new A.aV(new A.a_(n,40,n,40),A.bM(i,B.a7,B.o,B.p),p),!0),!1),new A.aGv(q),t.tj,t.FB)},
 aev(a){var s=null,r=this.d[a],q=A.kM().$2$fontSize$fontWeight(20,B.a8),p=A.bc(10),o=A.bc(10)
 return A.aI(A.YW(r,A.yP(s,new A.fg(4,p,B.fn),s,B.qp,s,s,"",s,!0,new A.fg(4,A.bc(10),B.fn),s,s,s,s,s,B.h,!0,s,s,s,s,new A.fg(4,o,B.FR),s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,!0,s,s,s,!0,!0,s,s,s,s,s,s,s,s,s,s,s,s,s,s),s,s,B.nT,1,new A.aGj(this,a),q,B.a6),s,44)}}
 A.aGm.prototype={
@@ -111974,7 +111974,7 @@ b=A.aI(A.afF(!1,A.ag(a0,a7,a7,a7,a7,A.kM().$3$color$fontSize$fontWeight(B.h,a9*0
 a1.push(A.aI(a7,s.bJ(12),a7))
 a1.push(A.w_(A.ag("New here? Create Profile",a7,a7,a7,a7,A.kM().$2$color$fontSize(B.ap,q),a7,a7),new A.azf(b2),a7))
 q=t.tj
-return A.aOP(A.aOO(A.oB(a7,B.fA,A.lo(!0,A.Y0(A.bM(A.b([r,p,o,new A.aV(new A.a_(n,0,n,0),m,a7),l,new A.aV(new A.a_(k,0,k,0),j,a7),i,new A.aV(new A.a_(h,0,h,0),g,a7),f,A.dJ(A.bs(a7,A.bM(a1,B.t,B.o,B.aw),B.n,a7,a7,new A.b0(B.h,a7,a7,d,c,a7,B.B),a7,a7,a7,a7,new A.a_(e,a8,e,a8),a7,a7,a9*0.9),a7,a7),A.aI(a7,b0*0.05,a7)],a2),B.t,B.o,B.p),a7,a7),!0),a7),new A.azg(a6),q,t.FB),b1,q)}}
+return A.aOP(A.aOO(A.oB(a7,B.fA,A.lo(!0,A.Y0(A.bM(A.b([r,p,o,new A.aV(new A.a_(n,0,n,0),m,a7),l,new A.aV(new A.a_(k,0,k,0),j,a7),i,new A.aV(new A.a_(h,0,h,0),g,a7),f,A.dJ(A.bs(a7,A.bM(a1,B.t,B.o,B.aw),B.n,a7,a7,new A.b0(B.h,a7,a7,d,c,a7,B.B),a7,a7,a7,a7,new A.a_(e,a8,e,a8),a7,a7,a9*0.9),a7,a7),A.aI(a7,b0*0.05,a7)],a2),B.t,B.o,B.p),a7,a7),!0),!1),new A.azg(a6),q,t.FB),b1,q)}}
 A.azi.prototype={
 $0(){this.a.a2(new A.azh())},
 $S:0}
@@ -112049,7 +112049,7 @@ n=A.aI(o,r*0.05,o)
 m=A.dJ(A.ag("AI FACIAL ANALYSIS",o,o,o,o,A.kM().$4$color$fontSize$fontWeight$letterSpacing(B.dd,m.a.a*0.032,B.P,1.5),B.a6,o),o,o)
 q=s.b9(0,24)
 p=t.D
-return A.oB(o,B.c0,A.lo(!0,A.bM(A.b([n,m,B.jV,A.hb(A.Y0(new A.aV(new A.a_(q,0,q,0),A.bM(A.b([A.ag("Choose your focus today",o,o,o,o,A.ht().$3$color$fontSize$fontWeight(B.er,s.cC(28),B.a8),B.a6,o),A.aI(o,s.bJ(10),o),A.ag("Your personalized report will be generated based on your selection.",o,o,o,o,A.ht().$3$color$fontSize$height(B.eq,s.cC(14.5),1.4),B.a6,o),A.aI(o,s.bJ(14),o),A.ag("Both options take less than 60 seconds.",o,o,o,o,A.ht().$3$color$fontSize$fontStyle(B.ie,s.cC(12.5),B.b7),B.a6,o),A.aI(o,r*0.06,o),A.aYw("Full facial skin evaluation with detailed scoring.",B.N8,!0,new A.aar(a),o,"Hydration \u2022 Acne \u2022 Pigmentation \u2022 Texture","Comprehensive Facial Analysis"),B.a2z,A.aYw("Scalp and hair density screening.",B.MT,!1,new A.aas(a),"Coming Soon","Density \u2022 Thinning \u2022 Scalp","Hair Health Overview"),A.aI(o,r*0.08,o)],p),B.t,B.o,B.p),o),o,o),1)],p),B.t,B.o,B.p),!0),o)}}
+return A.oB(o,B.c0,A.lo(!0,A.bM(A.b([n,m,B.jV,A.hb(A.Y0(new A.aV(new A.a_(q,0,q,0),A.bM(A.b([A.ag("Choose your focus today",o,o,o,o,A.ht().$3$color$fontSize$fontWeight(B.er,s.cC(28),B.a8),B.a6,o),A.aI(o,s.bJ(10),o),A.ag("Your personalized report will be generated based on your selection.",o,o,o,o,A.ht().$3$color$fontSize$height(B.eq,s.cC(14.5),1.4),B.a6,o),A.aI(o,s.bJ(14),o),A.ag("Both options take less than 60 seconds.",o,o,o,o,A.ht().$3$color$fontSize$fontStyle(B.ie,s.cC(12.5),B.b7),B.a6,o),A.aI(o,r*0.06,o),A.aYw("Full facial skin evaluation with detailed scoring.",B.N8,!0,new A.aar(a),o,"Hydration \u2022 Acne \u2022 Pigmentation \u2022 Texture","Comprehensive Facial Analysis"),B.a2z,A.aYw("Scalp and hair density screening.",B.MT,!1,new A.aas(a),"Coming Soon","Density \u2022 Thinning \u2022 Scalp","Hair Health Overview"),A.aI(o,r*0.08,o)],p),B.t,B.o,B.p),o),o,o),1)],p),B.t,B.o,B.p),!0),!1)}}
 A.aar.prototype={
 $0(){A.aSy(!1,new A.aaq(),this.a,t.z)},
 $S:0}
@@ -112180,7 +112180,7 @@ s=A.k1(B.r4,B.c_,n,80)
 r=A.ag("Capture Face Image",n,n,n,n,A.ht().$3$color$fontSize$fontWeight(B.er,24,B.a8),n,n)
 q=A.b6O(B.Nn,B.a8v,o.gasZ(),A.afG(n,n,B.c_,n,n,n,n,n,n,n,n,B.a2q,n,n,n,n,n,n,n,n))
 p=A.b9o(n,n,n,n,n,n,n,n,n,B.c_,n,B.a2s,n,n,n,B.FM,n,n,n,n)
-return A.oB(n,m,new A.aV(B.qs,A.bM(A.b([B.a2X,s,B.jW,r,B.DE,q,B.f7,new A.V6(!0,o.gauh(),n,n,n,p,n,n,!1,n,!0,n,new A.a3y(B.a8n,B.Nk,p,n,n),n),B.DH],t.D),B.t,B.cF,B.p),n),n)}}
+return A.oB(n,m,new A.aV(B.qs,A.bM(A.b([B.a2X,s,B.jW,r,B.DE,q,B.f7,new A.V6(!0,o.gauh(),n,n,n,p,n,n,!1,n,!0,n,new A.a3y(B.a8n,B.Nk,p,n,n),n),B.DH],t.D),B.t,B.cF,B.p),n),!1)}}
 A.aE7.prototype={
 $1(a){var s=this.a
 if(s.f)return
@@ -112351,7 +112351,7 @@ r=A.aD(s,B.hV,t.w).w.a.b
 q=B.c.a7(r*0.045,18,34)
 p=B.c.a7(r*0.025,12,24)
 o=B.c.a7(r*0.018,12,16)
-k.push(A.hj(0,A.lo(!0,new A.aV(B.LV,A.dJ(new A.eD(B.G0,A.bM(A.b([A.aI(m,q,m),A.ag("Analyzed across 25+ skin parameters",m,m,m,m,A.aSw().$3$color$fontSize$fontWeight(B.ap,12,B.v),B.a6,m),A.aI(m,p,m),n.aez(),A.aI(m,o,m),n.aeB()],l),B.t,B.o,B.aw),m),m,m),m),!1),m,m,0,0,m,m))}return A.oB(m,B.i,A.fT(B.bi,k,B.J,B.k0,m),m)},
+k.push(A.hj(0,A.lo(!0,new A.aV(B.LV,A.dJ(new A.eD(B.G0,A.bM(A.b([A.aI(m,q,m),A.ag("Analyzed across 25+ skin parameters",m,m,m,m,A.aSw().$3$color$fontSize$fontWeight(B.ap,12,B.v),B.a6,m),A.aI(m,p,m),n.aez(),A.aI(m,o,m),n.aeB()],l),B.t,B.o,B.aw),m),m,m),m),!1),m,m,0,0,m,m))}return A.oB(m,B.i,A.fT(B.bi,k,B.J,B.k0,m),!1)},
 aeh(){var s,r,q,p,o,n=this,m=null,l=A.b([B.G,A.U(B.c.aj(127.5),B.i.n()>>>16&255,B.i.n()>>>8&255,B.i.n()&255),A.U(B.c.aj(229.5),B.i.n()>>>16&255,B.i.n()>>>8&255,B.i.n()&255)],t.t_)
 n.a.toString
 s=t.ZU
@@ -113016,7 +113016,7 @@ a3=A.bc(50)
 b2.push(new A.ii(new A.lG(new A.aV(new A.a_(s,0,r,0),A.bs(a7,A.bM(A.b([h,g,b,c,i,a,a0,B.DD,a1,B.DD,A.bs(a7,A.cd(A.b([A.k1(B.MU,A.U(166,B.h.n()>>>16&255,B.h.n()>>>8&255,B.h.n()&255),a7,13),B.nK,new A.md(1,B.eB,A.ag("The account you created will track your progress over time.",a7,a7,a7,a7,A.aX(a7,a7,A.U(184,B.h.n()>>>16&255,B.h.n()>>>8&255,B.h.n()&255),a7,a7,a7,a7,a7,a7,a7,a7,11,a7,a7,a7,a7,a7,!0,a7,a7,a7,a7,a7,a7,a7,a7),B.a6,a7),a7)],b1),B.t,B.cF,B.p,0),B.n,a7,a7,new A.b0(k,a7,a7,a3,a7,a7,B.B),a7,a7,a7,a7,B.Ly,a7,a7,1/0)],b1),B.t,B.o,B.p),B.n,a7,a7,new A.b0(a7,a7,a7,f,j,new A.fQ(B.cM,B.hY,B.aV,l,a7,a7),B.B),a7,a7,a7,a7,new A.a_(o,q,n,m),a7,a7,a7),a7),B.D,a7),a7))
 b2.push(new A.ii(a6.ael(),a7))
 b2.push(B.a2E)
-return A.oB(a7,B.c0,A.lo(!0,new A.RF(b2,B.aR,!1,a7,a7,B.kC,a7,!1,a7,0,a7,a7,B.jZ,B.W,a7,a7,B.J,B.av,a7),!0),a7)},
+return A.oB(a7,B.c0,A.lo(!0,new A.RF(b2,B.aR,!1,a7,a7,B.kC,a7,!1,a7,0,a7,a7,B.jZ,B.W,a7,a7,B.J,B.av,a7),!0),!1)},
 aeK(){var s,r,q,p,o,n,m=null,l=this.c
 l.toString
 s=t.w
@@ -113998,7 +113998,7 @@ if(i===B.CH||i===B.a0x){i=l.k3
 d.push(A.aI(A.eW(A.dJ(A.ag(""+B.c.C(i*100),k,k,k,k,A.aX(k,k,A.U(B.c.aj(229.5),B.O.n()>>>16&255,B.O.n()>>>8&255,B.O.n()&255),k,k,k,k,k,j,k,k,32,k,k,B.a8,k,k,!0,k,k,k,k,k,k,k,k),k,k),k,k),k,k,new A.a5s(i,B.a2,k),B.F),120,120))}d.push(B.DH)
 i=l.k1
 if(i.length!==0)d.push(new A.aV(B.Lv,A.ag(i,k,k,k,k,A.aX(k,k,A.U(217,B.O.n()>>>16&255,B.O.n()>>>8&255,B.O.n()&255),k,k,k,k,k,j,k,k,15,k,k,k,k,k,!0,k,k,k,k,k,k,k,k),B.a6,k),k))
-c.push(A.ou(0,A.hd(A.bM(d,B.t,B.cF,B.p),!0,k)))}return A.oB(k,B.i,A.fT(B.bi,c,B.J,B.bu,k),k)},
+c.push(A.ou(0,A.hd(A.bM(d,B.t,B.cF,B.p),!0,k)))}return A.oB(k,B.i,A.fT(B.bi,c,B.J,B.bu,k),!1)},
 aep(){var s,r,q=this
 if(q.cy>0)return"Keep your face steady"
 if(q.db)return"Capturing\u2026"

@@ -8,6 +8,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = Responsive(context);
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Settings'),
         backgroundColor: const Color(0xFFD4999F),
@@ -18,7 +19,13 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('App Settings', style: TextStyle(fontSize: r.sp(18), fontWeight: FontWeight.bold)),
+              Text(
+                'App Settings',
+                style: TextStyle(
+                  fontSize: r.sp(18),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               SizedBox(height: r.h(12)),
               const Text('• Notifications: On'),
               SizedBox(height: r.h(8)),

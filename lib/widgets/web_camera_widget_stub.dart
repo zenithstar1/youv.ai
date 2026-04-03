@@ -26,6 +26,7 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     if (!kIsWeb) {
       return Scaffold(
         backgroundColor: Colors.black,
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: Colors.black,
           elevation: 0,
@@ -47,9 +48,13 @@ class _WebCameraWidgetState extends State<WebCameraWidget> {
     // On web, this would be replaced with actual implementation
     // using dart:html and platform channels
     return const Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
       body: Center(
-        child: Text('Web version would load here', style: TextStyle(color: Colors.white)),
+        child: Text(
+          'Web version would load here',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
     );
   }

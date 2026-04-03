@@ -5,10 +5,7 @@ import '../Models/hair_analysis_model.dart';
 class HairResultScreen extends StatelessWidget {
   final HairAnalysisModel analysis;
 
-  const HairResultScreen({
-    super.key,
-    required this.analysis,
-  });
+  const HairResultScreen({super.key, required this.analysis});
 
   Color _gradeColor(int grade) {
     switch (grade) {
@@ -60,24 +57,23 @@ class HairResultScreen extends StatelessWidget {
     final r = Responsive(context); // responsive scaling helper
     return Scaffold(
       backgroundColor: const Color(0xFFF5E6E8),
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
-  backgroundColor: const Color(0xFF6B3E3E),
-  centerTitle: true,
+        backgroundColor: const Color(0xFF6B3E3E),
+        centerTitle: true,
 
-  // ✅ makes back arrow white
-  iconTheme: const IconThemeData(
-    color: Colors.white,
-  ),
+        // ✅ makes back arrow white
+        iconTheme: const IconThemeData(color: Colors.white),
 
-  // ✅ makes title text white
-  titleTextStyle: TextStyle(
-    color: Colors.white,
-    fontSize: r.sp(18), // responsive app bar title
-    fontWeight: FontWeight.w600,
-  ),
+        // ✅ makes title text white
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: r.sp(18), // responsive app bar title
+          fontWeight: FontWeight.w600,
+        ),
 
-  title: const Text('Hair Analysis Result'),
-),
+        title: const Text('Hair Analysis Result'),
+      ),
 
       body: SafeArea(
         child: Column(
@@ -96,8 +92,9 @@ class HairResultScreen extends StatelessWidget {
                       height: r.w(140),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color:
-                            _gradeColor(analysis.densityGrade).withOpacity(0.15),
+                        color: _gradeColor(
+                          analysis.densityGrade,
+                        ).withOpacity(0.15),
                         border: Border.all(
                           color: _gradeColor(analysis.densityGrade),
                           width: 4,
@@ -159,14 +156,17 @@ class HairResultScreen extends StatelessWidget {
 
                     // 📊 Density cards
                     Column(
-                      children: List.generate(hairDensityLevels.length, (index) {
+                      children: List.generate(hairDensityLevels.length, (
+                        index,
+                      ) {
                         final level = index + 1;
-                        final isUserLevel =
-                            level == analysis.densityGrade;
+                        final isUserLevel = level == analysis.densityGrade;
 
                         return Container(
                           margin: EdgeInsets.only(bottom: r.h(14)),
-                          padding: EdgeInsets.all(r.w(16)), // responsive card padding
+                          padding: EdgeInsets.all(
+                            r.w(16),
+                          ), // responsive card padding
                           decoration: BoxDecoration(
                             color: isUserLevel
                                 ? _gradeColor(level).withOpacity(0.12)
@@ -210,8 +210,7 @@ class HairResultScreen extends StatelessWidget {
                               // Text
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       hairDensityLevels[index]['title']!,
@@ -225,8 +224,7 @@ class HairResultScreen extends StatelessWidget {
                                     ),
                                     SizedBox(height: r.h(6)),
                                     Text(
-                                      hairDensityLevels[index]
-                                          ['description']!,
+                                      hairDensityLevels[index]['description']!,
                                       style: TextStyle(
                                         fontSize: r.sp(13), // responsive
                                         color: Colors.grey.shade700,
@@ -261,15 +259,11 @@ class HairResultScreen extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.popUntil(
-                          context,
-                          (route) => route.isFirst,
-                        );
+                        Navigator.popUntil(context, (route) => route.isFirst);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6B3E3E),
-                        foregroundColor: Colors.white, 
-
+                        foregroundColor: Colors.white,
                       ),
                       child: const Text('Done'),
                     ),

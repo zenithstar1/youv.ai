@@ -1696,6 +1696,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: _buildHairAnalysisUI(),
     );
   }

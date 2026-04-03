@@ -879,6 +879,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // ── CAMERA ──

@@ -143,6 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         : BoxFit.cover;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // -------- VIDEO BACKGROUND (FULL SCREEN) --------
