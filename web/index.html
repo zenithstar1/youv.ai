@@ -26,22 +26,27 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <style>
-    :root {
-      --app-height: 100dvh;
-    }
-
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
-      height: var(--app-height);
+      height: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
       overflow: hidden;
+      overscroll-behavior: none;
       background-color: #FDF8F3;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
     }
 
     #flutter_host {
       width: 100vw;
-      height: var(--app-height);
+      height: 100%;
+      min-height: 100dvh;
       position: fixed;
       inset: 0;
     }
@@ -61,7 +66,8 @@
       align-items: center;
       position: fixed;
       inset: 0;
-      height: var(--app-height);
+      height: 100%;
+      min-height: 100dvh;
       background-color: #FDF8F3;
       z-index: 9999;
       opacity: 1;
@@ -77,8 +83,10 @@
     flt-glass-pane {
       position: fixed !important;
       inset: 0;
-      width: 100vw !important;
-      height: var(--app-height) !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 100dvh !important;
+      overflow: hidden !important;
     }
 
     .loader {
@@ -142,20 +150,6 @@
   <!-- Flutter LAST -->
 <script src="flutter_bootstrap.js"></script>
   <script>
-    function syncViewportHeight() {
-      var appHeight = (window.visualViewport && window.visualViewport.height)
-          ? window.visualViewport.height
-          : window.innerHeight;
-      document.documentElement.style.setProperty('--app-height', appHeight + 'px');
-    }
-
-    syncViewportHeight();
-    window.addEventListener('resize', syncViewportHeight);
-    window.addEventListener('orientationchange', syncViewportHeight);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', syncViewportHeight);
-    }
-
     function hideLoadingOverlay() {
       var loader = document.getElementById('loading');
       if (!loader || loader.classList.contains('hidden')) return;
