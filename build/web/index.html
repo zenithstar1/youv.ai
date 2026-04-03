@@ -166,6 +166,31 @@
       return true;
     }
 
+    function trapBackWhenKeyboardActive(event) {
+      if (!hasActiveEditable() && !isKeyboardLikelyOpen()) {
+        return;
+      }
+
+      var active = document.activeElement;
+      if (active && typeof active.blur === 'function') {
+        active.blur();
+      }
+
+      scheduleViewportResync();
+      setTimeout(scheduleViewportResync, 120);
+
+      try {
+        history.pushState({ __kbGuard: true }, document.title);
+      } catch (e) {}
+
+      if (event && typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+      if (event && typeof event.stopPropagation === 'function') {
+        event.stopPropagation();
+      }
+    }
+
     var viewportResyncTimer = null;
     var viewportWatchdog = null;
 
@@ -197,6 +222,10 @@
     setAppViewportHeight();
     setTimeout(setAppViewportHeight, 60);
     setTimeout(setAppViewportHeight, 220);
+
+    // Guaranteed workaround: while keyboard is active, browser back should only
+    // close keyboard and must not propagate to Flutter route pop handlers.
+    window.addEventListener('popstate', trapBackWhenKeyboardActive, true);
 
     // Some Android browsers don't reliably emit viewport events on back-key
     // keyboard dismiss; this watchdog keeps height in sync.
