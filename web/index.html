@@ -94,6 +94,67 @@
   </div>
 
   <script>
+    (function () {
+      var RELOAD_FLAG_KEY = 'youv_back_refresh_once';
+      var hadRecentTextInputBlur = false;
+      var blurResetTimer = null;
+
+      // Clear one-shot flag after reload so future navigation works normally.
+      if (sessionStorage.getItem(RELOAD_FLAG_KEY) === '1') {
+        sessionStorage.removeItem(RELOAD_FLAG_KEY);
+      }
+
+      function isTextInputElement(element) {
+        if (!element || !element.tagName) return false;
+        var tag = element.tagName.toLowerCase();
+        if (tag === 'textarea') return true;
+        if (tag !== 'input') return false;
+
+        var inputType = (element.type || '').toLowerCase();
+        return (
+          inputType === '' ||
+          inputType === 'text' ||
+          inputType === 'search' ||
+          inputType === 'tel' ||
+          inputType === 'url' ||
+          inputType === 'email' ||
+          inputType === 'number' ||
+          inputType === 'password'
+        );
+      }
+
+      document.addEventListener(
+        'focusout',
+        function (event) {
+          if (!isTextInputElement(event.target)) return;
+
+          hadRecentTextInputBlur = true;
+          if (blurResetTimer) {
+            clearTimeout(blurResetTimer);
+          }
+
+          blurResetTimer = setTimeout(function () {
+            hadRecentTextInputBlur = false;
+          }, 1800);
+        },
+        true
+      );
+
+      // If user presses browser back right after keyboard/text-field blur,
+      // force one clean reload so previous screens are rebuilt from fresh state.
+      window.addEventListener(
+        'popstate',
+        function () {
+          if (!hadRecentTextInputBlur) return;
+          if (sessionStorage.getItem(RELOAD_FLAG_KEY) === '1') return;
+
+          sessionStorage.setItem(RELOAD_FLAG_KEY, '1');
+          window.location.reload();
+        },
+        true
+      );
+    })();
+
     // Clean up stale service workers
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
