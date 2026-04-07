@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'onboarding_flow.dart';
 import 'services/camera_setup_noop.dart'
@@ -37,6 +38,11 @@ Future<void> main() async {
       appId: "1:377693730311:web:24dfc047db461c18c3dca2",
     ),
   );
+
+  if (kIsWeb) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('isLogin');
+  }
 
   runApp(const MyApp());
 }
