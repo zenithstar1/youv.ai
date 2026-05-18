@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
 import 'dart:typed_data';
 
 typedef FaceDetectedCallback = void Function(bool detected);
@@ -50,19 +50,17 @@ Future<bool> startFaceDetection() async {
       : null;
   if (bestVideo == null) return false;
 
-  js_util.callMethod(html.window, 'startFaceDetection', [bestVideo]);
+  (html.window as dynamic).startFaceDetection(bestVideo);
   return true;
 }
 
 Future<void> stopFaceDetection() async {
-  js_util.callMethod(html.window, 'stopFaceDetection', []);
+  (html.window as dynamic).stopFaceDetection();
 }
 
 Future<bool> validateCapturedFace(Uint8List imageBytes) async {
   final dataUrl = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
-  final result = await js_util.promiseToFuture<Object?>(
-    js_util.callMethod(html.window, 'validateCapturedFaceDataUrl', [dataUrl]),
-  );
+  final result = await (html.window as dynamic).validateCapturedFaceDataUrl(dataUrl).toDart;
 
   if (result is bool) {
     return result;

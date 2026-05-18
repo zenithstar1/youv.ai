@@ -26,14 +26,18 @@ class _PostIntroExplanationScreen extends StatefulWidget {
       _PostIntroExplanationScreenState();
 }
 
-class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen> {
+class _PostIntroExplanationScreenState
+    extends State<_PostIntroExplanationScreen> {
   @override
   void initState() {
     super.initState();
     // Warm image cache after first frame to reduce route-transition jank.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      precacheImage(const AssetImage('assets/images/face_animation.gif'), context);
+      precacheImage(
+        const AssetImage('assets/images/face_animation.gif'),
+        context,
+      );
     });
   }
 
@@ -149,10 +153,10 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
                     ),
                   ),
                   SizedBox(height: vh(24)),
-                   
+
                   // Replaced Animated Image with the optimized Static version
                   _FaceAnimationGif(height: imageHeight),
-                   
+
                   SizedBox(height: vh(24)),
                   const _OnboardingValueCard(
                     icon: Icons.health_and_safety_outlined,
@@ -172,14 +176,14 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
                     description:
                         // 'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
                         'Discover how your natural proportions compare to ideal structural ratios.',
-                        
+
                     // hookLine:
                     //     'Discover how your natural proportions compare to ideal structural ratios.',
                     backgroundColor: null,
                     titleColor: Color(0xFFD79096),
                   ),
                   SizedBox(height: vh(24)),
-                   
+
                   // Simplified, static CTA Button with HitTestBehavior.opaque
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -196,7 +200,9 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFD79096).withValues(alpha: 0.10),
+                            color: const Color(
+                              0xFFD79096,
+                            ).withValues(alpha: 0.10),
                             blurRadius: 14,
                             spreadRadius: 1,
                           ),
@@ -209,10 +215,7 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
                         gradient: const LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0xFFF2D5D8),
-                            Color(0xFFEAC0C5),
-                          ],
+                          colors: [Color(0xFFF2D5D8), Color(0xFFEAC0C5)],
                         ),
                       ),
                       child: Center(
@@ -302,7 +305,8 @@ class _OnboardingValueCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(12)),
       decoration: BoxDecoration(
-        color: backgroundColor ?? const Color(0xFFD79096).withValues(alpha: 0.06),
+        color:
+            backgroundColor ?? const Color(0xFFD79096).withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(r.w(16)),
       ),
       child: Row(
