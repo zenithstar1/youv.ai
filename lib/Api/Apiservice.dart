@@ -20,11 +20,11 @@ class SkinAnalyzeResponse {
 
 class ApiService {
   // Use live backend endpoints.
-  static const String baseUrl = 'https://demo.youv.ai/api';
+  static const String baseUrl = 'https://demo.youv.ai/skinanalysisdashboard/api';
   static const String localBaseUrl = baseUrl;
-  static const String liveReportBaseUrl = 'https://demo.youv.ai/api';
+  static const String liveReportBaseUrl = 'https://demo.youv.ai/skinanalysisdashboard/api';
   static const String skinAnalyzeEndpoint =
-      'https://demo.youv.ai/api/secondary-analyze-skin';
+      'https://demo.youv.ai/skinanalysisdashboard/api/secondary-analyze-skin';
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(milliseconds: 500);
   static const Duration requestTimeout = Duration(seconds: 120);
@@ -524,7 +524,7 @@ class ApiService {
       print('Generate PDF response status: ${pdfResponse.statusCode}');
       print('Generate PDF response body: ${pdfResponse.body}');
 
-      if (pdfResponse.statusCode != 200) {
+       if (pdfResponse.statusCode != 200) {
         throw Exception('Failed to generate PDF: ${pdfResponse.statusCode}');
       }
 

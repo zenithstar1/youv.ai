@@ -261,9 +261,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'mobile': event.phone,
           'name': event.name,
           'email': event.email,
-          "city": event.city,
-          "clinic_id": event.clinicId?.toString(),
-          // 'password': event.password,
+          if (event.city != null) 'city': event.city!,
+          if (event.clinicId != null) 'clinic_id': event.clinicId!.toString(),
         },
       ).timeout(Duration(seconds: 10));
       print(response.body);
