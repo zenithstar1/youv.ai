@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skin_analysis_app/Api/Apiservice.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'package:skin_analysis_app/Models/FaceRatioLine.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import 'package:skin_analysis_app/widgets/analysis_point.dart';
@@ -87,6 +87,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     }
   }
 
+  /*
   Future<void> _sendDetailedReport() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -240,11 +241,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       );
     }
   }
+  */
 
   // NEW: Function to handle send report with login check
-  Future<void> _handleSendReport() async {
-    await _sendDetailedReport();
-  }
+  // Future<void> _handleSendReport() async {
+  //   await _sendDetailedReport();
+  // }
 
   @override
   void initState() {
@@ -1132,10 +1134,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                 const SizedBox(height: 20),
 
                 // REPORT SECTION (REPLACED PAYMENT SECTION)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-                  child: _buildReportSection(screenWidth),
-                ),
+                // Padding(
+                //   padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                //   child: _buildReportSection(screenWidth),
+                // ),
                const SizedBox(height: 30),
              ],
             ),
@@ -2014,8 +2016,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                       return Column(
                         children: [
                           _buildDisclaimerSection(constraints.maxWidth),
-                          const SizedBox(height: 20),
-                          _buildReportSection(constraints.maxWidth),
+                          // const SizedBox(height: 20),
+                          // _buildReportSection(constraints.maxWidth),
                         ],
                       );
                     }
@@ -2030,12 +2032,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                               constraints.maxWidth / 2 - 10,
                             ),
                           ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: _buildReportSection(
-                              constraints.maxWidth / 2 - 10,
-                            ),
-                          ),
+                          // const SizedBox(width: 20),
+                          // Expanded(
+                          //   child: _buildReportSection(
+                          //     constraints.maxWidth / 2 - 10,
+                          //   ),
+                          // ),
                         ],
                       ),
                     );
@@ -2227,173 +2229,169 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   }
 
   // NEW: Report Section (replaces payment section)
-  Widget _buildReportSection(double width) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: _reportSent
-            ? LinearGradient(
-                colors: [Colors.green.shade50, Colors.green.shade100],
-              )
-            : LinearGradient(
-                colors: [
-                  const Color(0xFFD4999F).withValues(alpha: 0.1),
-                  Colors.white,
-                ],
-              ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _reportSent ? Colors.green.shade300 : const Color(0xFFD4999F),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (_reportSent) ...[
-            // Success state
-            Icon(Icons.check_circle, color: Colors.green.shade700, size: 60),
-            const SizedBox(height: 12),
-            Text(
-              "Report Sent Successfully! ",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade800,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            if (_reportMessage.isNotEmpty)
-              Text(
-                _reportMessage,
-                style: TextStyle(fontSize: 14, color: Colors.green.shade700),
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 12),
-            const Text(
-              "Check your email for the detailed PDF report.",
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            // Option to resend
-            TextButton.icon(
-              onPressed: _sendingReport ? null : _handleSendReport,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Resend Report'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFD4999F),
-              ),
-            ),
-          ] else ...[
-            // Initial state - prompt to get report
-            Icon(
-              Icons.picture_as_pdf,
-              color: const Color(0xFFD4999F),
-              size: 60,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              "Get Your Detailed Report",
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              "Receive a comprehensive PDF analysis report with detailed insights about your skin health and facial symmetry.",
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-
-            if (_sendingReport) ...[
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4999F)),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _reportMessage.isNotEmpty ? _reportMessage : 'Processing.. .',
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
-                textAlign: TextAlign.center,
-              ),
-            ] else ...[
-              ElevatedButton.icon(
-                icon: const Icon(Icons.send),
-                label: const Text(
-                  'Send Detailed Report',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4999F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 4,
-                ),
-                onPressed: _handleSendReport,
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.blue.shade700,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Login required to receive your report',
-                        style: TextStyle(
-                          color: Colors.blue.shade900,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
+  // Widget _buildReportSection(double width) {
+  //   return Container(
+  //     width: double.infinity,
+  //     padding: const EdgeInsets.all(20),
+  //     decoration: BoxDecoration(
+  //       gradient: _reportSent
+  //           ? LinearGradient(
+  //               colors: [Colors.green.shade50, Colors.green.shade100],
+  //             )
+  //           : LinearGradient(
+  //               colors: [
+  //                 const Color(0xFFD4999F).withValues(alpha: 0.1),
+  //                 Colors.white,
+  //               ],
+  //             ),
+  //       borderRadius: BorderRadius.circular(16),
+  //       border: Border.all(
+  //         color: _reportSent ? Colors.green.shade300 : const Color(0xFFD4999F),
+  //         width: 2,
+  //       ),
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: Colors.black.withValues(alpha: 0.1),
+  //           blurRadius: 8,
+  //           offset: const Offset(0, 4),
+  //         ),
+  //       ],
+  //     ),
+  //     child: Column(
+  //       mainAxisSize: MainAxisSize.min,
+  //       crossAxisAlignment: CrossAxisAlignment.center,
+  //       children: [
+  //         if (_reportSent) ...[
+  //           Icon(Icons.check_circle, color: Colors.green.shade700, size: 60),
+  //           const SizedBox(height: 12),
+  //           Text(
+  //             "Report Sent Successfully! ",
+  //             style: TextStyle(
+  //               fontSize: 20,
+  //               fontWeight: FontWeight.bold,
+  //               color: Colors.green.shade800,
+  //             ),
+  //             textAlign: TextAlign.center,
+  //           ),
+  //           const SizedBox(height: 8),
+  //           if (_reportMessage.isNotEmpty)
+  //             Text(
+  //               _reportMessage,
+  //               style: TextStyle(fontSize: 14, color: Colors.green.shade700),
+  //               textAlign: TextAlign.center,
+  //             ),
+  //           const SizedBox(height: 12),
+  //           const Text(
+  //             "Check your email for the detailed PDF report.",
+  //             style: TextStyle(
+  //               fontSize: 14,
+  //               color: Colors.black87,
+  //               height: 1.5,
+  //             ),
+  //             textAlign: TextAlign.center,
+  //           ),
+  //           const SizedBox(height: 16),
+  //           TextButton.icon(
+  //             onPressed: _sendingReport ? null : _handleSendReport,
+  //             icon: const Icon(Icons.refresh, size: 18),
+  //             label: const Text('Resend Report'),
+  //             style: TextButton.styleFrom(
+  //               foregroundColor: const Color(0xFFD4999F),
+  //             ),
+  //           ),
+  //         ] else ...[
+  //           Icon(
+  //             Icons.picture_as_pdf,
+  //             color: const Color(0xFFD4999F),
+  //             size: 60,
+  //           ),
+  //           const SizedBox(height: 12),
+  //           const Text(
+  //             "Get Your Detailed Report",
+  //             style: TextStyle(
+  //               color: Colors.black87,
+  //               fontWeight: FontWeight.bold,
+  //               fontSize: 18,
+  //             ),
+  //           ),
+  //           const SizedBox(height: 12),
+  //           const Text(
+  //             "Receive a comprehensive PDF analysis report with detailed insights about your skin health and facial symmetry.",
+  //             style: TextStyle(
+  //               fontSize: 14,
+  //               color: Colors.black87,
+  //               height: 1.5,
+  //             ),
+  //             textAlign: TextAlign.center,
+  //           ),
+  //           const SizedBox(height: 20),
+  //           if (_sendingReport) ...[
+  //             const CircularProgressIndicator(
+  //               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4999F)),
+  //             ),
+  //             const SizedBox(height: 12),
+  //             Text(
+  //               _reportMessage.isNotEmpty ? _reportMessage : 'Processing.. .',
+  //               style: const TextStyle(fontSize: 14, color: Colors.black54),
+  //               textAlign: TextAlign.center,
+  //             ),
+  //           ] else ...[
+  //             ElevatedButton.icon(
+  //               icon: const Icon(Icons.send),
+  //               label: const Text(
+  //                 'Send Detailed Report',
+  //                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+  //               ),
+  //               style: ElevatedButton.styleFrom(
+  //                 backgroundColor: const Color(0xFFD4999F),
+  //                 foregroundColor: Colors.white,
+  //                 padding: const EdgeInsets.symmetric(
+  //                   horizontal: 32,
+  //                   vertical: 16,
+  //                 ),
+  //                 shape: RoundedRectangleBorder(
+  //                   borderRadius: BorderRadius.circular(12),
+  //                 ),
+  //                 elevation: 4,
+  //               ),
+  //               onPressed: _handleSendReport,
+  //             ),
+  //             const SizedBox(height: 12),
+  //             Container(
+  //               padding: const EdgeInsets.all(12),
+  //               decoration: BoxDecoration(
+  //                 color: Colors.blue.shade50,
+  //                 borderRadius: BorderRadius.circular(8),
+  //                 border: Border.all(color: Colors.blue.shade200),
+  //               ),
+  //               child: Row(
+  //                 mainAxisSize: MainAxisSize.min,
+  //                 children: [
+  //                   Icon(
+  //                     Icons.info_outline,
+  //                     color: Colors.blue.shade700,
+  //                     size: 20,
+  //                   ),
+  //                   const SizedBox(width: 8),
+  //                   Expanded(
+  //                     child: Text(
+  //                       'Login required to receive your report',
+  //                       style: TextStyle(
+  //                         color: Colors.blue.shade900,
+  //                         fontSize: 12,
+  //                       ),
+  //                       textAlign: TextAlign.center,
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ],
+  //       ],
+  //     ),
+  //   );
+  // }
 }
 
 // Helper widget to display ratio card content

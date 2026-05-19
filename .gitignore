@@ -45,7 +45,6 @@ app.*.map.json
 # CUSTOM RULE → Ignore ALL build folders EXCEPT build/web
 # ------------------------------------------------------------------------------
 # Ignore all build folders anywhere
-**/build/
 
 # But do NOT ignore web build output
 !build/web/
