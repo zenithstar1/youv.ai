@@ -1261,8 +1261,8 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
               child: _FadeSlideIn(child: _buildStructuralBreakdown()),
             ),
             // STAGE 7: Report CTA
-            const SliverToBoxAdapter(child: _SectionRule()),
-            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
+            // const SliverToBoxAdapter(child: _SectionRule()),
+            // SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
             // Disclaimer
             SliverToBoxAdapter(child: _buildDisclaimer()),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -2871,6 +2871,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   // ═══════════════════════════════════════════
   //  STAGE 7: REPORT CTA
   // ═══════════════════════════════════════════
+  /*
   Widget _buildReportCTA() {
     final r = Responsive(context);
     return Padding(
@@ -3037,6 +3038,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
       ),
     );
   }
+  */
 
   // ═══════════════════════════════════════════
   //  DISCLAIMER
