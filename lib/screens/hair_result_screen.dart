@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import '../Models/hair_analysis_model.dart';
 
 class HairResultScreen extends StatelessWidget {
   final HairAnalysisModel analysis;
 
   const HairResultScreen({
-    Key? key,
+    super.key,
     required this.analysis,
-  }) : super(key: key);
+  });
 
   Color _gradeColor(int grade) {
     switch (grade) {
@@ -56,6 +57,7 @@ class HairResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive scaling helper
     return Scaffold(
       backgroundColor: const Color(0xFFF5E6E8),
       appBar: AppBar(
@@ -68,9 +70,9 @@ class HairResultScreen extends StatelessWidget {
   ),
 
   // ✅ makes title text white
-  titleTextStyle: const TextStyle(
+  titleTextStyle: TextStyle(
     color: Colors.white,
-    fontSize: 18,
+    fontSize: r.sp(18), // responsive app bar title
     fontWeight: FontWeight.w600,
   ),
 
@@ -82,16 +84,16 @@ class HairResultScreen extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(r.w(24)), // responsive padding
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const SizedBox(height: 20),
+                    SizedBox(height: r.h(20)),
 
-                    // 🔢 Grade circle
+                    // 🔢 Grade circle — responsive size
                     Container(
-                      width: 140,
-                      height: 140,
+                      width: r.w(140),
+                      height: r.w(140),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color:
@@ -105,7 +107,7 @@ class HairResultScreen extends StatelessWidget {
                         child: Text(
                           '${analysis.densityGrade}',
                           style: TextStyle(
-                            fontSize: 48,
+                            fontSize: r.sp(48), // responsive grade number
                             fontWeight: FontWeight.bold,
                             color: _gradeColor(analysis.densityGrade),
                           ),
@@ -113,47 +115,47 @@ class HairResultScreen extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    SizedBox(height: r.h(20)),
 
                     // 🏷 Label
                     Text(
                       analysis.label,
-                      style: const TextStyle(
-                        fontSize: 22,
+                      style: TextStyle(
+                        fontSize: r.sp(22), // responsive label
                         fontWeight: FontWeight.w600,
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: r.h(12)),
 
                     // 📝 Description
                     Text(
                       analysis.description,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: r.sp(15), // responsive description
                         color: Colors.grey.shade800,
                         height: 1.4,
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                    SizedBox(height: r.h(32)),
                     const Divider(),
-                    const SizedBox(height: 20),
+                    SizedBox(height: r.h(20)),
 
                     // 📊 Density scale title
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Hair Density Classification',
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: r.sp(18), // responsive section title
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    SizedBox(height: r.h(16)),
 
                     // 📊 Density cards
                     Column(
@@ -163,13 +165,13 @@ class HairResultScreen extends StatelessWidget {
                             level == analysis.densityGrade;
 
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(16),
+                          margin: EdgeInsets.only(bottom: r.h(14)),
+                          padding: EdgeInsets.all(r.w(16)), // responsive card padding
                           decoration: BoxDecoration(
                             color: isUserLevel
                                 ? _gradeColor(level).withOpacity(0.12)
                                 : Colors.white,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(r.w(14)),
                             border: Border.all(
                               color: isUserLevel
                                   ? _gradeColor(level)
@@ -180,10 +182,10 @@ class HairResultScreen extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Level number
+                              // Level number — responsive circle
                               Container(
-                                width: 36,
-                                height: 36,
+                                width: r.w(36),
+                                height: r.w(36),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isUserLevel
@@ -203,7 +205,7 @@ class HairResultScreen extends StatelessWidget {
                                 ),
                               ),
 
-                              const SizedBox(width: 14),
+                              SizedBox(width: r.w(14)),
 
                               // Text
                               Expanded(
@@ -214,19 +216,19 @@ class HairResultScreen extends StatelessWidget {
                                     Text(
                                       hairDensityLevels[index]['title']!,
                                       style: TextStyle(
-                                        fontSize: 15,
+                                        fontSize: r.sp(15), // responsive
                                         fontWeight: FontWeight.w600,
                                         color: isUserLevel
                                             ? _gradeColor(level)
                                             : Colors.black87,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    SizedBox(height: r.h(6)),
                                     Text(
                                       hairDensityLevels[index]
                                           ['description']!,
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: r.sp(13), // responsive
                                         color: Colors.grey.shade700,
                                         height: 1.4,
                                       ),
@@ -244,9 +246,9 @@ class HairResultScreen extends StatelessWidget {
               ),
             ),
 
-            // 🔘 Bottom buttons
+            // 🔘 Bottom buttons — responsive padding
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              padding: EdgeInsets.fromLTRB(r.w(24), r.h(12), r.w(24), r.h(20)),
               child: Row(
                 children: [
                   Expanded(
@@ -255,7 +257,7 @@ class HairResultScreen extends StatelessWidget {
                       child: const Text('Retake'),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: r.w(16)),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {

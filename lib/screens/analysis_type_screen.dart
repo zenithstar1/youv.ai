@@ -1,179 +1,417 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import 'image_capture_screen.dart';
 
-enum AnalysisType { skin, hair }
+
 
 class AnalysisTypeScreen extends StatelessWidget {
   const AnalysisTypeScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
+@override
+Widget build(BuildContext context) {
+  final r = Responsive(context); // responsive helper
+  final W = MediaQuery.of(context).size.width;
+  final H = MediaQuery.of(context).size.height;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5E6E8), // light pink
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
+  return Scaffold(
+    backgroundColor: const Color(0xFFFDEDED),
+    body: SafeArea(
+      child: Column(
+        children: [
 
-                Text(
-                  "Choose your analysis",
-                  style: GoogleFonts.lora(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF510808),
-                  ),
-                ),
+          /// ================= HEADER SECTION =================
+          SizedBox(height: H * 0.05),
 
-                const SizedBox(height: 10),
-
-                Text(
-                  "Select what you'd like to analyze today",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.lora(
-                    fontSize: 15,
-                    color: Colors.black87,
-                    height: 1.4,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                _AnalysisCard(
-                  icon: Icons.face,
-                  title: "Skin Analysis",
-                  subtitle: "Face • Acne • Glow",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ImageCaptureScreen(),
-                        // later: pass AnalysisType.skin
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 20),
-
-                _AnalysisCard(
-  icon: Icons.content_cut,
-  title: "Hair Analysis",
-  subtitle: "Density • Thinning • Scalp",
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const ImageCaptureScreen(isHair: true),
-      ),
-    );
-  },
-),
-
-
-                const SizedBox(height: 40),
-              ],
+          Center(
+            child: Text(
+              "AI FACIAL ANALYSIS",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: W * 0.032,
+                letterSpacing: 1.5,
+                color: Colors.grey.shade400,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-        ),
+
+          const SizedBox(height: 18),
+
+          /// ================= SCROLLABLE CONTENT =================
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding:
+                    EdgeInsets.symmetric(horizontal: r.w(24)), // responsive padding
+                child: Column(
+                  children: [
+
+                    /// HEADLINE
+                    Text(
+                      "Choose your focus today",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(28), // responsive headline
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A2A22),
+                      ),
+                    ),
+
+                    SizedBox(height: r.h(10)),
+
+                    /// SUBTEXT
+                    Text(
+                      "Your personalized report will be generated based on your selection.",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(14.5), // responsive subtext
+                        height: 1.4,
+                        color: const Color(0xFF8A7A72),
+                      ),
+                    ),
+
+                    SizedBox(height: r.h(14)),
+
+                    Text(
+                      "Both options take less than 60 seconds.",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(12.5), // responsive italic hint
+                        fontStyle: FontStyle.italic,
+                        color: const Color(0xFFA89B93),
+                      ),
+                    ),
+
+                    SizedBox(height: H * 0.06),
+
+                    /// SKIN CARD
+                    _AnalysisCard(
+                      isPrimary: true,
+                      icon: Icons.face_6_outlined,
+                      title: "Comprehensive Facial Analysis",
+                      subtitle:
+                          "Hydration • Acne • Pigmentation • Texture",
+                      description:
+                          "Full facial skin evaluation with detailed scoring.",
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            title: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.lightbulb_outline, color: Color(0xFF6B3E3E)),
+                                const SizedBox(width: 10),
+                                const Expanded(
+                                  child: Text(
+                                    "How to take a great shot",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 18,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.camera_alt_outlined, color: Color(0xFF6B3E3E)),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Allow camera access when prompted',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.wb_sunny_outlined, color: Color(0xFF6B3E3E)),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Use natural lighting or bright room light',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.face, color: Color(0xFF6B3E3E)),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Face the camera directly',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.center_focus_strong, color: Color(0xFF6B3E3E)),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Keep your face centered in the frame',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.sentiment_neutral, color: Color(0xFF6B3E3E)),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Use a neutral expression',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.no_photography_outlined, color: Color(0xFF6B3E3E)),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Remove makeup for accurate analysis',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                  // Open camera instantly after popup
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const ImageCaptureScreen(),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  "Got it!",
+                                  style: TextStyle(
+                                    color: Color(0xFF6B3E3E),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    /// HAIR CARD
+                    _AnalysisCard(
+                      isPrimary: false,
+                      icon: Icons.content_cut,
+                      title: "Hair Health Overview",
+                      statusText: "Coming Soon",
+                      subtitle:
+                          "Density • Thinning • Scalp",
+                      description:
+                          "Scalp and hair density screening.",
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Hair Health Overview is coming soon.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+
+                    SizedBox(height: H * 0.08),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
-class _AnalysisCard extends StatelessWidget {
+class _AnalysisCard extends StatefulWidget {
   final IconData icon;
   final String title;
+  final String? statusText;
   final String subtitle;
+  final String description;
+  final bool isPrimary;
   final VoidCallback onTap;
 
   const _AnalysisCard({
     required this.icon,
     required this.title,
+    this.statusText,
     required this.subtitle,
+    required this.description,
+    required this.isPrimary,
     required this.onTap,
   });
 
   @override
+  State<_AnalysisCard> createState() => _AnalysisCardState();
+}
+
+class _AnalysisCardState extends State<_AnalysisCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive scaling for cards
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFD4999F),
-              Color(0xFFEEC8CC),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        scale: _pressed ? 0.97 : 1,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: r.w(widget.isPrimary ? 26 : 22), // responsive card padding
+            vertical: r.h(widget.isPrimary ? 28 : 22),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                shape: BoxShape.circle,
+          decoration: BoxDecoration(
+            color: widget.isPrimary
+                ? const Color(0xFFFFFCF9)
+                : const Color(0xFFFFFBF7),
+            borderRadius: BorderRadius.circular(r.w(26)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(
+                    widget.isPrimary ? 0.12 : 0.05),
+                blurRadius: widget.isPrimary ? 26 : 14,
+                offset: const Offset(0, 8),
               ),
-              child: Icon(
-                icon,
-                size: 28,
-                color: const Color(0xFF6B3E3E),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              /// ICON — responsive container
+              Container(
+                width: r.w(56),
+                height: r.w(56),
+                decoration: BoxDecoration(
+                  color: widget.isPrimary
+                      ? const Color(0xFFEED3D6)
+                      : const Color(0xFFF1ECE8),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  widget.icon,
+                  size: r.w(28), // responsive icon
+                  color: widget.isPrimary
+                      ? const Color(0xFFD79096)
+                      : const Color(0xFF9C8F87),
+                ),
               ),
-            ),
 
-            const SizedBox(width: 18),
+              SizedBox(width: r.w(18)),
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.lora(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF510808),
+              /// TEXT
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(19), // responsive card title
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A2A22),
+                        height: 1.2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.lora(
-                      fontSize: 14,
-                      color: Colors.black87,
+                    if (widget.statusText != null) ...[
+                      SizedBox(height: r.h(6)),
+                      Text(
+                        widget.statusText!,
+                        style: GoogleFonts.lora(
+                          fontSize: r.sp(12), // responsive
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFD79096),
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: r.h(6)),
+                    Text(
+                      widget.subtitle,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(13), // responsive
+                        color: const Color(0xFF8A7A72),
+                      ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: r.h(10)),
+                    Text(
+                      widget.description,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(13), // responsive
+                        height: 1.45,
+                        color: const Color(0xFFA89B93),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(width: 10),
+              SizedBox(width: r.w(10)),
 
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 18,
-              color: Color(0xFF6B3E3E),
-            ),
-          ],
+              Icon(
+                Icons.arrow_forward_ios,
+                size: r.w(18), // responsive arrow icon
+                color: const Color(0xFFB0A39A),
+              ),
+            ],
+          ),
         ),
       ),
     );

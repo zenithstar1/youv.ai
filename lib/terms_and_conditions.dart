@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 
 class TermsAndConditionsPage extends StatefulWidget {
   const TermsAndConditionsPage({super.key});
@@ -13,8 +14,11 @@ class _TermsAndConditionsPageState extends State<TermsAndConditionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context); // responsive helper
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
+    final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFCE7E7),
@@ -23,8 +27,8 @@ class _TermsAndConditionsPageState extends State<TermsAndConditionsPage> {
         children: [
           // BACK ARROW (same as your other screens)
           Positioned(
-            top: 60,
-            left: 25,
+            top: topInset + 16,
+            left: (W * 0.06).clamp(16.0, 36.0),
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: const Icon(Icons.arrow_back, size: 28, color: Colors.black),
@@ -33,7 +37,7 @@ class _TermsAndConditionsPageState extends State<TermsAndConditionsPage> {
 
           // TABS ROW (responsive & centered like Figma)
 Positioned(
-  top: 60 + H * 0.04,
+  top: topInset + (isTablet ? 74 : 66),
   left: 0,
   right: 0,
   child: Row(
@@ -47,7 +51,7 @@ Positioned(
             child: Text(
               "Terms and Conditions",
               style: GoogleFonts.lora(
-                fontSize: 16,
+                fontSize: r.sp(16), // responsive tab text
                 fontWeight: selectedTab == 0 ? FontWeight.w700 : FontWeight.w500,
                 color: Colors.black,
               ),
@@ -63,7 +67,7 @@ Positioned(
         ],
       ),
 
-      SizedBox(width: W * 0.08),
+      SizedBox(width: (W * 0.06).clamp(10.0, 40.0)),
 
       // PRIVACY TAB
       Column(
@@ -73,7 +77,7 @@ Positioned(
             child: Text(
               "Privacy Policy",
               style: GoogleFonts.lora(
-                fontSize: 16,
+                fontSize: r.sp(16), // responsive tab text
                 fontWeight: selectedTab == 1 ? FontWeight.w700 : FontWeight.w500,
                 color: Colors.black,
               ),
@@ -95,18 +99,23 @@ Positioned(
 
           // MAIN CONTENT AREA
           Positioned.fill(
-            top: 60 + H * 0.04 + 60, // below tab section
-            bottom: 120,             // space for bottom buttons
+            top: topInset + (isTablet ? 170 : 156), // below tab section
+            bottom: isTablet ? 140 : 128,            // space for bottom buttons
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              child: SingleChildScrollView(
-                child: Text(
-                  selectedTab == 0
-                      ? "Put your Terms and Conditions text here.\n\nYou can write long content and it will scroll."
-                      : "Put your Privacy Policy text here.\n\nYou can write long content and it will scroll.",
-                  style: GoogleFonts.lora(
-                    fontSize: 16,
-                    color: Colors.black87,
+              padding: EdgeInsets.symmetric(horizontal: (W * 0.06).clamp(16.0, 36.0)),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      selectedTab == 0
+                          ? "Put your Terms and Conditions text here.\n\nYou can write long content and it will scroll."
+                          : "Put your Privacy Policy text here.\n\nYou can write long content and it will scroll.",
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(16), // responsive body text
+                        color: Colors.black87,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -115,19 +124,23 @@ Positioned(
 
           // BOTTOM BUTTONS (Decline + Agree)
           Positioned(
-            bottom: 40,
-            left: 20,
-            right: 20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            bottom: (MediaQuery.of(context).padding.bottom + 18).clamp(18.0, 42.0),
+            left: (W * 0.05).clamp(14.0, 32.0),
+            right: (W * 0.05).clamp(14.0, 32.0),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: (W * 0.04).clamp(10.0, 22.0),
+              runSpacing: 10,
+              // mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
   onTap: () {
     Navigator.pop(context); // returns null → checkbox stays unticked
   },
   child: Container(
-    width: W * 0.32,
-    height: 50,
+    width: (W * (isTablet ? 0.24 : 0.4)).clamp(130.0, 220.0),
+    height: r.h(50), // responsive button height
     decoration: BoxDecoration(
       color: const Color(0xFFD79096),
       borderRadius: BorderRadius.circular(50),
@@ -144,7 +157,7 @@ Positioned(
       child: Text(
         "Decline",
         style: GoogleFonts.lora(
-          fontSize: 17,
+          fontSize: r.sp(17), // responsive button text
           fontWeight: FontWeight.w600,
           color: Colors.black,
         ),
@@ -160,8 +173,8 @@ GestureDetector(
     Navigator.pop(context, true);   // sends TRUE back to SignUpScreen
   },
   child: Container(
-    width: W * 0.42,
-    height: 50,
+    width: (W * (isTablet ? 0.3 : 0.5)).clamp(180.0, 300.0),
+    height: r.h(50), // responsive button height
     decoration: BoxDecoration(
       color: const Color(0xFF510808),
       borderRadius: BorderRadius.circular(50),
@@ -177,7 +190,7 @@ GestureDetector(
       child: Text(
         "Agree & Continue",
         style: GoogleFonts.lora(
-          fontSize: 17,
+          fontSize: r.sp(17), // responsive button text
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),

@@ -1,423 +1,356 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
+import 'package:skin_analysis_app/screens/LoginPage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 
-class OnboardingFlow extends StatefulWidget {
+class OnboardingFlow extends StatelessWidget {
   const OnboardingFlow({super.key});
 
   @override
-  _OnboardingFlowState createState() => _OnboardingFlowState();
+  Widget build(BuildContext context) {
+    return const _PostIntroExplanationScreen();
+  }
 }
 
-class _OnboardingFlowState extends State<OnboardingFlow> {
-  late PageController controller;
-  int currentPage = 0;
+// ======================================================
+// POST-INTRO EXPLANATION SCREEN
+// ======================================================
 
-  final List<Widget> pages = [];
+class _PostIntroExplanationScreen extends StatefulWidget {
+  const _PostIntroExplanationScreen();
 
+  @override
+  State<_PostIntroExplanationScreen> createState() =>
+      _PostIntroExplanationScreenState();
+}
+
+class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen> {
   @override
   void initState() {
     super.initState();
-
-    controller = PageController();
-
-    pages.addAll([
-      SecondScreen(),
-      ThirdScreen(),
-      FourthScreen(),
-      SecondScreen(), // duplicate for looping
-    ]);
-
-    controller.addListener(() {
-      if (!controller.hasClients) return;
-      setState(() {
-        currentPage = controller.page!.round() % 3;
-      });
+    // Warm image cache after first frame to reduce route-transition jank.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheImage(const AssetImage('assets/images/face_animation.gif'), context);
     });
+  }
 
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return false;
+  Future<void> _navigateToAnalysis() async {
+    // Small delay to allow button tap ripple/effect to process visually (if any)
+    await Future.delayed(const Duration(milliseconds: 80));
+    if (!mounted) return;
 
-      int next = (controller.page ?? 0).round() + 1;
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
 
-      controller.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
+    if (!isLoggedIn) {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
       );
+      if (!mounted) return;
 
-      if (next == 3) {
-        await Future.delayed(const Duration(milliseconds: 360));
-        controller.jumpToPage(0);
+      if (result == true) {
+        _goToAnalysisType();
       }
+    } else {
+      _goToAnalysisType();
+    }
+  }
 
-      return true;
-    });
+  void _goToAnalysisType() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 80),
+        pageBuilder: (_, __, ___) => const AnalysisTypeScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          final tween = Tween(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeInOut));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
+    const Color lowMutedText = Color(0xFFA89B93);
+    const Color headlineText = Color(0xFF3A2A22);
+    const Color mutedText = Color(0xFF8A7A72);
+
+    final r = Responsive(context);
+    final mq = MediaQuery.of(context);
+    final size = mq.size;
+    final safeHeight = size.height - mq.padding.vertical;
+
+    // Compact vertical spacing on short screens to reduce scrolling without
+    // changing element ordering or structure.
+    final verticalCompact = (safeHeight / 812.0).clamp(0.70, 1.0);
+    double vh(double v) => r.h(v) * verticalCompact;
+
+    // Scales the image based on safe height, but keeps strict min/max bounds.
+    final imageHeight = (safeHeight * 0.30).clamp(160.0, 320.0);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // ---------- MOVING CAROUSEL (manual + auto) ----------
-          PageView(
-            controller: controller,
-            physics: const PageScrollPhysics(), // allows manual swipe
-            children: pages.map((page) {
-              int index = pages.indexOf(page);
-              return Wrapper(index: index % 3, child: page);
-            }).toList(),
+      backgroundColor: const Color(0xFFF9F0EC),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: r.w(24),
+                vertical: vh(24),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: vh(14)),
+                  Text(
+                    'AI FACIAL ANALYSIS',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.lora(
+                      fontSize: r.sp(12),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.0,
+                      color: lowMutedText,
+                    ),
+                  ),
+                  SizedBox(height: vh(12)),
+                  Text(
+                    'Understand what is happening beneath your skin',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.lora(
+                      fontSize: r.sp(24),
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: headlineText,
+                    ),
+                  ),
+                  SizedBox(height: vh(12)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: r.w(12)),
+                    child: Text(
+                      'Your personalized report includes clinically referenced skin indicators and facial proportion analysis.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lora(
+                        fontSize: r.sp(13),
+                        height: 1.4,
+                        color: mutedText.withValues(alpha: 0.70),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: vh(24)),
+                   
+                  // Replaced Animated Image with the optimized Static version
+                  _FaceAnimationGif(height: imageHeight),
+                   
+                  SizedBox(height: vh(24)),
+                  const _OnboardingValueCard(
+                    icon: Icons.health_and_safety_outlined,
+                    title: 'Skin Health Index',
+                    description:
+                        // 'A structured visual analysis of hydration, pigmentation, acne activity, pore visibility, and visible aging patterns',
+                        'See where your skin stands today \u2014 and what may need attention.',
+                    // hookLine:
+                    //     'See where your skin stands today \u2014 and what may need attention.',
+                    backgroundColor: null,
+                    titleColor: Color(0xFFD79096),
+                  ),
+                  SizedBox(height: vh(12)),
+                  const _OnboardingValueCard(
+                    icon: Icons.balance_outlined,
+                    title: 'Facial Symmetry Mapping',
+                    description:
+                        // 'AI-based proportion analysis referencing established aesthetic models to assess overall facial balance.',
+                        'Discover how your natural proportions compare to ideal structural ratios.',
+                        
+                    // hookLine:
+                    //     'Discover how your natural proportions compare to ideal structural ratios.',
+                    backgroundColor: null,
+                    titleColor: Color(0xFFD79096),
+                  ),
+                  SizedBox(height: vh(24)),
+                   
+                  // Simplified, static CTA Button with HitTestBehavior.opaque
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _navigateToAnalysis,
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: vh(16)),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE4B3B8),
+                        borderRadius: BorderRadius.circular(r.w(40)),
+                        border: Border.all(
+                          color: const Color(0xFFE0B5BA),
+                          width: 0.6,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFD79096).withValues(alpha: 0.10),
+                            blurRadius: 14,
+                            spreadRadius: 1,
+                          ),
+                          const BoxShadow(
+                            color: Color(0x14A6553F),
+                            offset: Offset(0, 3),
+                            blurRadius: 8,
+                          ),
+                        ],
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color(0xFFF2D5D8),
+                            Color(0xFFEAC0C5),
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Create My Analysis Profile',
+                          style: GoogleFonts.lora(
+                            fontSize: r.sp(15),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                            color: const Color(0xFF7A3030),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: vh(16)),
+                ],
+              ),
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          // ---------- FIXED CONTINUE BUTTON (lifted slightly) ----------
-          Positioned(
-            bottom: h * 0.10,   // <-- lifted a little from original place
-            left: 30,
-            right: 30,
-            child: ResponsiveButtons(),
+// ======================================================
+// FACE ANIMATION — GIF (pre-rendered)
+// ======================================================
+
+class _FaceAnimationGif extends StatelessWidget {
+  const _FaceAnimationGif({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final double frameW = height * 0.78;
+
+    return SizedBox(
+      height: height,
+      width: frameW + 32,
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20), // smooth edges
+          child: Container(
+            color: const Color(0xFFF9F0EC), // same as screen bg
+            padding: const EdgeInsets.all(8), // space for blending
+            child: Image.asset(
+              'assets/images/face_animation.gif',
+              height: height * 0.9,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+// ======================================================
+// VALUE CARD — soft tinted background, rounded, no border
+// ======================================================
+
+class _OnboardingValueCard extends StatelessWidget {
+  const _OnboardingValueCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.hookLine,
+    this.backgroundColor,
+    this.titleColor,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final String? hookLine;
+  final Color? backgroundColor;
+  final Color? titleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    const Color descColor = Color(0xFF8A7A72);
+    const Color iconColor = Color(0xFF8A7A72);
+    final r = Responsive(context);
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(12)),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? const Color(0xFFD79096).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(r.w(16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: r.w(18), color: iconColor),
+          ),
+          SizedBox(width: r.w(12)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.lora(
+                    fontSize: r.sp(14),
+                    fontWeight: FontWeight.w600,
+                    color: titleColor ?? const Color(0xFF3A2A22),
+                  ),
+                ),
+                SizedBox(height: r.h(3)),
+                Text(
+                  description,
+                  style: GoogleFonts.lora(
+                    fontSize: r.sp(12),
+                    height: 1.4,
+                    color: descColor,
+                  ),
+                ),
+                if (hookLine != null) ...[
+                  SizedBox(height: r.h(6)),
+                  Text(
+                    hookLine!,
+                    style: GoogleFonts.lora(
+                      fontSize: r.sp(11.5),
+                      fontStyle: FontStyle.italic,
+                      height: 1.35,
+                      color: const Color(0xFFA89B93),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-}
-
-class Wrapper extends StatelessWidget {
-  final int index;
-  final Widget child;
-
-  const Wrapper({super.key, required this.index, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return child is HasBottomCard
-        ? (child as HasBottomCard).withPageIndex(index)
-        : child;
-  }
-}
-
-abstract class HasBottomCard {
-  Widget withPageIndex(int index);
-}
-
-// ======================================================
-// SCREEN 1 — ATTRACTIVENESS INDEX
-// ======================================================
-
-class SecondScreen extends StatelessWidget implements HasBottomCard {
-  const SecondScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox();
-
-  @override
-  Widget withPageIndex(int pageIndex) {
-    return Builder(
-      builder: (context) {
-        final h = MediaQuery.of(context).size.height;
-
-        return Stack(
-          children: [
-            Positioned(
-              top: h * 0.10,
-              left: 0,
-              right: 0,
-              child: Image.asset(
-                "assets/images/face_grid.png",
-                height: h * 0.42,
-                fit: BoxFit.contain,
-              ),
-            ),
-            Positioned(
-              bottom: h * 0.06,
-              left: 0,
-              right: 0,
-              child: buildBottomCard(
-                context,
-                h,
-                "Skin Health Score",
-                "Reveal your Aesthetic score with AI",
-                "Get intelligent insights that help you understand your facial features and elevate your aesthetic confidence.",
-                pageIndex,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ======================================================
-// SCREEN 2 — CONSULTATION
-// ======================================================
-
-class ThirdScreen extends StatelessWidget implements HasBottomCard {
-  const ThirdScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox();
-
-  @override
-  Widget withPageIndex(int pageIndex) {
-    return Builder(
-      builder: (context) {
-        final h = MediaQuery.of(context).size.height;
-
-        return Stack(
-          children: [
-            Positioned(
-              top: h * 0.10,
-              left: 0,
-              right: 0,
-              child: Image.asset(
-                "assets/images/consultation.png",
-                height: h * 0.48,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Positioned(
-              bottom: h * 0.06,
-              left: 0,
-              right: 0,
-              child: buildBottomCard(
-                context,
-                h,
-                "Expert Consultation",
-                "Access premium aesthetic services",
-                "Connect with experts for personalized guidance tailored to your skin and confidence goals.",
-                pageIndex,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ======================================================
-// SCREEN 3 — REPORT
-// ======================================================
-
-class FourthScreen extends StatelessWidget implements HasBottomCard {
-  const FourthScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox();
-
-  @override
-  Widget withPageIndex(int pageIndex) {
-    return Builder(
-      builder: (context) {
-        final h = MediaQuery.of(context).size.height;
-
-        return Stack(
-          children: [
-            Positioned(
-              top: h * 0.08,
-              left: 0,
-              right: 0,
-              child: Image.asset(
-                "assets/images/phone.png",
-                height: h * 0.50,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Positioned(
-              bottom: h * 0.06,
-              left: 0,
-              right: 0,
-              child: buildBottomCard(
-                context,
-                h,
-                "Personalized Report",
-                "Receive your full analysis on WhatsApp",
-                "Get a complete, easy-to-read report delivered instantly for your convenience.",
-                pageIndex,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ======================================================
-// SHARED BOTTOM CARD (NO BUTTON INSIDE NOW)
-// ======================================================
-
-Widget buildBottomCard(
-  BuildContext context,
-  double h,
-  String title,
-  String subtitle,
-  String description,
-  int pageIndex,
-) {
-  return Container(
-    height: h * 0.45,
-    decoration: BoxDecoration(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(40),
-        topRight: Radius.circular(40),
-      ),
-      gradient: const LinearGradient(
-        colors: [Color(0xFFD79096), Color(0xFFEEC8CC), Color(0x1FFFFFFF)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ),
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.lora(
-            fontSize: 24,
-            color: Colors.black,
-            height: 1.1,
-          ),
-        ),
-        const SizedBox(height: 15),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            children: [
-              Text(
-                subtitle,
-                style: GoogleFonts.lora(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                description,
-                style: GoogleFonts.lora(fontSize: 14, height: 1.35),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            dot(isActive: pageIndex == 0),
-            const SizedBox(width: 6),
-            dot(isActive: pageIndex == 1),
-            const SizedBox(width: 6),
-            dot(isActive: pageIndex == 2),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-// ======================================================
-// RESPONSIVE BUTTON (FIXED & LIFTED)
-// ======================================================
-
-class ResponsiveButtons extends StatelessWidget {
-  const ResponsiveButtons({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final buttonHeight = size.height * 0.052;
-    final borderRadius = buttonHeight * 0.75;
-
-    Widget buildButton(String label, {VoidCallback? onTap}) {
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: buttonHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1D9DB),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: const Color(0xFFD79096), width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x6BA6553F),
-                offset: Offset(0, 10),
-                blurRadius: 4,
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.visible,
-              style: GoogleFonts.lora(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.6,
-                color: const Color(0xFF510808),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        buildButton(
-          "CONTINUE",
-          onTap: () {
-            Navigator.of(context).push(
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 200),
-                pageBuilder: (_, __, ___) =>
-                    const AnalysisTypeScreen(),
-                transitionsBuilder: (_, animation, __, child) {
-                  final tween = Tween(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).chain(CurveTween(curve: Curves.easeInOut));
-
-                  return SlideTransition(
-                    position: animation.drive(tween),
-                    child: child,
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-// ======================================================
-// DOT INDICATOR
-// ======================================================
-
-Widget dot({required bool isActive}) {
-  return AnimatedContainer(
-    duration: const Duration(milliseconds: 200),
-    width: isActive ? 20 : 6,
-    height: 6,
-    decoration: BoxDecoration(
-      color: isActive
-          ? const Color(0xFF510808)
-          : Colors.white.withOpacity(0.6),
-      borderRadius: BorderRadius.circular(3),
-    ),
-  );
 }

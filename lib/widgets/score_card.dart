@@ -9,11 +9,11 @@ class ScoreCard extends StatelessWidget {
   final List<FactorItem> factors;
 
   const ScoreCard({
-    Key? key,
+    super.key,
     required this.score,
     required this.label,
     required this.factors,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
