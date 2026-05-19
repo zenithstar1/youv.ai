@@ -8,6 +8,8 @@ import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
 import 'analysis_type_screen.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -158,14 +160,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController(text: '+91');
-  final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _citySearchController = TextEditingController();
-  final List<String> _cities = [
-    'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune',
-    'Hyderabad', 'Ahmedabad', 'Jaipur', 'Lucknow'
-  ];
-  String? _selectedCity;
-  final bool _showCitySearch = false;
   bool _consent = false;
   bool _isSendingOtp = false;
   late final AuthBloc _authBloc;
@@ -177,9 +171,47 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   
   Color? get headlineText => null;
 
+List<dynamic> _clinicLocations = [];
+
+
+
+bool _loadingClinics = false;
+String? _selectedClinic;
+int? _selectedClinicId;
+
+Future<void> fetchClinicLocations() async {
+  try {
+    setState(() {
+      _loadingClinics = true;
+    });
+
+    final response = await http.get(
+      Uri.parse(
+        'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/clinic-locations',
+      ),
+    );
+
+    print("Clinic API Response: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      setState(() {
+        _clinicLocations = data['data'] ?? [];
+      });
+    }
+  } catch (e) {
+    print("Clinic Fetch Error: $e");
+  } finally {
+    setState(() {
+      _loadingClinics = false;
+    });
+  }
+}
   @override
   void initState() {
     super.initState();
+    fetchClinicLocations();
     _authBloc = AuthBloc();
     _animController = AnimationController(
       vsync: this,
@@ -197,7 +229,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _animController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
-    _cityController.dispose();
     super.dispose();
   }
 
@@ -265,7 +296,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   child: OTPVerificationScreen(
                     phone: _normalizedPhone(),
                     name: _nameController.text.trim(),
-                    city: _selectedCity ?? '',
+                    clinicId: _selectedClinicId,
                   ),
                 ),
               ),
@@ -456,57 +487,118 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ],
                                 ),
                               ),
-                              // City Card with Dropdown
-                              Container(
-                                margin: EdgeInsets.only(bottom: fieldSpacing),
-                                padding: EdgeInsets.all(8 * compactScale),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('City', style: TextStyle(fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(), color: Colors.black87, fontWeight: FontWeight.w500)),
-                                    SizedBox(height: labelInputGap),
-                                    DropdownButtonFormField<String>(
-                                      initialValue: _selectedCity,
-                                      items: _cities.map((city) => DropdownMenuItem(
-                                        value: city,
-                                        child: Text(city),
-                                      )).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedCity = value;
-                                          _cityController.text = value ?? '';
-                                        });
-                                      },
-                                      decoration: InputDecoration(
-                                        hintText: 'Select your city',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: consentSpacing),
+Container(
+  margin: EdgeInsets.only(bottom: fieldSpacing),
+  padding: EdgeInsets.all(8 * compactScale),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(14),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 4,
+        offset: const Offset(0, 1),
+      ),
+    ],
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+
+      Text(
+        'Clinic Location',
+      ),
+
+      SizedBox(height: labelInputGap),
+
+DropdownButtonFormField<String>(
+  value: _selectedClinic,
+
+  isExpanded: true,
+  itemHeight: null,
+
+selectedItemBuilder: (context) {
+  return _clinicLocations.map<Widget>((clinic) {
+
+    return Align(
+      alignment: Alignment.centerLeft,
+
+      child: Text(
+        "${clinic['name']} • ${clinic['city']}",
+        
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }).toList();
+},
+
+  items: _clinicLocations
+      .map<DropdownMenuItem<String>>((clinic) {
+
+    return DropdownMenuItem<String>(
+      value: clinic['name'].toString(),
+
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+
+          children: [
+
+            Text(
+              clinic['name'] ?? '',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+
+            const SizedBox(height: 2),
+
+            Text(
+              "${clinic['city']} • ${clinic['state']}",
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }).toList(),
+
+ onChanged: (value) {
+
+  final selectedClinic = _clinicLocations.firstWhere(
+    (clinic) => clinic['name'] == value,
+  );
+
+  setState(() {
+    _selectedClinic = value;
+    _selectedClinicId = selectedClinic['id'];
+  });
+},
+
+  decoration: InputDecoration(
+    hintText: 'Select clinic location',
+
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+  ),
+),
+    ],
+  ),
+),         SizedBox(height: consentSpacing),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -586,12 +678,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               // Verify & Start Scan Button
                               Builder(
                                 builder: (context) {
-                                  final allFilled = _nameController.text.trim().isNotEmpty &&
-                                      _phoneController.text.trim().isNotEmpty &&
-                                      _selectedCity != null && _selectedCity!.trim().isNotEmpty && _consent;
+final allFilled =
+    _nameController.text.trim().isNotEmpty &&
+    _phoneController.text.trim().isNotEmpty &&
+    _selectedClinicId != null &&
+    _consent;
                                   final anyFilled = _nameController.text.trim().isNotEmpty ||
-                                      _phoneController.text.trim().isNotEmpty ||
-                                      (_selectedCity != null && _selectedCity!.trim().isNotEmpty);
+                                      _phoneController.text.trim().isNotEmpty;
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
@@ -1003,13 +1096,13 @@ class PrimaryCTAButton extends StatelessWidget {
 class OTPVerificationScreen extends StatefulWidget {
   final String phone;
   final String name;
-  final String city;
+  final int? clinicId;
 
   const OTPVerificationScreen({
     super.key,
     required this.phone,
     required this.name,
-    required this.city,
+    required this.clinicId,
   });
 
   @override
@@ -1044,6 +1137,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       return;
     }
 
+    print('OTP verify dispatch phone=${widget.phone} clinicId=${widget.clinicId}');
     setState(() { _loading = true; });
     context.read<AuthBloc>().add(
       VerifyLoginMobile(
@@ -1052,6 +1146,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         email: '',
         password: '',
         otp: otp,
+        clinicId: widget.clinicId,
       ),
     );
   }

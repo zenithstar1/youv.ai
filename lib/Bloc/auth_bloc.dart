@@ -9,9 +9,9 @@ import 'dart:convert';
 // Switch between local and production backend:
 // Local (Android emulator)  → 'http://10.0.2.2:8000/api/auth'
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
-// Production                → 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth'
+// Production                → 'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth'
 const String _authBaseUrl =
-  'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth';
+    'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth';
   //'http://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -251,18 +251,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
+      final payload = <String, String>{
+        'phone': event.phone,
+        'otp': event.otp,
+        'mobile': event.phone,
+        'name': event.name,
+        'email': event.email,
+        // 'password': event.password,
+      };
+
+      final city = event.city?.trim();
+      if (city != null && city.isNotEmpty) {
+        payload['city'] = city;
+      }
+      final clinicId = event.clinicId;
+      if (clinicId != null) {
+        payload['clinic_id'] = clinicId.toString();
+        // Some backends expect camelCase instead of snake_case.
+        payload['clinicId'] = clinicId.toString();
+      }
+
+      print('mobile-login payload=${json.encode(payload)}');
+
       final response = await http.post(
         Uri.parse(
           '$_authBaseUrl/mobile-login',
         ),
-        body: {
-          'phone': event.phone,
-          'otp': event.otp,
-          'mobile': event.phone,
-          'name': event.name,
-          'email': event.email,
-          // 'password': event.password,
-        },
+        body: payload,
       ).timeout(Duration(seconds: 10));
       print(response.body);
 
@@ -272,6 +287,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
+          print('mobile-login response data keys=${(responseData['data'] as dynamic).runtimeType} ${responseData['data']}');
           prefs.setString('userInfo', json.encode(responseData['data']));
           prefs.setString('_token', responseData['data']['token'] ?? '');
           prefs.setBool(

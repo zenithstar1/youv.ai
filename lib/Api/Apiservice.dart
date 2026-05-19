@@ -21,17 +21,12 @@ class SkinAnalyzeResponse {
 class ApiService {
   // Use live backend endpoints.
   static const String baseUrl =
-      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+      'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api';
   static const String localBaseUrl = baseUrl;
   static const String liveReportBaseUrl =
-   'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
-      // 'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api';
-  // static const String skinAnalyzeEndpoint =
-  //     'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+      'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api';
   static const String skinAnalyzeEndpoint =
-  //     'https://f8b4-2401-4900-1c97-8888-6c7-de9a-d3f6-44a8.ngrok-free.app/youvai_backend/public/api/secondary-analyze-skin';
-  // // static const String skinAnalyzeEndpoint =
-   'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/secondary-analyze-skin';
+      'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/secondary-analyze-skin';
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(milliseconds: 500);
   static const Duration requestTimeout = Duration(seconds: 120);
@@ -41,6 +36,22 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+
+  Future<String> _getBearerToken() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final direct = prefs.getString('_token') ?? '';
+    if (direct.trim().isNotEmpty) return direct.trim();
+
+    final userInfoStr = prefs.getString('userInfo') ?? '{}';
+    try {
+      final userInfo = json.decode(userInfoStr);
+      final token = (userInfo is Map) ? (userInfo['token']?.toString() ?? '') : '';
+      return token.trim();
+    } catch (_) {
+      return '';
+    }
+  }
 
   /// Analyzes skin from uploaded image bytes (for web)
   /// Retries up to 3 times on failure
@@ -85,7 +96,12 @@ class ApiService {
           ),
         );
 
-        request.headers.addAll({'Accept': 'application/json'});
+        final token = await _getBearerToken();
+        request.headers.addAll({
+          'Accept': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        });
+        print('Auth header attached to analyze request: ${token.isNotEmpty}');
 
         print('Sending request to: $skinAnalyzeEndpoint');
         print('Multipart field: $currentFieldName');
@@ -532,7 +548,7 @@ class ApiService {
         try {
           final whatsappUrl =
               //'http://127.0.0.1:8000/api/send-template-report';
-              'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/send-template-report';
+              'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/send-template-report';
           print('WhatsApp send URL: $whatsappUrl');
 
           final waPayload = {

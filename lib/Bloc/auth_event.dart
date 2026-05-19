@@ -54,6 +54,8 @@ class VerifyLoginMobile extends AuthEvent {
   final String name;
   final String email;
   final String password;
+  final String? city;
+  final int? clinicId;
 
   final String otp;
 
@@ -62,7 +64,9 @@ class VerifyLoginMobile extends AuthEvent {
       required this.name,
       required this.email,
       required this.password,
-      required this.otp});
+      required this.otp,
+      this.city,
+      this.clinicId,});
 }
 class LogoutRequested extends AuthEvent {}
 
