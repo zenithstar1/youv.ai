@@ -546,7 +546,7 @@ class ApiService {
         try {
           final whatsappUrl =
               //'http://127.0.0.1:8000/api/send-template-report';
-              'https://demo.youv.ai/api/send-template-report';
+              'https://demo.youv.ai/skinanalysisdashboard/api/send-template-report';
           print('WhatsApp send URL: $whatsappUrl');
 
           final waPayload = {
