@@ -251,33 +251,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      final payload = <String, String>{
-        'phone': event.phone,
-        'otp': event.otp,
-        'mobile': event.phone,
-        'name': event.name,
-        'email': event.email,
-        // 'password': event.password,
-      };
-
-      final city = event.city?.trim();
-      if (city != null && city.isNotEmpty) {
-        payload['city'] = city;
-      }
-      final clinicId = event.clinicId;
-      if (clinicId != null) {
-        payload['clinic_id'] = clinicId.toString();
-        // Some backends expect camelCase instead of snake_case.
-        payload['clinicId'] = clinicId.toString();
-      }
-
-      print('mobile-login payload=${json.encode(payload)}');
-
       final response = await http.post(
         Uri.parse(
           '$_authBaseUrl/mobile-login',
         ),
-        body: payload,
+        body: {
+          'phone': event.phone,
+          'otp': event.otp,
+          'mobile': event.phone,
+          'name': event.name,
+          'email': event.email,
+          "city": event.city,
+          "clinic_id": event.clinicId?.toString(),
+          // 'password': event.password,
+        },
       ).timeout(Duration(seconds: 10));
       print(response.body);
 
@@ -287,7 +274,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          print('mobile-login response data keys=${(responseData['data'] as dynamic).runtimeType} ${responseData['data']}');
           prefs.setString('userInfo', json.encode(responseData['data']));
           prefs.setString('_token', responseData['data']['token'] ?? '');
           prefs.setBool(

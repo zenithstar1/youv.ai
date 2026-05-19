@@ -20,13 +20,11 @@ class SkinAnalyzeResponse {
 
 class ApiService {
   // Use live backend endpoints.
-  static const String baseUrl =
-      'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api';
+  static const String baseUrl = 'https://demo.youv.ai/api';
   static const String localBaseUrl = baseUrl;
-  static const String liveReportBaseUrl =
-      'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api';
+  static const String liveReportBaseUrl = 'https://demo.youv.ai/api';
   static const String skinAnalyzeEndpoint =
-      'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/secondary-analyze-skin';
+      'https://demo.youv.ai/api/secondary-analyze-skin';
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(milliseconds: 500);
   static const Duration requestTimeout = Duration(seconds: 120);
@@ -548,7 +546,7 @@ class ApiService {
         try {
           final whatsappUrl =
               //'http://127.0.0.1:8000/api/send-template-report';
-              'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/send-template-report';
+              'https://demo.youv.ai/api/send-template-report';
           print('WhatsApp send URL: $whatsappUrl');
 
           final waPayload = {
