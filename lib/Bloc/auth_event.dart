@@ -14,6 +14,8 @@ class RegisterRequested extends AuthEvent {
   final DateTime? dateOfBirth;
   final String? gender;
   final String? phone;
+  final int? clinicId;
+  final String? otp;
 
   RegisterRequested(
       {required this.name,
@@ -21,7 +23,9 @@ class RegisterRequested extends AuthEvent {
       required this.password,
       this.dateOfBirth,
       this.gender,
-      required this.phone});
+      required this.phone,
+      this.clinicId,
+      this.otp});
 }
 
 class GoogleLoginRequested extends AuthEvent {

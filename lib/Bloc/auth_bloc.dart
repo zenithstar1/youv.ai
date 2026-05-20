@@ -11,7 +11,7 @@ import 'dart:convert';
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
 // Production                → 'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth'
 const String _authBaseUrl =
-    'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth';
+    'https://demo.youv.ai/skinanalysisdashboard/api/auth';
   //'http://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -45,6 +45,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (response.statusCode == 200) {
         final prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLogin', true);
+        prefs.setBool('hasRegistered', true);
 
         // Optionally, store user info from response
         emit(AuthAuthenticated("Login successful!"));
@@ -109,38 +110,53 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         ),
         body: {
           'name': event.name,
-          'email': event.email,
+          if (event.email != null && event.email!.isNotEmpty) 'email': event.email!,
           'password': event.password,
           'dateOfBirth': event.dateOfBirth?.toIso8601String() ?? '',
           'gender': event.gender ?? '',
           'phone': event.phone ?? '',
+          if (event.otp != null) 'otp': event.otp!,
+          if (event.clinicId != null) 'clinic_id': event.clinicId!.toString(),
         },
       ).timeout(Duration(seconds: 10));
       print(response.body);
 
       if (response.statusCode == 201) {
-        // Registration successful
-        emit(AuthAuthenticated("Registration successful!"));
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setBool('isLogin', true);
-
         final responseData = json.decode(response.body);
 
         if (responseData is Map && responseData.containsKey('data')) {
-          print("User info received: ${responseData['data']}");
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setBool('isLogin', true);
+          prefs.setBool('hasRegistered', true);
           prefs.setString('userInfo', json.encode(responseData['data']));
           prefs.setString('_token', responseData['data']['token'] ?? '');
           prefs.setBool(
             'isSubscribe',
             responseData['data']['isSubscribed'] ?? false,
           );
-          print("User info stored: ${responseData['data']['token']}");
+          print("User registered and token stored: ${responseData['data']['token']}");
+          emit(AuthAuthenticated("Registration successful!"));
         } else {
           emit(AuthError('Invalid response format'));
           return;
         }
       } else {
-        emit(AuthError('Registration failed: ${response.body}'));
+        String errorMsg = 'Registration failed';
+        try {
+          final decoded = json.decode(response.body);
+          if (decoded is Map) {
+            if (decoded['message'] != null) {
+              errorMsg = decoded['message'].toString();
+            }
+            if (decoded['errors'] is Map) {
+              final errs = (decoded['errors'] as Map).values
+                  .expand((v) => v is List ? v : [v])
+                  .join(', ');
+              if (errs.isNotEmpty) errorMsg = errs;
+            }
+          }
+        } catch (_) {}
+        emit(AuthError(errorMsg));
         return;
       }
     } catch (e) {
@@ -270,6 +286,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (response.statusCode == 200) {
         final prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLogin', true);
+        prefs.setBool('hasRegistered', true);
 
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
@@ -322,6 +339,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (response.statusCode == 200) {
         final prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLogin', true);
+        prefs.setBool('hasRegistered', true);
 
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {

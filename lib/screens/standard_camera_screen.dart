@@ -711,6 +711,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   Future<void> _startScanningAnimation() async {
     if (!mounted || _isDisposed || _hasNavigated) return;
 
+    // Capture the NavigatorState BEFORE any await.  After an await boundary
+    // the widget may have been deactivated, making context.findAncestorStateOfType
+    // (called internally by Navigator.of(context)) throw even if mounted == true.
+    final navigator = Navigator.of(context);
+
     // PHASE 0: Freeze (400ms)
     setState(() {
       _phase = ScanPhase.freeze;
@@ -783,11 +788,12 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    // Navigate
-    _hasNavigated = true;
-    if (mounted && context.mounted && _capturedBytes != null) {
-      Navigator.pushReplacement(
-        context,
+    // Navigate — use the pre-captured NavigatorState so we never call
+    // Navigator.of(context) after an await boundary on a potentially
+    // deactivated context.
+    if (!_hasNavigated && _capturedBytes != null) {
+      _hasNavigated = true;
+      navigator.pushReplacement(
         MaterialPageRoute(
           builder: (_) => ImagePreviewScreen(
             imageBytes: _capturedBytes!,

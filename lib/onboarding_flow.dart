@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:skin_analysis_app/screens/LoginPage.dart';
+import 'package:skin_analysis_app/screens/already_login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 
@@ -38,26 +39,34 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
   }
 
   Future<void> _navigateToAnalysis() async {
-    // Small delay to allow button tap ripple/effect to process visually (if any)
     await Future.delayed(const Duration(milliseconds: 80));
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    final isLoggedIn = prefs.getBool('isLogin') ?? false;
 
-    if (!isLoggedIn) {
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
+    final hasRegistered = prefs.getBool('hasRegistered') ?? false;
+
+    if (isLoggedIn) {
+      // Session still active — skip login entirely.
+      _goToAnalysisType();
+    } else if (hasRegistered) {
+      // User has registered before but session expired — go straight to OTP.
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AlreadyLoginScreen()),
+      );
+    } else {
+      // Brand-new user — show the sign-up / create account flow.
       final result = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       );
       if (!mounted) return;
-
       if (result == true) {
         _goToAnalysisType();
       }
-    } else {
-      _goToAnalysisType();
     }
   }
 

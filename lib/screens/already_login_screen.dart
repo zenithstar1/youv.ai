@@ -138,11 +138,12 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
             );
           } else if (state is AuthAuthenticated) {
             setState(() => _loading = false);
-            Navigator.pushReplacement(
+            Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
                 builder: (_) => const AnalysisTypeScreen(),
               ),
+              (_) => false,
             );
           } else if (state is AuthError) {
             setState(() {
