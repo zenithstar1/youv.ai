@@ -1137,14 +1137,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       return;
     }
 
-    print('OTP verify dispatch phone=${widget.phone} clinicId=${widget.clinicId}');
     setState(() { _loading = true; });
     context.read<AuthBloc>().add(
-      VerifyLoginMobile(
-        phone: widget.phone,
+      RegisterRequested(
         name: widget.name,
-        email: '',
-        password: '',
+        phone: widget.phone,
+        password: widget.phone,
         otp: otp,
         clinicId: widget.clinicId,
       ),
@@ -1173,7 +1171,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           setState(() => _loading = false);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => AnalysisTypeScreen()),
+            MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
           );
         } else if (state is AuthMessage) {
           setState(() => _loading = false);
