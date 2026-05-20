@@ -18,6 +18,59 @@
   <meta name="apple-mobile-web-app-title" content="Skin Analysis">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
+  <!--
+    Patch getUserMedia BEFORE Flutter loads so the camera plugin gets portrait
+    constraints on mobile phones.  Desktop is left untouched.
+
+    Why:  Flutter's ResolutionPreset.high requests 1280×720 (landscape 16:9).
+    On a portrait phone (≈390×844) that stream would be FittedBox-scaled with a
+    ~3.8× zoom factor, causing the zoomed/blurry appearance.
+    Requesting height:1280 / width:720 gives the browser a portrait 9:16 stream
+    whose aspect ratio matches the phone screen → minimal cropping / no zoom.
+  -->
+  <script>
+  (function patchCameraForMobilePortrait() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+    // Only patch on touch / mobile devices
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+
+    var _orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+
+    navigator.mediaDevices.getUserMedia = function (constraints) {
+      if (constraints && constraints.video) {
+        try {
+          // Deep-clone so we don't mutate the caller's object
+          var vc = (typeof constraints.video === 'object')
+            ? JSON.parse(JSON.stringify(constraints.video))
+            : {};
+
+          // Preserve facingMode if caller already set one
+          var facingMode = vc.facingMode || { ideal: 'user' };
+
+          // Portrait-first constraints: height > width → browser returns a
+          // portrait stream (720×1280) that matches the phone's natural hold.
+          constraints = Object.assign({}, constraints, {
+            video: {
+              facingMode:  facingMode,
+              width:       { ideal: 720,  max: 1280 },
+              height:      { ideal: 1280, max: 1920 },
+              frameRate:   { ideal: 30,   max: 30   }
+            }
+          });
+        } catch (e) {
+          // Fallback: leave original constraints unchanged
+          console.warn('[CameraPatch] Failed to apply portrait constraints:', e);
+        }
+      }
+      return _orig(constraints);
+    };
+
+    console.log('[CameraPatch] getUserMedia patched for mobile portrait camera');
+  })();
+  </script>
+
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
   <title>Skin Analysis</title>
@@ -30,19 +83,31 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      /* Use fill-available / dvh so the app never extends behind browser chrome */
+      height: 100vh;
+      height: -webkit-fill-available; /* iOS Safari < 15.4 */
       overflow: hidden;
       background-color: #F5E6E8;
     }
 
     #flutter_host {
       width: 100vw;
+      /* Layered fallbacks: static vh → webkit fill → dynamic viewport */
       height: 100vh;
+      height: -webkit-fill-available;
+      height: 100dvh; /* Chrome 108+, Safari 15.4+, Firefox 116+ */
       position: fixed;
       inset: 0;
     }
 
+    /*
+     * Flutter web camera plugin injects <video> elements into the DOM.
+     * object-fit: cover   → fills its Flutter-sized box without distortion
+     * transform: scaleX(-1) → mirrors for selfie / front-facing camera
+     * We keep position/size controlled by Flutter (no width/height override here).
+     */
     video {
+      object-fit: cover;
       transform: scaleX(-1);
     }
 
@@ -51,7 +116,8 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      height: 100dvh;
+      height: 100vh; /* fallback for old browsers */
       background-color: #F5E6E8;
     }
 

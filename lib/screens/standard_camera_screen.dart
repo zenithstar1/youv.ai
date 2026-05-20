@@ -858,14 +858,28 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     }
 
     final size = controller.value.previewSize!;
+
+    // On native the camera sensor fires frames in landscape even when the phone
+    // is portrait, so we swap width↔height to get the correct portrait aspect
+    // ratio for the Flutter layout.
+    //
+    // On web the browser stream already reflects the phone's orientation
+    // (our getUserMedia patch in index.html requests portrait 720×1280).
+    // Swapping here would produce a landscape SizedBox (1280×720) which the
+    // FittedBox.cover would then zoom into the portrait screen by ~3.8×.
+    // We therefore use the stream's natural dimensions unchanged on web, and
+    // rely on the CSS `object-fit: cover` for any minor aspect-ratio trim.
+    final double w = kIsWeb ? size.width  : size.height;
+    final double h = kIsWeb ? size.height : size.width;
+
     return ClipRect(
       child: OverflowBox(
         alignment: Alignment.center,
         child: FittedBox(
           fit: BoxFit.cover,
           child: SizedBox(
-            width: size.height,
-            height: size.width,
+            width: w,
+            height: h,
             child: CameraPreview(controller),
           ),
         ),
