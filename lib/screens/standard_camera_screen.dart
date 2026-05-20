@@ -859,27 +859,46 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     final size = controller.value.previewSize!;
 
-    // On native the camera sensor fires frames in landscape even when the phone
-    // is portrait, so we swap width↔height to get the correct portrait aspect
-    // ratio for the Flutter layout.
-    //
-    // On web the browser stream already reflects the phone's orientation
-    // (our getUserMedia patch in index.html requests portrait 720×1280).
-    // Swapping here would produce a landscape SizedBox (1280×720) which the
-    // FittedBox.cover would then zoom into the portrait screen by ~3.8×.
-    // We therefore use the stream's natural dimensions unchanged on web, and
-    // rely on the CSS `object-fit: cover` for any minor aspect-ratio trim.
-    final double w = kIsWeb ? size.width  : size.height;
-    final double h = kIsWeb ? size.height : size.width;
+    if (kIsWeb) {
+      // ─── WEB ───────────────────────────────────────────────────────────────
+      // The parent `Positioned.fill` already constrains this widget to the full
+      // screen (tight constraints = viewport size in logical pixels).
+      //
+      // We intentionally skip FittedBox/OverflowBox here.  Flutter Web places
+      // the HtmlElementView (the <video> element) at the widget's computed
+      // position *including* any ancestor transform.  When FittedBox is present
+      // it applies a CSS matrix() transform on the platform-view host container,
+      // but `object-fit: cover` on the <video> inside that container resolves
+      // against the *pre-transform* pixel dimensions.  The result is two
+      // independent scaling passes that multiply and cause the zoomed appearance.
+      //
+      // By returning CameraPreview directly we get:
+      //   Flutter layout  → video element = viewport_w × viewport_h CSS pixels
+      //   CSS object-fit:cover → single, correct scaling of the camera stream
+      //   face_detector.js → applies rotation fix for landscape streams (Android)
+      //
+      // Log stream dimensions so we can audit in devtools.
+      debugPrint(
+        '[CameraPreview:web] previewSize=${size.width.toInt()}×${size.height.toInt()}'
+        ' | screen=${MediaQuery.of(context).size.width.toInt()}'
+        '×${MediaQuery.of(context).size.height.toInt()}'
+        ' | dpr=${MediaQuery.of(context).devicePixelRatio}',
+      );
+      return CameraPreview(controller);
+    }
 
+    // ─── NATIVE ────────────────────────────────────────────────────────────
+    // The camera sensor reports frames in its natural (often landscape)
+    // orientation.  Swap w↔h to obtain the correct portrait aspect ratio for
+    // the Flutter layout, then FittedBox.cover fills the screen.
     return ClipRect(
       child: OverflowBox(
         alignment: Alignment.center,
         child: FittedBox(
           fit: BoxFit.cover,
           child: SizedBox(
-            width: w,
-            height: h,
+            width: size.height,
+            height: size.width,
             child: CameraPreview(controller),
           ),
         ),

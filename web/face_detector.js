@@ -1,5 +1,17 @@
 console.log("face_detector.js loaded");
 
+// ── Page-load diagnostics ─────────────────────────────────────────────────────
+(function logPageState() {
+  console.log('[PageDiag]', {
+    ua:        navigator.userAgent,
+    screenWH:  screen.width + '×' + screen.height,
+    innerWH:   window.innerWidth + '×' + window.innerHeight,
+    dpr:       window.devicePixelRatio,
+    isMobile:  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+    isIOS:     /iPhone|iPad|iPod/i.test(navigator.userAgent),
+  });
+})();
+
 let faceMesh = null;
 let cameraStarted = false;
 let animFrameId = null;
@@ -510,6 +522,66 @@ window.stopFaceDetection = function() {
   }
 };
 
+// ── Video diagnostics ─────────────────────────────────────────────────────────
+function logVideoState(video, label) {
+  if (!video) { console.log('[VideoDiag:' + label + '] no video element'); return; }
+  var rect = video.getBoundingClientRect();
+  var cs   = window.getComputedStyle(video);
+  console.log('[VideoDiag:' + label + ']', {
+    ua:         navigator.userAgent,
+    screenWH:   screen.width + '×' + screen.height,
+    innerWH:    window.innerWidth + '×' + window.innerHeight,
+    dpr:        window.devicePixelRatio,
+    streamWH:   video.videoWidth + '×' + video.videoHeight,
+    readyState: video.readyState,
+    rectWH:     rect.width.toFixed(1) + '×' + rect.height.toFixed(1),
+    rectPos:    '(' + rect.left.toFixed(1) + ',' + rect.top.toFixed(1) + ')',
+    cssWidth:   cs.width,
+    cssHeight:  cs.height,
+    objectFit:  cs.objectFit,
+    transform:  cs.transform,
+    position:   cs.position,
+  });
+}
+
+// ── Ensure video element renders correctly ────────────────────────────────────
+function fixVideoRendering(video) {
+  if (!video) return;
+
+  logVideoState(video, 'before-fix');
+
+  // Apply object-fit and mirror inline so they win even if the CSS rule was
+  // overridden or applied before the element existed.
+  video.style.objectFit = 'cover';
+  video.style.transform = 'scaleX(-1)';
+
+  var isPortraitScreen  = window.innerHeight > window.innerWidth;
+  var isLandscapeStream = video.videoWidth  > video.videoHeight;
+
+  if (isPortraitScreen && isLandscapeStream) {
+    console.warn('[VideoFix] MISMATCH: portrait screen but landscape stream!',
+      'stream=' + video.videoWidth + '×' + video.videoHeight,
+      'screen=' + window.innerWidth + '×' + window.innerHeight,
+      '— getUserMedia portrait patch did not apply. Camera will appear zoomed.');
+  } else {
+    console.log('[VideoFix] stream orientation OK:',
+      'stream=' + video.videoWidth + '×' + video.videoHeight,
+      'screen=' + window.innerWidth + '×' + window.innerHeight);
+  }
+
+  logVideoState(video, 'after-fix');
+}
+
+// Re-run fix on orientation change (user rotates device)
+window.addEventListener('orientationchange', function() {
+  setTimeout(function() {
+    if (targetVideo) {
+      console.log('[VideoFix] re-running after orientationchange');
+      fixVideoRendering(targetVideo);
+    }
+  }, 400);
+});
+
 window.startFaceDetection = function(videoElement) {
   console.log("startFaceDetection called, element:", videoElement?.tagName);
 
@@ -587,6 +659,7 @@ window.startFaceDetection = function(videoElement) {
     if (targetVideo && targetVideo.readyState >= 2 && targetVideo.videoWidth > 0) {
       console.log("Video ready, starting face detection loop. Size:",
         targetVideo.videoWidth, "x", targetVideo.videoHeight);
+      fixVideoRendering(targetVideo);
       animFrameId = requestAnimationFrame(processFrame);
     } else {
       const rs = targetVideo ? targetVideo.readyState : "none";

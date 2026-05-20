@@ -53,10 +53,11 @@
           // portrait stream (720×1280) that matches the phone's natural hold.
           constraints = Object.assign({}, constraints, {
             video: {
-              facingMode:  facingMode,
-              width:       { ideal: 720,  max: 1280 },
-              height:      { ideal: 1280, max: 1920 },
-              frameRate:   { ideal: 30,   max: 30   }
+              facingMode:   facingMode,
+              width:        { ideal: 720,  max: 1280 },
+              height:       { ideal: 1280, max: 1920 },
+              aspectRatio:  { ideal: 9/16 },
+              frameRate:    { ideal: 30,   max: 30   }
             }
           });
         } catch (e) {
