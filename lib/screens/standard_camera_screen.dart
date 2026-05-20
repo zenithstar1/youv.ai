@@ -879,7 +879,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
-    final screenH = MediaQuery.of(context).size.height;
     final isLive = _phase == ScanPhase.live;
     final isScanning = _phase != ScanPhase.live;
 
@@ -988,148 +987,147 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── FACE DETECTED PILL / COUNTDOWN / HOLD STEADY (live) ──
+          // ── CAPTURE BUTTON + STATUS PILL + BOTTOM LABEL (live) ──
+          // Anchored to bottom so it never overlaps the face oval on short screens
           if (isLive)
-            Align(
-              alignment: const Alignment(0, 0.42),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _holdSteady
-                    ? Container(
-                        key: const ValueKey('hold'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _kSoftGreen.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _kSoftGreen.withOpacity(0.4),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.camera_alt,
-                              size: 16,
-                              color: _kSoftGreen,
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              left: 0,
+              right: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Face detected / countdown / hold steady pill
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _holdSteady
+                        ? Container(
+                            key: const ValueKey('hold'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Hold steady…",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _kSoftGreen,
-                                fontWeight: FontWeight.w600,
+                            decoration: BoxDecoration(
+                              color: _kSoftGreen.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _kSoftGreen.withOpacity(0.4),
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    : _countdown > 0
-                    ? Container(
-                        key: ValueKey('cd_$_countdown'),
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _kBlush.withOpacity(0.2),
-                          border: Border.all(
-                            color: _kBlush.withOpacity(0.6),
-                            width: 2,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$_countdown',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontFamily: 'serif',
-                              fontWeight: FontWeight.bold,
-                              color: _kIvory.withOpacity(0.95),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.camera_alt,
+                                  size: 16,
+                                  color: _kSoftGreen,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "Hold steady…",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _kSoftGreen,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                      )
-                    : _faceDetected
-                    ? Container(
-                        key: const ValueKey('detected'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _kValidGreenBg.withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: _kSoftGreen,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Face detected",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: _kSoftGreen,
-                                fontWeight: FontWeight.w500,
+                          )
+                        : _countdown > 0
+                        ? Container(
+                            key: ValueKey('cd_$_countdown'),
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _kBlush.withOpacity(0.2),
+                              border: Border.all(
+                                color: _kBlush.withOpacity(0.6),
+                                width: 2,
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(key: ValueKey('empty')),
-              ),
-            ),
-
-          // ── CAPTURE BUTTON (live) ──
-          if (isLive)
-            Align(
-              alignment: const Alignment(0, 0.72),
-              child: _CaptureButton(
-                enabled:
-                    _initialized &&
-                    !_capturing &&
-                    _controller != null &&
-                    _controller!.value.isInitialized &&
-                    (widget.isHair || _faceDetected),
-                faceDetected: _faceDetected,
-                autoRingController: _autoRingController,
-                subLabel: (_countdown > 0 || _holdSteady)
-                    ? 'Hold still…'
-                    : _faceDetected
-                    ? 'Auto-capturing…'
-                    : 'Position your face in frame',
-                onTap:
-                    (_initialized &&
+                            child: Center(
+                              child: Text(
+                                '$_countdown',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontFamily: 'serif',
+                                  fontWeight: FontWeight.bold,
+                                  color: _kIvory.withOpacity(0.95),
+                                ),
+                              ),
+                            ),
+                          )
+                        : _faceDetected
+                        ? Container(
+                            key: const ValueKey('detected'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _kValidGreenBg.withOpacity(0.85),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 16,
+                                  color: _kSoftGreen,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "Face detected",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: _kSoftGreen,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(key: ValueKey('empty')),
+                  ),
+                  const SizedBox(height: 12),
+                  // Capture button
+                  _CaptureButton(
+                    enabled:
+                        _initialized &&
                         !_capturing &&
                         _controller != null &&
                         _controller!.value.isInitialized &&
-                        (widget.isHair || _faceDetected))
-                    ? _capture
-                    : null,
-              ),
-            ),
-
-          // ── BOTTOM LABEL (live) ──
-          if (isLive)
-            Positioned(
-              bottom: screenH * 0.05,
-              left: 0,
-              right: 0,
-              child: Text(
-                _buildLiveBottomLabel(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _kIvory.withOpacity(0.65),
-                  fontSize: 12,
-                ),
+                        (widget.isHair || _faceDetected),
+                    faceDetected: _faceDetected,
+                    autoRingController: _autoRingController,
+                    subLabel: (_countdown > 0 || _holdSteady)
+                        ? 'Hold still…'
+                        : _faceDetected
+                        ? 'Auto-capturing…'
+                        : 'Position your face in frame',
+                    onTap:
+                        (_initialized &&
+                            !_capturing &&
+                            _controller != null &&
+                            _controller!.value.isInitialized &&
+                            (widget.isHair || _faceDetected))
+                        ? _capture
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+                  // Bottom label
+                  Text(
+                    _buildLiveBottomLabel(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _kIvory.withOpacity(0.65),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
 
