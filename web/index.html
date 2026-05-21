@@ -103,13 +103,12 @@
 
     /*
      * Flutter web camera plugin injects <video> elements into the DOM.
-     * object-fit: cover   → fills its Flutter-sized box without distortion
-     * transform: scaleX(-1) → mirrors for selfie / front-facing camera
-     * We keep position/size controlled by Flutter (no width/height override here).
+     * object-fit and transform are set inline by fixVideoRendering() in
+     * face_detector.js after the stream dimensions are known, so we only
+     * provide a safe default here (overridden by inline style).
      */
     video {
       object-fit: cover;
-      transform: scaleX(-1);
     }
 
     #loading {

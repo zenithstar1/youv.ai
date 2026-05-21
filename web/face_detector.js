@@ -550,23 +550,49 @@ function fixVideoRendering(video) {
 
   logVideoState(video, 'before-fix');
 
-  // Apply object-fit and mirror inline so they win even if the CSS rule was
-  // overridden or applied before the element existed.
-  video.style.objectFit = 'cover';
-  video.style.transform = 'scaleX(-1)';
-
-  var isPortraitScreen  = window.innerHeight > window.innerWidth;
+  var isIOS            = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  var isPortraitScreen = window.innerHeight > window.innerWidth;
   var isLandscapeStream = video.videoWidth  > video.videoHeight;
 
-  if (isPortraitScreen && isLandscapeStream) {
-    console.warn('[VideoFix] MISMATCH: portrait screen but landscape stream!',
+  video.style.objectFit = 'cover';
+
+  if (isPortraitScreen && isLandscapeStream && !isIOS) {
+    // Android: browser returned a landscape stream (1280×720) even though we
+    // requested portrait. CSS object-fit:cover alone would show only ~26% of
+    // the frame width → heavy zoom. Fix: resize the element to landscape dims
+    // and rotate -90° so it visually fills the portrait container correctly.
+    //
+    // Math:
+    //   container = cw × ch  (e.g. 390×844)
+    //   element   = ch × cw  (844×390) — swapped so it's landscape-sized
+    //   rotate(-90deg) → visual size = cw × ch  ✓
+    //   translate by ((cw-ch)/2, (ch-cw)/2) to re-center in the container
+    var cw = window.innerWidth;   // e.g. 390
+    var ch = window.innerHeight;  // e.g. 844
+    var tx = (cw - ch) / 2;       // e.g. -227  (shifts left)
+    var ty = (ch - cw) / 2;       // e.g. +227  (shifts down)
+    video.style.width  = ch + 'px';
+    video.style.height = cw + 'px';
+    video.style.transformOrigin = 'center center';
+    video.style.transform =
+      'translateX(' + tx + 'px) translateY(' + ty + 'px) rotate(-90deg) scaleX(-1)';
+    console.warn('[VideoFix] Android landscape→portrait rotation applied:',
       'stream=' + video.videoWidth + '×' + video.videoHeight,
-      'screen=' + window.innerWidth + '×' + window.innerHeight,
-      '— getUserMedia portrait patch did not apply. Camera will appear zoomed.');
+      'screen=' + cw + '×' + ch);
   } else {
-    console.log('[VideoFix] stream orientation OK:',
-      'stream=' + video.videoWidth + '×' + video.videoHeight,
-      'screen=' + window.innerWidth + '×' + window.innerHeight);
+    // iOS (rotation handled by Safari internally) or portrait stream or desktop.
+    // Reset any dimensions set by a prior landscape fix, then just mirror.
+    video.style.width  = '';
+    video.style.height = '';
+    video.style.transformOrigin = '';
+    video.style.transform = 'scaleX(-1)';
+    if (isPortraitScreen && isLandscapeStream && isIOS) {
+      console.log('[VideoFix] iOS landscape stream — Safari handles orientation, mirror only.');
+    } else {
+      console.log('[VideoFix] portrait stream, mirror only:',
+        'stream=' + video.videoWidth + '×' + video.videoHeight,
+        'screen=' + window.innerWidth + '×' + window.innerHeight);
+    }
   }
 
   logVideoState(video, 'after-fix');
