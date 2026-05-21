@@ -51,3 +51,9 @@ app.*.map.json
 # Also keep contents
 !build/web/**
 
+# Ignore all build folders
+build/
+
+# Keep only Flutter web build
+!build/web/
+!build/web/**

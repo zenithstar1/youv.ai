@@ -17,9 +17,7 @@ const _kStabilityHoldMs = 1500;
 const _kMotionThreshold = 0.016;
 const _kMinFaceWidthRatio = 0.24;
 const _kMaxFaceWidthRatio = 0.74;
-const _kMaxYaw = 9.0;
-const _kMaxPitch = 10.0;
-const _kMaxRoll = 7.0;
+
 const _kLostFramesThreshold = 5;
 const _kFeedbackDebounceMs = 600;
 
@@ -460,20 +458,25 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
     }
 
-    // Head pose from MediaPipe euler angles
-    final yaw = (frame.headEulerAngleY ?? 0).abs();
-    final pitch = (frame.headEulerAngleX ?? 0).abs();
-    final roll = (frame.headEulerAngleZ ?? 0).abs();
-    final poseOk = yaw <= _kMaxYaw && pitch <= _kMaxPitch && roll <= _kMaxRoll;
+    // Head pose — pure landmark geometry, fully device-independent.
+    // MediaPipe euler angles are skipped entirely: they vary wildly across
+    // Android sensors and routinely report 25-40° for a forward-facing person.
+    //
+    // Yaw proxy: nose tip should sit near the horizontal midpoint of the eyes.
+    //   Threshold 0.75× inter-eye distance catches true side profiles.
+    final noseToEyeMidX =
+        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs();
+    final yawOk = noseToEyeMidX <= eyeDx * 0.75;
 
-    // Eyes level (roll cross-check via landmark geometry)
+    // Roll proxy: eyes should be at roughly the same height.
+    //   0.40 allows ≈22° of head tilt — fine for a natural selfie.
     final eyeDy = (leftEye[1] - rightEye[1]).abs();
-    final eyesLevelOk = (eyeDy / eyeDx) <= 0.18;
+    final rollOk = (eyeDy / eyeDx) <= 0.40;
 
-    // Nose centered between eyes (yaw cross-check)
-    final noseCenteredToEyes =
-        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs() / eyeDx;
-    final noseCenteredOk = noseCenteredToEyes <= 0.90;
+    final poseOk = yawOk && rollOk;
+
+    // Nose centered check (reuse noseToEyeMidX already computed above)
+    final noseCenteredOk = noseToEyeMidX <= eyeDx * 1.40;
 
     // Eye vertical position to match oval guide
     final eyeMidY = (leftEye[1] + rightEye[1]) / 2;
@@ -500,29 +503,13 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     final eyeDistanceRatio = eyeDx / math.max(frame.imageWidth, 1.0);
     final lightingOk = eyeDistanceRatio >= 0.05 && eyeDistanceRatio <= 0.45;
 
-    // Mouth sanity check if available
-    bool mouthOk = true;
-    if (frame.landmarks.length >= 7) {
-      final mL = frame.landmarks[5];
-      final mR = frame.landmarks[6];
-      if (mL.length >= 2 &&
-          mR.length >= 2 &&
-          mL[0].isFinite &&
-          mR[0].isFinite) {
-        final mouthWidth = (mR[0] - mL[0]).abs();
-        mouthOk =
-            mouthWidth >= eyeDx * 0.08 && mouthWidth <= eyeDx * 2.00;
-      }
-    }
-
     return _ValidationStatus(
       faceDetected: true,
       distanceOk: distanceOk,
       tooFar: tooFar,
       tooClose: tooClose,
-      centeredOk:
-          centeredOk && eyePositionOk && eyesLevelOk && noseCenteredOk,
-      poseOk: poseOk && eyesLevelOk && mouthOk,
+      centeredOk: centeredOk && eyePositionOk && noseCenteredOk,
+      poseOk: poseOk,
       motionOk: motionOk,
       lightingOk: lightingOk,
     );
@@ -931,7 +918,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     });
 
     const ringSteps = 20;
-    for (int i = 1; i <= ringSteps; i++) {
+    for (int i = 1; i <= ringSteps; i++) { 
       await Future.delayed(const Duration(milliseconds: 50));
       if (!mounted || _isDisposed || _hasNavigated) return;
       setState(() {

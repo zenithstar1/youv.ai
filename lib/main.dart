@@ -99,20 +99,24 @@ class _AuthGateState extends State<AuthGate> {
 
     if (!mounted) return;
 
-    Widget target;
+    // Determine where to land AFTER the intro screen.
+    Widget destination;
     if (isLogin && token.isNotEmpty) {
-      debugPrint('[AuthGate] → AnalysisTypeScreen');
-      target = const AnalysisTypeScreen();
+      debugPrint('[AuthGate] resolved destination → AnalysisTypeScreen');
+      destination = const AnalysisTypeScreen();
     } else if (hasRegistered) {
-      debugPrint('[AuthGate] → AlreadyLoginScreen');
-      target = const AlreadyLoginScreen();
+      debugPrint('[AuthGate] resolved destination → AlreadyLoginScreen');
+      destination = const AlreadyLoginScreen();
     } else {
-      debugPrint('[AuthGate] → OnboardingScreen (new user)');
-      target = const OnboardingScreen();
+      debugPrint('[AuthGate] resolved destination → OnboardingFlow (new user)');
+      destination = const OnboardingFlow();
     }
 
+    // Always show the intro/splash screen first, then navigate to destination.
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => target),
+      MaterialPageRoute(
+        builder: (_) => OnboardingScreen(destination: destination),
+      ),
     );
   }
 
@@ -132,7 +136,14 @@ class _AuthGateState extends State<AuthGate> {
 
 // ── Onboarding (intro video) ──────────────────────────────────────────────────
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  /// Where to navigate when the user taps "Start Your Scan".
+  /// Defaults to [OnboardingFlow] for new users.
+  final Widget destination;
+
+  const OnboardingScreen({
+    super.key,
+    Widget? destination,
+  }) : destination = destination ?? const OnboardingFlow();
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -272,9 +283,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           SizedBox(height: (h * 0.010).clamp(6.0, 11.0)),
                           GestureDetector(
                         onTap: () {
-                          Navigator.push(
+                          Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+                            MaterialPageRoute(
+                              builder: (_) => widget.destination,
+                            ),
                           );
                         },
                         child: AnimatedBuilder(
