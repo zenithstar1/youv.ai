@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'auth_event.dart';
@@ -43,23 +44,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print(response.statusCode);
 
       if (response.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setBool('isLogin', true);
-        prefs.setBool('hasRegistered', true);
-
-        // Optionally, store user info from response
-        emit(AuthAuthenticated("Login successful!"));
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          print("User info received: ${responseData['data']}");
-          prefs.setString('userInfo', json.encode(responseData['data']));
-          prefs.setString('_token', responseData['data']['token'] ?? '');
-          prefs.setBool(
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLogin', true);
+          await prefs.setBool('hasRegistered', true);
+          await prefs.setString('userInfo', json.encode(responseData['data']));
+          await prefs.setString('_token', responseData['data']['token'] ?? '');
+          await prefs.setBool(
             'isSubscribe',
             responseData['data']['isSubscribed'] ?? false,
           );
-
-          print("User info stored: ${responseData['data']['token']}");
+          debugPrint('[AuthBloc/login] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
+          emit(AuthAuthenticated("Login successful!"));
         } else {
           emit(AuthError('Invalid response format'));
           return;
@@ -126,15 +123,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         if (responseData is Map && responseData.containsKey('data')) {
           final prefs = await SharedPreferences.getInstance();
-          prefs.setBool('isLogin', true);
-          prefs.setBool('hasRegistered', true);
-          prefs.setString('userInfo', json.encode(responseData['data']));
-          prefs.setString('_token', responseData['data']['token'] ?? '');
-          prefs.setBool(
+          await prefs.setBool('isLogin', true);
+          await prefs.setBool('hasRegistered', true);
+          await prefs.setString('userInfo', json.encode(responseData['data']));
+          await prefs.setString('_token', responseData['data']['token'] ?? '');
+          await prefs.setBool(
             'isSubscribe',
             responseData['data']['isSubscribed'] ?? false,
           );
-          print("User registered and token stored: ${responseData['data']['token']}");
+          debugPrint('[AuthBloc/register] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
           emit(AuthAuthenticated("Registration successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -284,18 +281,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print(response.body);
 
       if (response.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setBool('isLogin', true);
-        prefs.setBool('hasRegistered', true);
-
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          prefs.setString('userInfo', json.encode(responseData['data']));
-          prefs.setString('_token', responseData['data']['token'] ?? '');
-          prefs.setBool(
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLogin', true);
+          await prefs.setBool('hasRegistered', true);
+          await prefs.setString('userInfo', json.encode(responseData['data']));
+          await prefs.setString('_token', responseData['data']['token'] ?? '');
+          await prefs.setBool(
             'isSubscribe',
             responseData['data']['isSubscribed'] ?? false,
           );
+          debugPrint('[AuthBloc/mobileLogin] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
           emit(AuthAuthenticated("Mobile verification successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -337,18 +334,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print(response.body);
 
       if (response.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setBool('isLogin', true);
-        prefs.setBool('hasRegistered', true);
-
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          prefs.setString('userInfo', json.encode(responseData['data']));
-          prefs.setString('_token', responseData['data']['token'] ?? '');
-          prefs.setBool(
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLogin', true);
+          await prefs.setBool('hasRegistered', true);
+          await prefs.setString('userInfo', json.encode(responseData['data']));
+          await prefs.setString('_token', responseData['data']['token'] ?? '');
+          await prefs.setBool(
             'isSubscribe',
             responseData['data']['isSubscribed'] ?? false,
           );
+          debugPrint('[AuthBloc/google] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
           emit(AuthAuthenticated("Google login successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -403,10 +400,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         },
       ).timeout(Duration(seconds: 10));
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('isLogin');
-      await prefs.remove('userInfo');
+      await prefs.setBool('isLogin', false);
       await prefs.remove('_token');
-      await prefs.remove('isSubscribe');
+      // hasRegistered intentionally kept — returning user must reach AlreadyLoginScreen
+      debugPrint('[AuthBloc/logout] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=(removed)');
       emit(AuthLogout());
     } catch (e) {
       

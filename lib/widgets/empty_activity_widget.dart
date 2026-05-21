@@ -25,7 +25,7 @@ class EmptyActivityWidget extends StatelessWidget {
               width: r.w(120),
               height: r.w(120),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(r.w(28)),
                 gradient: const LinearGradient(
                   colors: [Color(0xFFFCE7E7), Color(0xFFE4B3B8)],
                   begin: Alignment.topLeft,

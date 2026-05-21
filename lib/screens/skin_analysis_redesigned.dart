@@ -8,6 +8,9 @@ import 'package:skin_analysis_app/Models/FaceRatioLine.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import '../models/skin_analysis_model.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'profile_screen.dart';
+import 'dart:convert';
 
 // ─────────────────────────────────────
 //  Design System (from PM's React spec)
@@ -784,6 +787,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   String _reportMessage = '';
   bool _reportSent = false;
   bool _disclaimerExpanded = false;
+  String _initials = '';
 
   // Facial structure swipe
   late PageController _structurePageController;
@@ -813,6 +817,23 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     selectedColorIndex =
         (widget.analysisData?.fitzpatrickType ?? 1).clamp(1, 5) - 1;
     _structurePageController = PageController(viewportFraction: 0.85);
+    _loadInitials();
+  }
+
+  Future<void> _loadInitials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('userInfo') ?? '{}';
+    try {
+      final info = json.decode(raw) as Map<String, dynamic>;
+      final name = (info['name'] ?? '').toString().trim();
+      if (name.isNotEmpty && mounted) {
+        final parts = name.split(RegExp(r'\s+'));
+        final initials = parts.length >= 2
+            ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+            : parts[0][0].toUpperCase();
+        setState(() => _initials = initials);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -1304,10 +1325,57 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
           SizedBox(width: r.w(12)),
           Text(
             'ANALYSIS RESULTS',
-            style: TextStyle(
+            style: GoogleFonts.lora(
               fontSize: r.sp(10),
               letterSpacing: 2.4,
               color: _DS.grey400,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            child: Container(
+              width: r.w(46),
+              height: r.w(46),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(r.w(14)),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE4B3B8), Color(0xFFD79096)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD79096).withValues(alpha: 0.40),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.60),
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: _initials.isNotEmpty
+                    ? Text(
+                        _initials,
+                        style: GoogleFonts.lora(
+                          fontSize: r.sp(15),
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                        size: r.w(22),
+                      ),
+              ),
             ),
           ),
         ],

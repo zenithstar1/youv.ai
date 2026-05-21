@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:skin_analysis_app/screens/LoginPage.dart';
 import 'package:skin_analysis_app/screens/already_login_screen.dart';
+import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 
@@ -47,30 +47,34 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
 
     final isLoggedIn = prefs.getBool('isLogin') ?? false;
     final hasRegistered = prefs.getBool('hasRegistered') ?? false;
+    final token = prefs.getString('_token') ?? '';
 
-    if (isLoggedIn) {
-      // Session still active — skip login entirely.
-      _goToAnalysisType();
+    debugPrint('[OnboardingFlow] READ isLogin=$isLoggedIn  hasRegistered=$hasRegistered  token=${token.isEmpty ? "(empty)" : "(set)"}');
+
+    if (isLoggedIn && token.isNotEmpty) {
+      debugPrint('[OnboardingFlow] → AnalysisTypeScreen (active session)');
+
+      _goToHome();
     } else if (hasRegistered) {
-      // User has registered before but session expired — go straight to OTP.
+      debugPrint('[OnboardingFlow] → AlreadyLoginScreen (returning user)');
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const AlreadyLoginScreen()),
       );
     } else {
-      // Brand-new user — show the sign-up / create account flow.
+      debugPrint('[OnboardingFlow] → LoginPage (new user)');
       final result = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       );
       if (!mounted) return;
       if (result == true) {
-        _goToAnalysisType();
+        _goToHome();
       }
     }
   }
 
-  void _goToAnalysisType() {
+  void _goToHome() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 80),

@@ -60,11 +60,11 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                   child: Text(
                     "AI FACIAL ANALYSIS",
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: W * 0.032,
-                      letterSpacing: 1.5,
-                      color: Colors.grey.shade400,
-                      fontWeight: FontWeight.w500,
+                    style: GoogleFonts.lora(
+                      fontSize: W * 0.030,
+                      letterSpacing: 2.0,
+                      color: const Color(0xFFA89B93),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -138,7 +138,7 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                                         CrossAxisAlignment.center,
                                     children: [
                                       const Icon(Icons.lightbulb_outline,
-                                          color: Color(0xFF6B3E3E)),
+                                          color: Color(0xFFD79096)),
                                       const SizedBox(width: 10),
                                       const Expanded(
                                         child: Text(
@@ -210,7 +210,7 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                                       child: const Text(
                                         "Got it!",
                                         style: TextStyle(
-                                          color: Color(0xFF6B3E3E),
+                                          color: Color(0xFFD79096),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -262,10 +262,10 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                 MaterialPageRoute(builder: (_) => const ProfileScreen()),
               ),
               child: Container(
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                   gradient: const LinearGradient(
                     colors: [Color(0xFFE4B3B8), Color(0xFFD79096)],
                     begin: Alignment.topLeft,
@@ -273,12 +273,15 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF3B1F1F).withValues(alpha: 0.35),
-                      blurRadius: 12,
+                      color: const Color(0xFFD79096).withValues(alpha: 0.40),
+                      blurRadius: 14,
                       offset: const Offset(0, 4),
                     ),
                   ],
-                  border: Border.all(color: Colors.white, width: 2.5),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.60),
+                    width: 1.5,
+                  ),
                 ),
                 child: Center(
                   child: _initials.isNotEmpty
@@ -317,9 +320,18 @@ class _TipRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: const Color(0xFF6B3E3E)),
+        Icon(icon, size: 20, color: const Color(0xFFD79096)),
         const SizedBox(width: 10),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.lora(
+              fontSize: 13.5,
+              height: 1.4,
+              color: const Color(0xFF5A4040),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -398,7 +410,7 @@ class _AnalysisCardState extends State<_AnalysisCard> {
                   color: widget.isPrimary
                       ? const Color(0xFFEED3D6)
                       : const Color(0xFFF1ECE8),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(r.w(16)),
                 ),
                 child: Icon(
                   widget.icon,

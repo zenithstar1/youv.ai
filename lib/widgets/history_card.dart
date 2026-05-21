@@ -162,6 +162,20 @@ class _Thumbnail extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              width: size,
+              height: size,
+              color: const Color(0xFFFCE7E7),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFD79096),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
           errorBuilder: (_, __, ___) => _FallbackIcon(size: size, r: r),
         ),
       );

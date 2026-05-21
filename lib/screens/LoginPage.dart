@@ -7,7 +7,6 @@ import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
-import 'analysis_type_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -288,7 +287,9 @@ Future<void> fetchClinicLocations() async {
             }
           }
 
-          if (state is AuthMessage) {
+          if (state is AuthAuthenticated) {
+            Navigator.of(context).pop(true);
+          } else if (state is AuthMessage) {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => BlocProvider.value(
@@ -1169,10 +1170,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           });
         } else if (state is AuthAuthenticated) {
           setState(() => _loading = false);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
-          );
+          Navigator.of(context).pop();
         } else if (state is AuthMessage) {
           setState(() => _loading = false);
           ScaffoldMessenger.of(context).showSnackBar(

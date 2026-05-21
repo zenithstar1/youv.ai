@@ -3,8 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'onboarding_flow.dart';
+import 'screens/analysis_type_screen.dart';
+import 'screens/already_login_screen.dart';
 import 'services/camera_setup_noop.dart'
     if (dart.library.io) 'services/camera_setup_mobile.dart';
 
@@ -63,11 +66,71 @@ class MyApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const OnboardingScreen(),
+      home: const AuthGate(),
     );
   }
 }
 
+// ── Auth Gate ─────────────────────────────────────────────────────────────────
+// Reads SharedPreferences on every cold start (including web page-refresh) and
+// routes to the correct screen before rendering anything else.
+// Used as both the app home AND the logout landing target.
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLogin = prefs.getBool('isLogin') ?? false;
+    final hasRegistered = prefs.getBool('hasRegistered') ?? false;
+    final token = prefs.getString('_token') ?? '';
+
+    debugPrint('[AuthGate] READ isLogin=$isLogin  hasRegistered=$hasRegistered  token=${token.isEmpty ? "(empty)" : "(set)"}');
+
+    if (!mounted) return;
+
+    Widget target;
+    if (isLogin && token.isNotEmpty) {
+      debugPrint('[AuthGate] → AnalysisTypeScreen');
+      target = const AnalysisTypeScreen();
+    } else if (hasRegistered) {
+      debugPrint('[AuthGate] → AlreadyLoginScreen');
+      target = const AlreadyLoginScreen();
+    } else {
+      debugPrint('[AuthGate] → OnboardingScreen (new user)');
+      target = const OnboardingScreen();
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => target),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFFFDEDED),
+      body: Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFD79096),
+          strokeWidth: 2.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Onboarding (intro video) ──────────────────────────────────────────────────
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
