@@ -861,30 +861,38 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     if (kIsWeb) {
       // ─── WEB ───────────────────────────────────────────────────────────────
-      // The parent `Positioned.fill` already constrains this widget to the full
-      // screen (tight constraints = viewport size in logical pixels).
+      // Problem: CameraPreview wraps its child in AspectRatio(stream_ratio).
+      // On a portrait phone (390×844) with a 720×1280 stream, AspectRatio
+      // gives 390×693 — leaving a 151px black gap at the bottom.
+      // With a landscape stream (1280×720) the gap is 625px.
       //
-      // We intentionally skip FittedBox/OverflowBox here.  Flutter Web places
-      // the HtmlElementView (the <video> element) at the widget's computed
-      // position *including* any ancestor transform.  When FittedBox is present
-      // it applies a CSS matrix() transform on the platform-view host container,
-      // but `object-fit: cover` on the <video> inside that container resolves
-      // against the *pre-transform* pixel dimensions.  The result is two
-      // independent scaling passes that multiply and cause the zoomed appearance.
+      // Fix: give FittedBox a SizedBox sized to the stream dimensions so it
+      // has a concrete child size to scale from.  FittedBox.cover then scales
+      // to fill the viewport, and ClipRect clips any overflow.
       //
-      // By returning CameraPreview directly we get:
-      //   Flutter layout  → video element = viewport_w × viewport_h CSS pixels
-      //   CSS object-fit:cover → single, correct scaling of the camera stream
-      //   face_detector.js → applies rotation fix for landscape streams (Android)
-      //
-      // Log stream dimensions so we can audit in devtools.
+      // The SizedBox dims match the stream dims exactly, so object-fit:cover
+      // inside the video element sees a 1:1 match and adds no extra scaling
+      // (no double-scaling issue).  Do NOT swap w↔h for web — the plugin
+      // already reports portrait dims when getUserMedia returns a portrait stream.
       debugPrint(
         '[CameraPreview:web] previewSize=${size.width.toInt()}×${size.height.toInt()}'
         ' | screen=${MediaQuery.of(context).size.width.toInt()}'
         '×${MediaQuery.of(context).size.height.toInt()}'
         ' | dpr=${MediaQuery.of(context).devicePixelRatio}',
       );
-      return CameraPreview(controller);
+      return ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.center,
+          child: FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: CameraPreview(controller),
+            ),
+          ),
+        ),
+      );
     }
 
     // ─── NATIVE ────────────────────────────────────────────────────────────
