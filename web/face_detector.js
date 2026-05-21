@@ -550,49 +550,27 @@ function fixVideoRendering(video) {
 
   logVideoState(video, 'before-fix');
 
-  var isIOS            = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  var isPortraitScreen = window.innerHeight > window.innerWidth;
-  var isLandscapeStream = video.videoWidth  > video.videoHeight;
-
+  // Set object-fit and mirror inline so they take priority regardless of
+  // CSS cascade order or whether the CSS rule applied before the element existed.
   video.style.objectFit = 'cover';
+  video.style.transform = 'scaleX(-1)';
 
-  if (isPortraitScreen && isLandscapeStream && !isIOS) {
-    // Android: browser returned a landscape stream (1280×720) even though we
-    // requested portrait. CSS object-fit:cover alone would show only ~26% of
-    // the frame width → heavy zoom. Fix: resize the element to landscape dims
-    // and rotate -90° so it visually fills the portrait container correctly.
-    //
-    // Math:
-    //   container = cw × ch  (e.g. 390×844)
-    //   element   = ch × cw  (844×390) — swapped so it's landscape-sized
-    //   rotate(-90deg) → visual size = cw × ch  ✓
-    //   translate by ((cw-ch)/2, (ch-cw)/2) to re-center in the container
-    var cw = window.innerWidth;   // e.g. 390
-    var ch = window.innerHeight;  // e.g. 844
-    var tx = (cw - ch) / 2;       // e.g. -227  (shifts left)
-    var ty = (ch - cw) / 2;       // e.g. +227  (shifts down)
-    video.style.width  = ch + 'px';
-    video.style.height = cw + 'px';
-    video.style.transformOrigin = 'center center';
-    video.style.transform =
-      'translateX(' + tx + 'px) translateY(' + ty + 'px) rotate(-90deg) scaleX(-1)';
-    console.warn('[VideoFix] Android landscape→portrait rotation applied:',
+  // DO NOT apply CSS rotation even when videoWidth > videoHeight on a portrait
+  // screen. Both Android Chrome and iOS Safari apply rotation metadata
+  // internally, so the content already displays portrait even when the reported
+  // stream dimensions look landscape. Adding a CSS rotation on top would
+  // double-rotate the content sideways. The getUserMedia portrait constraints
+  // in index.html handle the actual stream orientation request.
+  var isPortraitScreen  = window.innerHeight > window.innerWidth;
+  var isLandscapeStream = video.videoWidth  > video.videoHeight;
+  if (isPortraitScreen && isLandscapeStream) {
+    console.log('[VideoFix] note: stream dims landscape but browser likely applies rotation metadata — not adding CSS rotation',
       'stream=' + video.videoWidth + '×' + video.videoHeight,
-      'screen=' + cw + '×' + ch);
+      'screen=' + window.innerWidth + '×' + window.innerHeight);
   } else {
-    // iOS (rotation handled by Safari internally) or portrait stream or desktop.
-    // Reset any dimensions set by a prior landscape fix, then just mirror.
-    video.style.width  = '';
-    video.style.height = '';
-    video.style.transformOrigin = '';
-    video.style.transform = 'scaleX(-1)';
-    if (isPortraitScreen && isLandscapeStream && isIOS) {
-      console.log('[VideoFix] iOS landscape stream — Safari handles orientation, mirror only.');
-    } else {
-      console.log('[VideoFix] portrait stream, mirror only:',
-        'stream=' + video.videoWidth + '×' + video.videoHeight,
-        'screen=' + window.innerWidth + '×' + window.innerHeight);
-    }
+    console.log('[VideoFix] stream orientation OK:',
+      'stream=' + video.videoWidth + '×' + video.videoHeight,
+      'screen=' + window.innerWidth + '×' + window.innerHeight);
   }
 
   logVideoState(video, 'after-fix');
