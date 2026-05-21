@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dart analyze *)",
+      "Bash(curl -s -X POST https://demo.youv.ai/skinanalysisdashboard/api/auth/mobile-login -H 'Content-Type: application/x-www-form-urlencoded' -d 'phone=9876543210&mobile=9876543210&otp=123456&name=Test&email=' -w '\\\\n\\\\nHTTP_STATUS: %{http_code}')",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Format-Table -AutoSize)"
+    ]
+  }
+}
