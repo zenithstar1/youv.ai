@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
@@ -10,6 +10,81 @@ import '../services/face_detection_service.dart';
 import '../utils/web_face_detection.dart' as web_face;
 
 Timer? _faceStableTimer;
+
+// --- CONFIDENCE CONSTANTS ----------------------------------------------------
+const _kCameraWarmupMs = 1500;
+const _kStabilityHoldMs = 1500;
+const _kMotionThreshold = 0.016;
+const _kMinFaceWidthRatio = 0.24;
+const _kMaxFaceWidthRatio = 0.74;
+const _kMaxYaw = 9.0;
+const _kMaxPitch = 10.0;
+const _kMaxRoll = 7.0;
+const _kLostFramesThreshold = 5;
+const _kFeedbackDebounceMs = 600;
+
+/// =================================================
+/// VALIDATION STATUS
+/// =================================================
+class _ValidationStatus {
+  final bool faceDetected;
+  final bool centeredOk;
+  final bool distanceOk;
+  final bool poseOk;
+  final bool motionOk;
+  final bool lightingOk;
+  final bool tooClose;
+  final bool tooFar;
+
+  const _ValidationStatus({
+    this.faceDetected = false,
+    this.centeredOk = false,
+    this.distanceOk = false,
+    this.poseOk = false,
+    this.motionOk = true,
+    this.lightingOk = false,
+    this.tooClose = false,
+    this.tooFar = false,
+  });
+
+  bool get allOk =>
+      faceDetected && centeredOk && distanceOk && poseOk && motionOk && lightingOk;
+
+  String get primaryGuidance {
+    if (!faceDetected) return 'Position your face in the frame';
+    if (!centeredOk) return 'Center your face';
+    if (tooFar) return 'Move slightly closer';
+    if (tooClose) return 'Move slightly back';
+    if (!poseOk) return 'Look straight ahead';
+    if (!motionOk) return 'Hold still';
+    if (!lightingOk) return 'Improve your lighting';
+    return 'Hold still...';
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ValidationStatus &&
+      faceDetected == other.faceDetected &&
+      centeredOk == other.centeredOk &&
+      distanceOk == other.distanceOk &&
+      poseOk == other.poseOk &&
+      motionOk == other.motionOk &&
+      lightingOk == other.lightingOk &&
+      tooClose == other.tooClose &&
+      tooFar == other.tooFar;
+
+  @override
+  int get hashCode => Object.hash(
+        faceDetected,
+        centeredOk,
+        distanceOk,
+        poseOk,
+        motionOk,
+        lightingOk,
+        tooClose,
+        tooFar,
+      );
+}
 
 /// =================================================
 /// COLORS
@@ -25,7 +100,7 @@ const _kValidGreenBg = Color(0xFFE8F5E4);
 const _kDarkText = Color(0xFF3A2A22);
 const List<String> _skinFacts = [
   "Your skin renews itself roughly every 28 days.",
-  "Skin is the body’s largest organ.",
+  "Skin is the body's largest organ.",
   "Hydration helps maintain skin elasticity.",
   "UV exposure accelerates skin aging.",
   "Collagen keeps skin firm and smooth.",
@@ -78,14 +153,13 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   FaceDetectionService? _nativeFaceDetectionService;
   StreamSubscription<FaceDetectionFrame>? _nativeFaceSubscription;
   bool _isStartingNativeImageStream = false;
-  int _nativeValidFaceFrames = 0;
-  int _nativeMissedFaceFrames = 0;
+  int _missedFaceFrames = 0;
 
   // Auto-capture ring animation
   AnimationController? _autoRingController;
 
-  // Countdown state
-  int _countdown = 0; // 3, 2, 1, 0=idle
+  // Hold steady / countdown state (kept for UX pill)
+  int _countdown = 0;
   bool _holdSteady = false;
   Timer? _countdownTimer;
   Timer? _engagementTimer;
@@ -96,11 +170,22 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   Uint8List? _capturedBytes;
   String? _capturedFileName;
 
-  // Scanning animation controllers
+  // Scanning animation
   AnimationController? _scanController;
   String _scanText = '';
-  int _highlightIndex = -1; // for skin marker highlighting
+  int _highlightIndex = -1;
   double _ringProgress = 0.0;
+
+  // -- CONFIDENCE SYSTEM ----------------------------------------------------
+  _ValidationStatus _validation = const _ValidationStatus();
+  DateTime? _stabilityStartTime;
+  double _stabilityProgress = 0.0;
+  List<double>? _prevNosePos;
+  bool _cameraWarmedUp = false;
+  Timer? _warmupTimer;
+  String _guidanceMessage = 'Position your face in the frame';
+  Timer? _feedbackDebounceTimer;
+
   String _getRandomSkinFact() {
     final facts = List<String>.from(_skinFacts);
     facts.shuffle();
@@ -119,68 +204,81 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
     _autoRingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3500),
+      duration: const Duration(milliseconds: _kStabilityHoldMs),
     );
 
     _startEngagementTimer();
-
     _initCamera();
 
     if (kIsWeb && !widget.isHair) {
       _faceDetectedListenerSub = web_face.addFaceDetectedListener((detected) {
         if (!mounted || _isDisposed || _phase != ScanPhase.live) return;
+        if (!_cameraWarmedUp) return;
 
         final wasDetected = _faceDetected;
         if (wasDetected != detected) {
-          debugPrint('[FaceDetection] event: $detected');
+          debugPrint('[FaceDetection] web event: $detected');
         }
+
+        final validation = _ValidationStatus(
+          faceDetected: detected,
+          centeredOk: detected,
+          distanceOk: detected,
+          poseOk: detected,
+          motionOk: true,
+          lightingOk: detected,
+        );
+
         setState(() {
           _faceDetected = detected;
+          _validation = validation;
         });
+        _scheduleGuidanceUpdate(validation.primaryGuidance);
 
         if (detected && !wasDetected) {
-          // Face detected → wait before starting countdown
           _faceStableTimer?.cancel();
-
-          _faceStableTimer = Timer(const Duration(milliseconds: 1200), () {
-            if (_faceDetected && !_capturing) {
-              _startCountdown();
-            }
+          _faceStableTimer = Timer(const Duration(milliseconds: 500), () {
+            if (!mounted || _isDisposed || !_faceDetected || _capturing) return;
+            _startWebStabilityHold();
           });
         } else if (!detected && wasDetected) {
-          // Face lost → cancel everything
           _faceStableTimer?.cancel();
           _cancelCountdown();
+          _resetStability();
         }
       });
-    } else {
-      _faceDetected = false;
     }
   }
 
-  void _scheduleNativeAutoCapture() {
-    if (kIsWeb || widget.isHair) return;
-    if (!_faceDetected) return;
-    _autoCaptureTimer?.cancel();
-    _autoCaptureTimer = Timer(const Duration(milliseconds: 1200), () {
-      if (!mounted ||
-          _isDisposed ||
-          _hasNavigated ||
-          _capturing ||
-          !_initialized ||
-          !_faceDetected ||
-          _phase != ScanPhase.live ||
-          _countdown > 0 ||
-          _holdSteady) {
-        return;
-      }
-      debugPrint('[SkinAuto] starting native countdown');
-      _startCountdown();
-    });
+  /// =================================================
+  /// WEB STABILITY HOLD
+  /// =================================================
+  void _startWebStabilityHold() {
+    if (!mounted || _isDisposed || !_faceDetected || _capturing) return;
+
+    _stabilityStartTime = DateTime.now();
+    _autoRingController?.stop();
+    _autoRingController?.animateTo(
+      1.0,
+      duration: const Duration(milliseconds: _kStabilityHoldMs),
+      curve: Curves.linear,
+    );
+
+    _faceStableTimer?.cancel();
+    _faceStableTimer = Timer(
+      const Duration(milliseconds: _kStabilityHoldMs),
+      () {
+        if (!mounted || _isDisposed || !_faceDetected || _capturing) {
+          _resetStability();
+          return;
+        }
+        _triggerAutoCapture();
+      },
+    );
   }
 
   /// =================================================
-  /// WAIT FEEDBACK TIMER
+  /// ENGAGEMENT TIMER
   /// =================================================
   void _startEngagementTimer() {
     _engagementTimer?.cancel();
@@ -231,7 +329,15 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
           _initialized = true;
         });
       }
-      // Start face detection after camera is fully set up and rendered
+
+      // Warmup delay: ignore detections until auto-exposure/focus settle
+      _warmupTimer?.cancel();
+      _warmupTimer = Timer(const Duration(milliseconds: _kCameraWarmupMs), () {
+        if (!mounted || _isDisposed) return;
+        _cameraWarmedUp = true;
+        debugPrint('[Confidence] camera warmed up -- detection active');
+      });
+
       _startFaceDetectionWithRetry();
       await _startNativeFaceDetection(controller, cam);
     } catch (e) {
@@ -241,6 +347,9 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     _initializing = false;
   }
 
+  /// =================================================
+  /// NATIVE FACE DETECTION
+  /// =================================================
   Future<void> _startNativeFaceDetection(
     CameraController controller,
     CameraDescription camera,
@@ -257,51 +366,391 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     await _nativeFaceSubscription?.cancel();
     _nativeFaceSubscription = service.landmarksStream.listen((frame) {
       if (!mounted || _isDisposed || _phase != ScanPhase.live) return;
+      if (!_cameraWarmedUp) return;
 
-      final candidateDetected = _isAcceptableLiveSkinFace(frame);
-      if (candidateDetected) {
-        _nativeValidFaceFrames += 1;
-        _nativeMissedFaceFrames = 0;
-      } else {
-        _nativeValidFaceFrames = 0;
-        _nativeMissedFaceFrames += 1;
-      }
-
-      // During countdown/hold-steady we must be strict: the moment the face
-      // is not fitted in the oval, drop detection and cancel.
-      final strictNow = _countdown > 0 || _holdSteady;
-      final detected = strictNow
-          ? candidateDetected
-          : (_faceDetected
-                ? _nativeMissedFaceFrames < 3
-                : _nativeValidFaceFrames >= 2);
-      final wasDetected = _faceDetected;
-      if (wasDetected != detected) {
-        debugPrint('[SkinAuto] native face state: $detected');
-      }
-
-      if (wasDetected != detected) {
-        setState(() {
-          _faceDetected = detected;
-        });
-      }
-
-      if (detected && !wasDetected) {
-        _faceStableTimer?.cancel();
-        _faceStableTimer = Timer(const Duration(milliseconds: 900), () {
-          if (_faceDetected && !_capturing) {
-            _scheduleNativeAutoCapture();
-          }
-        });
-      } else if (!detected && wasDetected) {
-        _faceStableTimer?.cancel();
-        _cancelCountdown();
-      }
+      final validation = _computeValidation(frame);
+      _processConfidence(validation);
     });
 
     await _startNativeImageStream(controller, service);
   }
 
+  /// =================================================
+  /// COMPUTE VALIDATION
+  /// =================================================
+  _ValidationStatus _computeValidation(FaceDetectionFrame frame) {
+    if (!frame.hasFace) {
+      _prevNosePos = null;
+      return const _ValidationStatus();
+    }
+
+    final faceW = frame.faceWidthRatio;
+    final faceH = frame.faceHeightRatio;
+
+    // Bounding box must sit fully inside the frame
+    const frameMargin = 0.04;
+    final halfW = (faceW / 2).clamp(0.0, 0.5);
+    final halfH = (faceH / 2).clamp(0.0, 0.5);
+    final minX = frame.faceCenterXRatio - halfW;
+    final maxX = frame.faceCenterXRatio + halfW;
+    final minY = frame.faceCenterYRatio - halfH;
+    final maxY = frame.faceCenterYRatio + halfH;
+    if (minX < frameMargin ||
+        maxX > (1.0 - frameMargin) ||
+        minY < frameMargin ||
+        maxY > (1.0 - frameMargin)) {
+      return const _ValidationStatus(faceDetected: true);
+    }
+
+    // Distance
+    final tooFar = faceW < _kMinFaceWidthRatio;
+    final tooClose = faceW > _kMaxFaceWidthRatio;
+    final distanceOk = !tooFar && !tooClose;
+
+    // Centering
+    final centeredOk =
+        frame.faceCenterOffsetX <= 0.28 && frame.faceCenterOffsetY <= 0.28;
+
+    // Vertical position relative to oval guide
+    if (frame.faceCenterYRatio < 0.38 || frame.faceCenterYRatio > 0.64) {
+      return _ValidationStatus(
+        faceDetected: true,
+        distanceOk: distanceOk,
+        tooFar: tooFar,
+        tooClose: tooClose,
+        centeredOk: false,
+      );
+    }
+
+    // Require core landmarks
+    if (frame.landmarks.length < 3) {
+      return _ValidationStatus(
+        faceDetected: true,
+        distanceOk: distanceOk,
+        tooFar: tooFar,
+        tooClose: tooClose,
+        centeredOk: centeredOk,
+      );
+    }
+
+    final nose = frame.landmarks[0];
+    final leftEye = frame.landmarks[1];
+    final rightEye = frame.landmarks[2];
+    final hasCoreLandmarks = [nose, leftEye, rightEye].every(
+      (p) => p.length >= 2 && p[0].isFinite && p[1].isFinite,
+    );
+    if (!hasCoreLandmarks) {
+      return _ValidationStatus(
+        faceDetected: true,
+        distanceOk: distanceOk,
+        tooFar: tooFar,
+        tooClose: tooClose,
+        centeredOk: centeredOk,
+      );
+    }
+
+    final eyeDx = (leftEye[0] - rightEye[0]).abs();
+    if (eyeDx <= 6) {
+      return _ValidationStatus(
+        faceDetected: true,
+        distanceOk: distanceOk,
+        tooFar: tooFar,
+        tooClose: tooClose,
+        centeredOk: centeredOk,
+      );
+    }
+
+    // Head pose from MediaPipe euler angles
+    final yaw = (frame.headEulerAngleY ?? 0).abs();
+    final pitch = (frame.headEulerAngleX ?? 0).abs();
+    final roll = (frame.headEulerAngleZ ?? 0).abs();
+    final poseOk = yaw <= _kMaxYaw && pitch <= _kMaxPitch && roll <= _kMaxRoll;
+
+    // Eyes level (roll cross-check via landmark geometry)
+    final eyeDy = (leftEye[1] - rightEye[1]).abs();
+    final eyesLevelOk = (eyeDy / eyeDx) <= 0.18;
+
+    // Nose centered between eyes (yaw cross-check)
+    final noseCenteredToEyes =
+        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs() / eyeDx;
+    final noseCenteredOk = noseCenteredToEyes <= 0.90;
+
+    // Eye vertical position to match oval guide
+    final eyeMidY = (leftEye[1] + rightEye[1]) / 2;
+    final eyeMidYRatio =
+        (eyeMidY / math.max(frame.imageHeight, 1.0)).clamp(0.0, 1.0);
+    final eyePositionOk = eyeMidYRatio >= 0.28 && eyeMidYRatio <= 0.48;
+
+    // Nose must be below eyes
+    if (nose[1] <= eyeMidY) {
+      return _ValidationStatus(
+        faceDetected: true,
+        distanceOk: distanceOk,
+        tooFar: tooFar,
+        tooClose: tooClose,
+        centeredOk: centeredOk && eyePositionOk,
+        poseOk: false,
+      );
+    }
+
+    // Motion stability
+    final motionOk = _checkMotion(frame, nose);
+
+    // Lighting quality -- eye spread ratio as a proxy for image sharpness/exposure
+    final eyeDistanceRatio = eyeDx / math.max(frame.imageWidth, 1.0);
+    final lightingOk = eyeDistanceRatio >= 0.05 && eyeDistanceRatio <= 0.45;
+
+    // Mouth sanity check if available
+    bool mouthOk = true;
+    if (frame.landmarks.length >= 7) {
+      final mL = frame.landmarks[5];
+      final mR = frame.landmarks[6];
+      if (mL.length >= 2 &&
+          mR.length >= 2 &&
+          mL[0].isFinite &&
+          mR[0].isFinite) {
+        final mouthWidth = (mR[0] - mL[0]).abs();
+        mouthOk =
+            mouthWidth >= eyeDx * 0.08 && mouthWidth <= eyeDx * 2.00;
+      }
+    }
+
+    return _ValidationStatus(
+      faceDetected: true,
+      distanceOk: distanceOk,
+      tooFar: tooFar,
+      tooClose: tooClose,
+      centeredOk:
+          centeredOk && eyePositionOk && eyesLevelOk && noseCenteredOk,
+      poseOk: poseOk && eyesLevelOk && mouthOk,
+      motionOk: motionOk,
+      lightingOk: lightingOk,
+    );
+  }
+
+  /// =================================================
+  /// MOTION CHECK (nose-tip delta between frames)
+  /// =================================================
+  bool _checkMotion(FaceDetectionFrame frame, List<double> nose) {
+    final nosePosX = nose[0] / math.max(frame.imageWidth, 1.0);
+    final nosePosY = nose[1] / math.max(frame.imageHeight, 1.0);
+
+    final prev = _prevNosePos;
+    _prevNosePos = [nosePosX, nosePosY];
+
+    if (prev == null) return true;
+
+    final dx = nosePosX - prev[0];
+    final dy = nosePosY - prev[1];
+    return math.sqrt(dx * dx + dy * dy) < _kMotionThreshold;
+  }
+
+  /// =================================================
+  /// PROCESS CONFIDENCE (called every native frame)
+  /// =================================================
+  void _processConfidence(_ValidationStatus validation) {
+    if (!mounted || _isDisposed || _capturing || _phase != ScanPhase.live) {
+      return;
+    }
+
+    final wasDetected = _faceDetected;
+
+    // Hysteresis: don't drop face on a single missed frame
+    if (!validation.faceDetected) {
+      _missedFaceFrames++;
+    } else {
+      _missedFaceFrames = 0;
+    }
+    final effectiveDetected = validation.faceDetected ||
+        (wasDetected && _missedFaceFrames < _kLostFramesThreshold);
+    final effectiveValidation =
+        effectiveDetected ? validation : const _ValidationStatus();
+
+    final needsStateUpdate = _validation != effectiveValidation ||
+        wasDetected != (effectiveDetected && validation.faceDetected);
+    if (needsStateUpdate) {
+      setState(() {
+        _validation = effectiveValidation;
+        _faceDetected = effectiveDetected && validation.faceDetected;
+      });
+    }
+
+    _scheduleGuidanceUpdate(effectiveValidation.primaryGuidance);
+
+    if (!effectiveValidation.allOk) {
+      // Reset stability timer on any failed condition
+      if (_stabilityStartTime != null || _stabilityProgress > 0) {
+        _stabilityStartTime = null;
+        if (mounted && !_isDisposed) {
+          setState(() => _stabilityProgress = 0.0);
+        }
+        _autoRingController?.stop();
+        _autoRingController?.value = 0.0;
+      }
+      // Cancel hold-steady if face is actually lost
+      if (_holdSteady && !effectiveDetected) {
+        _cancelCountdown();
+        _resetStability();
+      }
+      return;
+    }
+
+    // All conditions pass -- advance stability clock
+    _stabilityStartTime ??= DateTime.now();
+    final elapsed = DateTime.now().difference(_stabilityStartTime!);
+    final progress =
+        (elapsed.inMilliseconds / _kStabilityHoldMs).clamp(0.0, 1.0);
+
+    if ((progress - _stabilityProgress).abs() > 0.008) {
+      setState(() => _stabilityProgress = progress);
+      _autoRingController?.value = progress;
+    }
+
+    if (progress >= 1.0 && !_capturing && !_holdSteady) {
+      debugPrint('[Confidence] ${_kStabilityHoldMs}ms stable -> capture');
+      _triggerAutoCapture();
+    }
+  }
+
+  /// =================================================
+  /// TRIGGER AUTO CAPTURE
+  /// =================================================
+  void _triggerAutoCapture() {
+    if (_capturing || _hasNavigated || _isDisposed || _holdSteady) return;
+    if (!widget.isHair && !_faceDetected) return;
+
+    setState(() {
+      _holdSteady = true;
+      _stabilityProgress = 1.0;
+    });
+    _autoRingController?.value = 1.0;
+
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted || _isDisposed || _hasNavigated || _capturing) return;
+      if (!widget.isHair && !_faceDetected) {
+        _resetStability();
+        return;
+      }
+      debugPrint('[Confidence] hold steady -> capture');
+      _capture();
+    });
+  }
+
+  /// =================================================
+  /// RESET STABILITY
+  /// =================================================
+  void _resetStability() {
+    _faceStableTimer?.cancel();
+    _stabilityStartTime = null;
+    _prevNosePos = null;
+    _autoRingController?.stop();
+    _autoRingController?.value = 0.0;
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _stabilityProgress = 0.0;
+        _holdSteady = false;
+        _countdown = 0;
+      });
+    }
+  }
+
+  /// =================================================
+  /// GUIDANCE MESSAGE (debounced to avoid flicker)
+  /// =================================================
+  void _scheduleGuidanceUpdate(String message) {
+    if (message == _guidanceMessage) return;
+    _feedbackDebounceTimer?.cancel();
+    _feedbackDebounceTimer = Timer(
+      const Duration(milliseconds: _kFeedbackDebounceMs),
+      () {
+        if (mounted && !_isDisposed) {
+          setState(() => _guidanceMessage = message);
+        }
+      },
+    );
+  }
+
+  /// =================================================
+  /// FACE DETECTION INIT (web retry until video ready)
+  /// =================================================
+  void _startFaceDetectionWithRetry([int attempt = 0]) {
+    if (!kIsWeb || widget.isHair) return;
+    if (!mounted || _isDisposed || attempt > 15) return;
+
+    Future.delayed(Duration(milliseconds: attempt == 0 ? 500 : 800), () {
+      if (!mounted || _isDisposed) return;
+      Future<void>(() async {
+        try {
+          final started = await web_face.startFaceDetection();
+          if (started) {
+            debugPrint("Face detection started (attempt $attempt)");
+            return;
+          }
+        } catch (e) {
+          debugPrint("Face detection start error: $e");
+        }
+        debugPrint("No video element found (attempt $attempt), retrying...");
+        _startFaceDetectionWithRetry(attempt + 1);
+      });
+    });
+  }
+
+  /// =================================================
+  /// CANCEL COUNTDOWN / HOLD STEADY
+  /// =================================================
+  void _cancelCountdown() {
+    debugPrint('[CaptureFlow] countdown cancelled');
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+    _autoCaptureTimer?.cancel();
+    _autoCaptureTimer = null;
+    _autoRingController?.stop();
+    _autoRingController?.value = 0.0;
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _countdown = 0;
+        _holdSteady = false;
+      });
+    }
+  }
+
+  /// =================================================
+  /// APP LIFECYCLE
+  /// =================================================
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final camera = _controller;
+    if (camera == null || !camera.value.isInitialized) return;
+
+    if (state == AppLifecycleState.inactive) {
+      if (kIsWeb) {
+        web_face.stopFaceDetection().catchError((_) {});
+      }
+      _faceStableTimer?.cancel();
+      _warmupTimer?.cancel();
+      _nativeFaceSubscription?.cancel();
+      _nativeFaceSubscription = null;
+      unawaited(_stopNativeImageStream());
+      setState(() {
+        _initialized = false;
+        _faceDetected = false;
+        _countdown = 0;
+        _holdSteady = false;
+        _validation = const _ValidationStatus();
+        _stabilityProgress = 0.0;
+        _stabilityStartTime = null;
+        _cameraWarmedUp = false;
+        _controller = null;
+      });
+      camera.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _initCamera();
+    }
+  }
+
+  /// =================================================
+  /// IMAGE STREAM
+  /// =================================================
   Future<void> _startNativeImageStream(
     CameraController controller,
     FaceDetectionService service,
@@ -329,7 +778,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         !controller.value.isStreamingImages) {
       return;
     }
-
     try {
       await controller.stopImageStream();
     } catch (e) {
@@ -337,242 +785,8 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     }
   }
 
-  bool _isAcceptableLiveSkinFace(FaceDetectionFrame frame) {
-    if (!frame.hasFace) return false;
-
-    final faceWidthRatio = frame.faceWidthRatio;
-    final faceHeightRatio = frame.faceHeightRatio;
-    final fillRatio = math.max(faceWidthRatio, faceHeightRatio);
-    final aspectRatio = faceWidthRatio / math.max(faceHeightRatio, 0.001);
-
-    // Reject clipped / half faces: bounding box must be fully inside the frame
-    // with a small margin (prevents "half-face still counts as detected").
-    const frameMargin = 0.04;
-    final halfW = (faceWidthRatio / 2).clamp(0.0, 0.5);
-    final halfH = (faceHeightRatio / 2).clamp(0.0, 0.5);
-    final minX = frame.faceCenterXRatio - halfW;
-    final maxX = frame.faceCenterXRatio + halfW;
-    final minY = frame.faceCenterYRatio - halfH;
-    final maxY = frame.faceCenterYRatio + halfH;
-    final bboxInFrame =
-        minX >= frameMargin &&
-        maxX <= (1.0 - frameMargin) &&
-        minY >= frameMargin &&
-        maxY <= (1.0 - frameMargin);
-    if (!bboxInFrame) return false;
-
-    // Must be positioned to fit the on-screen oval guide (centered overlay).
-    // These constraints intentionally bias towards "only capture when fitted".
-    if (frame.faceCenterYRatio < 0.42 || frame.faceCenterYRatio > 0.60) {
-      return false;
-    }
-
-    if (faceWidthRatio < 0.10 || faceWidthRatio > 0.88) return false;
-    if (faceHeightRatio < 0.14 || faceHeightRatio > 0.96) return false;
-    if (fillRatio < 0.14) return false;
-    if (aspectRatio < 0.35 || aspectRatio > 1.75) return false;
-    if (frame.faceCenterOffsetX > 0.42 || frame.faceCenterOffsetY > 0.45) {
-      return false;
-    }
-
-    if (frame.landmarks.length < 3) return false;
-    final nose = frame.landmarks[0];
-    final leftEye = frame.landmarks[1];
-    final rightEye = frame.landmarks[2];
-    final hasMouthLandmarks =
-        frame.landmarks.length >= 7 &&
-        frame.landmarks[5].length >= 2 &&
-        frame.landmarks[6].length >= 2 &&
-        frame.landmarks[5][0].isFinite &&
-        frame.landmarks[5][1].isFinite &&
-        frame.landmarks[6][0].isFinite &&
-        frame.landmarks[6][1].isFinite;
-    final mouthLeft = hasMouthLandmarks ? frame.landmarks[5] : null;
-    final mouthRight = hasMouthLandmarks ? frame.landmarks[6] : null;
-
-    final hasCoreLandmarks = [nose, leftEye, rightEye].every(
-      (point) => point.length >= 2 && point[0].isFinite && point[1].isFinite,
-    );
-    if (!hasCoreLandmarks) return false;
-
-    final eyeDx = (leftEye[0] - rightEye[0]).abs();
-    final eyeDy = (leftEye[1] - rightEye[1]).abs();
-    if (eyeDx <= 6) return false;
-
-    final eyesLevel = eyeDy / eyeDx;
-    final noseCenteredToEyes =
-        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs() / eyeDx;
-
-    final eyeMidY = (leftEye[1] + rightEye[1]) / 2;
-
-    // Eyes must align with the guide-eye markers (two horizontal lines).
-    final eyeMidYRatio = (eyeMidY / math.max(frame.imageHeight, 1.0)).clamp(
-      0.0,
-      1.0,
-    );
-    if (eyeMidYRatio < 0.30 || eyeMidYRatio > 0.46) return false;
-
-    if (eyesLevel > 0.18) return false;
-    if (noseCenteredToEyes > 0.90) return false;
-    if (nose[1] <= eyeMidY) return false;
-
-    if (hasMouthLandmarks && mouthLeft != null && mouthRight != null) {
-      final mouthMidY = (mouthLeft[1] + mouthRight[1]) / 2;
-      final mouthWidth = (mouthRight[0] - mouthLeft[0]).abs();
-      if (mouthMidY <= nose[1]) return false;
-      if (mouthWidth < eyeDx * 0.08 || mouthWidth > eyeDx * 2.00) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   /// =================================================
-  /// FACE DETECTION INIT (with retry until video is found)
-  /// =================================================
-  void _startFaceDetectionWithRetry([int attempt = 0]) {
-    if (!kIsWeb || widget.isHair) return;
-    if (!mounted || _isDisposed || attempt > 15) return;
-
-    Future.delayed(Duration(milliseconds: attempt == 0 ? 500 : 800), () {
-      if (!mounted || _isDisposed) return;
-      Future<void>(() async {
-        try {
-          final started = await web_face.startFaceDetection();
-          if (started) {
-            debugPrint("Face detection started (attempt $attempt)");
-            return;
-          }
-        } catch (e) {
-          debugPrint("Face detection start error: $e");
-        }
-
-        debugPrint("No video element found (attempt $attempt), retrying...");
-        _startFaceDetectionWithRetry(attempt + 1);
-      });
-    });
-  }
-
-  /// =================================================
-  /// COUNTDOWN LOGIC: 3 → 2 → 1 → Hold steady → Capture
-  /// =================================================
-  void _startCountdown() {
-    if (_capturing || _hasNavigated || _isDisposed || _countdown > 0) return;
-    if (!widget.isHair && !_faceDetected) return;
-
-    debugPrint('[CaptureFlow] countdown started');
-
-    setState(() {
-      _countdown = 3;
-      _holdSteady = false;
-    });
-    _autoRingController?.forward(from: 0.0);
-
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted || _isDisposed || _hasNavigated) {
-        timer.cancel();
-        return;
-      }
-      // If face lost during countdown, abort
-      if (!_faceDetected && _countdown == 0 && !_holdSteady) {
-        _cancelCountdown();
-        return;
-      }
-
-      if (_countdown > 1) {
-        setState(() => _countdown--);
-      } else if (_countdown == 1) {
-        // Countdown finished → show "Hold steady"
-        setState(() {
-          _countdown = 0;
-          _holdSteady = true;
-        });
-        timer.cancel();
-        // Hold steady briefly, then capture.
-        Future.delayed(const Duration(milliseconds: 450), () {
-          () async {
-            final stableBeforeCapture = await _verifyFaceContinuous(
-              const Duration(milliseconds: 280),
-            );
-            if (mounted &&
-                !_isDisposed &&
-                !_hasNavigated &&
-                stableBeforeCapture &&
-                !_capturing) {
-              debugPrint('[CaptureFlow] hold steady complete -> capture');
-              _capture();
-            } else {
-              debugPrint(
-                '[CaptureFlow] hold steady failed, cancelling countdown',
-              );
-              _cancelCountdown();
-            }
-          }();
-        });
-      }
-    });
-  }
-
-  Future<bool> _verifyFaceContinuous(Duration duration) async {
-    final checks = (duration.inMilliseconds / 70).ceil();
-    for (int i = 0; i < checks; i++) {
-      if (!mounted || _isDisposed || _hasNavigated || !_faceDetected) {
-        return false;
-      }
-      await Future.delayed(const Duration(milliseconds: 70));
-    }
-    return mounted && !_isDisposed && !_hasNavigated && _faceDetected;
-  }
-
-  void _cancelCountdown() {
-    debugPrint('[CaptureFlow] countdown cancelled');
-    _countdownTimer?.cancel();
-    _countdownTimer = null;
-    _autoCaptureTimer?.cancel();
-    _autoCaptureTimer = null;
-    _autoRingController?.reset();
-    if (mounted && !_isDisposed) {
-      setState(() {
-        _countdown = 0;
-        _holdSteady = false;
-      });
-    }
-  }
-
-  /// =================================================
-  /// APP LIFECYCLE
-  /// =================================================
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final camera = _controller;
-    if (camera == null || !camera.value.isInitialized) return;
-
-    if (state == AppLifecycleState.inactive) {
-      // Stop face detection so it can restart with new camera
-      if (kIsWeb) {
-        web_face.stopFaceDetection().catchError((_) {});
-      }
-      _faceStableTimer?.cancel();
-      _nativeFaceSubscription?.cancel();
-      _nativeFaceSubscription = null;
-      unawaited(_stopNativeImageStream());
-      setState(() {
-        _initialized = false;
-        _faceDetected = false;
-        _countdown = 0;
-        _holdSteady = false;
-        _controller = null;
-      });
-      camera.dispose();
-    } else if (state == AppLifecycleState.resumed) {
-      _initCamera();
-    }
-  }
-
-  /// =================================================
-  /// CAPTURE → SCANNING FLOW
+  /// CAPTURE -> SCANNING FLOW
   /// =================================================
   Future<void> _capture() async {
     final controller = _controller;
@@ -584,7 +798,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         _hasNavigated) {
       return;
     }
-    // Block capture if no face detected (skip for hair mode)
     if (!widget.isHair && !_faceDetected) {
       debugPrint('[CaptureFlow] capture blocked: no face detected');
       return;
@@ -594,22 +807,17 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       debugPrint('[CaptureFlow] capture started');
       setState(() => _capturing = true);
       _autoCaptureTimer?.cancel();
-      _autoRingController?.reset();
+      _autoRingController?.stop();
 
       if (!kIsWeb && !widget.isHair) {
         await _stopNativeImageStream();
       }
 
       final pic = await controller.takePicture();
-      // Post-capture face re-validation removed: the user already passed
-      // live face detection + countdown timer, so re-checking the still
-      // JPEG is redundant and fails on devices with different JPEG
-      // rotation/mirroring/encoding.  The live detection is the gate.
       final bytes = await pic.readAsBytes();
       if (!mounted || _isDisposed || _hasNavigated) return;
 
       if (kIsWeb && !widget.isHair) {
-        // ✅ Use already confirmed live detection
         if (!_faceDetected) {
           debugPrint('[WEB] capture rejected: face lost before capture');
           await _rejectInvalidCapture(controller);
@@ -621,7 +829,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       _capturedFileName = pic.name;
       debugPrint('[CaptureFlow] capture success: ${bytes.lengthInBytes} bytes');
 
-      // Enter scanning phases
       _startScanningAnimation();
     } catch (e) {
       debugPrint("Capture error: $e");
@@ -651,6 +858,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         _holdSteady = false;
         _phase = ScanPhase.live;
       });
+      _resetStability();
     }
 
     if (kIsWeb || widget.isHair) {
@@ -659,7 +867,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         _faceStableTimer = Timer(const Duration(milliseconds: 1200), () {
           if (!mounted || _isDisposed || _hasNavigated) return;
           if (_phase != ScanPhase.live || _capturing || !_faceDetected) return;
-          _startCountdown();
+          _startWebStabilityHold();
         });
       }
       return;
@@ -671,52 +879,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     }
   }
 
-  Future<bool> _capturedImageHasFace(String imagePath) async {
-    try {
-      // Use MediaPipe via the shared FaceDetectionService to validate the
-      // captured image.  The service applies the same geometric thresholds
-      // that the old ML Kit validator used.
-      final service = _nativeFaceDetectionService;
-      if (service != null && service.isInitialized) {
-        return await service.validateCapturedImage(imagePath);
-      }
-      // Fallback: accept if service isn't available (web, init failure)
-      return true;
-    } catch (e) {
-      debugPrint('[CaptureFlow] final-image face validation error: $e');
-      return false;
-    }
-  }
-
-  Future<Size?> _readEncodedImageSize(String imagePath) async {
-    try {
-      final buffer = await ui.ImmutableBuffer.fromFilePath(imagePath);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final size = Size(
-        descriptor.width.toDouble(),
-        descriptor.height.toDouble(),
-      );
-      descriptor.dispose();
-      buffer.dispose();
-      return size;
-    } catch (e) {
-      debugPrint('[CaptureFlow] image size read failed: $e');
-      return null;
-    }
-  }
-
   /// =================================================
   /// SCANNING ANIMATION SEQUENCE
   /// =================================================
   Future<void> _startScanningAnimation() async {
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    // Capture the NavigatorState BEFORE any await.  After an await boundary
-    // the widget may have been deactivated, making context.findAncestorStateOfType
-    // (called internally by Navigator.of(context)) throw even if mounted == true.
     final navigator = Navigator.of(context);
 
-    // PHASE 0: Freeze (400ms)
     setState(() {
       _phase = ScanPhase.freeze;
       _scanText = '';
@@ -724,18 +894,16 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    // PHASE 1: Mapping (1.5s)
     setState(() {
       _phase = ScanPhase.mapping;
-      _scanText = 'Mapping facial structure…';
+      _scanText = 'Mapping facial structure...';
     });
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    // PHASE 2: Analyzing (2s) — sequential highlights with micro-label cycling
     setState(() {
       _phase = ScanPhase.analyzing;
-      _scanText = 'Analyzing visible skin markers…';
+      _scanText = 'Analyzing visible skin markers...';
     });
     const microLabels = [
       'Hydration',
@@ -752,11 +920,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       await Future.delayed(const Duration(milliseconds: 380));
     }
     if (!mounted || _isDisposed || _hasNavigated) return;
-    setState(() => _scanText = 'Analyzing visible skin markers…');
+    setState(() => _scanText = 'Analyzing visible skin markers...');
     await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted || _isDisposed || _hasNavigated) return;
 
-    // PHASE 3: Calculating with random skin facts
     setState(() {
       _phase = ScanPhase.calculating;
       _scanText = _getRandomSkinFact();
@@ -764,33 +931,18 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     });
 
     const ringSteps = 20;
-
     for (int i = 1; i <= ringSteps; i++) {
       await Future.delayed(const Duration(milliseconds: 50));
-
       if (!mounted || _isDisposed || _hasNavigated) return;
-
       setState(() {
         _ringProgress = i / ringSteps;
-
-        // change fact every few steps
-        if (i % 5 == 0) {
-          _scanText = _getRandomSkinFact();
-        }
+        if (i % 5 == 0) _scanText = _getRandomSkinFact();
       });
     }
 
     await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted || _isDisposed || _hasNavigated) return;
-    // Animate ring from 0 to 0.85 over 1s
 
-    if (!mounted || _isDisposed || _hasNavigated) return;
-
-    if (!mounted || _isDisposed || _hasNavigated) return;
-
-    // Navigate — use the pre-captured NavigatorState so we never call
-    // Navigator.of(context) after an await boundary on a potentially
-    // deactivated context.
     if (!_hasNavigated && _capturedBytes != null) {
       _hasNavigated = true;
       navigator.pushReplacement(
@@ -817,6 +969,8 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     _autoRingController?.dispose();
     _scanController?.dispose();
     _faceStableTimer?.cancel();
+    _warmupTimer?.cancel();
+    _feedbackDebounceTimer?.cancel();
     if (_faceDetectedListenerSub != null) {
       web_face.removeFaceDetectedListener(_faceDetectedListenerSub!);
       _faceDetectedListenerSub = null;
@@ -860,24 +1014,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     final size = controller.value.previewSize!;
 
     if (kIsWeb) {
-      // ─── WEB ───────────────────────────────────────────────────────────────
-      // Problem: CameraPreview wraps its child in AspectRatio(stream_ratio).
-      // On a portrait phone (390×844) with a 720×1280 stream, AspectRatio
-      // gives 390×693 — leaving a 151px black gap at the bottom.
-      // With a landscape stream (1280×720) the gap is 625px.
-      //
-      // Fix: give FittedBox a SizedBox sized to the stream dimensions so it
-      // has a concrete child size to scale from.  FittedBox.cover then scales
-      // to fill the viewport, and ClipRect clips any overflow.
-      //
-      // The SizedBox dims match the stream dims exactly, so object-fit:cover
-      // inside the video element sees a 1:1 match and adds no extra scaling
-      // (no double-scaling issue).  Do NOT swap w↔h for web — the plugin
-      // already reports portrait dims when getUserMedia returns a portrait stream.
       debugPrint(
-        '[CameraPreview:web] previewSize=${size.width.toInt()}×${size.height.toInt()}'
+        '[CameraPreview:web] previewSize=${size.width.toInt()}Ã—${size.height.toInt()}'
         ' | screen=${MediaQuery.of(context).size.width.toInt()}'
-        '×${MediaQuery.of(context).size.height.toInt()}'
+        'Ã—${MediaQuery.of(context).size.height.toInt()}'
         ' | dpr=${MediaQuery.of(context).devicePixelRatio}',
       );
       return ClipRect(
@@ -895,10 +1035,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
     }
 
-    // ─── NATIVE ────────────────────────────────────────────────────────────
-    // The camera sensor reports frames in its natural (often landscape)
-    // orientation.  Swap w↔h to obtain the correct portrait aspect ratio for
-    // the Flutter layout, then FittedBox.cover fills the screen.
+    // Native: swap w<->h for portrait aspect ratio
     return ClipRect(
       child: OverflowBox(
         alignment: Alignment.center,
@@ -927,10 +1064,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── CAMERA ──
+          // -- CAMERA --
           Positioned.fill(child: _buildCameraPreview()),
 
-          // ── DIM OVERLAY (during scanning) ──
+          // -- DIM OVERLAY (during scanning) --
           if (isScanning)
             Positioned.fill(
               child: IgnorePointer(
@@ -942,7 +1079,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── BLUR OVERLAY (freeze only) ──
+          // -- BLUR OVERLAY (freeze only) --
           if (_phase == ScanPhase.freeze)
             Positioned.fill(
               child: IgnorePointer(
@@ -953,7 +1090,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── SOFT GRADIENT (live only) ──
+          // -- SOFT GRADIENT (live only) --
           if (isLive)
             Positioned.fill(
               child: IgnorePointer(
@@ -964,11 +1101,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                       end: Alignment.bottomCenter,
                       stops: const [0.0, 0.15, 0.5, 0.85, 1.0],
                       colors: [
-                        Colors.black.withOpacity(0.45),
-                        Colors.black.withOpacity(0.15),
+                        Colors.black.withValues(alpha: 0.45),
+                        Colors.black.withValues(alpha: 0.15),
                         Colors.transparent,
-                        Colors.black.withOpacity(0.15),
-                        Colors.black.withOpacity(0.50),
+                        Colors.black.withValues(alpha: 0.15),
+                        Colors.black.withValues(alpha: 0.50),
                       ],
                     ),
                   ),
@@ -976,7 +1113,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── HEADER (live) ──
+          // -- HEADER (live) --
           if (isLive)
             Positioned(
               top: topPadding + 12,
@@ -988,7 +1125,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                     "SKIN ANALYSIS",
                     style: TextStyle(
                       letterSpacing: 3,
-                      color: _kIvory.withOpacity(0.85),
+                      color: _kIvory.withValues(alpha: 0.85),
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1000,7 +1137,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                     style: TextStyle(
                       fontFamily: "serif",
                       fontSize: 22,
-                      color: _kIvory.withOpacity(0.95),
+                      color: _kIvory.withValues(alpha: 0.95),
                       height: 1.3,
                     ),
                   ),
@@ -1008,7 +1145,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── FACE GUIDE OVERLAY (live + freeze) ──
+          // -- FACE GUIDE OVERLAY (live + freeze) --
           if (_phase == ScanPhase.live || _phase == ScanPhase.freeze)
             Align(
               alignment: const Alignment(0, -0.08),
@@ -1017,19 +1154,18 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── VALIDATION CHIPS (live) ──
+          // -- VALIDATION CHIPS (live) --
           if (isLive)
             Positioned(
               top: topPadding + 96,
               left: 0,
               right: 0,
               child: Center(
-                child: _ValidationChips(faceDetected: _faceDetected),
+                child: _ValidationChips(validation: _validation),
               ),
             ),
 
-          // ── CAPTURE BUTTON + STATUS PILL + BOTTOM LABEL (live) ──
-          // Anchored to bottom so it never overlaps the face oval on short screens
+          // -- CAPTURE BUTTON + STATUS PILL + BOTTOM LABEL (live) --
           if (isLive)
             Positioned(
               bottom: MediaQuery.of(context).padding.bottom + 16,
@@ -1038,7 +1174,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Face detected / countdown / hold steady pill
+                  // Status pill
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
                     child: _holdSteady
@@ -1049,10 +1185,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: _kSoftGreen.withOpacity(0.15),
+                              color: _kSoftGreen.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: _kSoftGreen.withOpacity(0.4),
+                                color: _kSoftGreen.withValues(alpha: 0.4),
                               ),
                             ),
                             child: Row(
@@ -1065,7 +1201,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  "Hold steady…",
+                                  "Hold steady...",
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: _kSoftGreen,
@@ -1073,31 +1209,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                                   ),
                                 ),
                               ],
-                            ),
-                          )
-                        : _countdown > 0
-                        ? Container(
-                            key: ValueKey('cd_$_countdown'),
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _kBlush.withOpacity(0.2),
-                              border: Border.all(
-                                color: _kBlush.withOpacity(0.6),
-                                width: 2,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '$_countdown',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontFamily: 'serif',
-                                  fontWeight: FontWeight.bold,
-                                  color: _kIvory.withOpacity(0.95),
-                                ),
-                              ),
                             ),
                           )
                         : _faceDetected
@@ -1108,23 +1219,38 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: _kValidGreenBg.withOpacity(0.85),
+                              color: _validation.allOk
+                                  ? _kValidGreenBg.withValues(alpha: 0.85)
+                                  : _kIvory.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
+                              border: _validation.allOk
+                                  ? null
+                                  : Border.all(
+                                      color: _kIvory.withValues(alpha: 0.25),
+                                    ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  Icons.check_circle,
+                                  _validation.allOk
+                                      ? Icons.check_circle
+                                      : Icons.info_outline,
                                   size: 16,
-                                  color: _kSoftGreen,
+                                  color: _validation.allOk
+                                      ? _kSoftGreen
+                                      : _kIvory.withValues(alpha: 0.8),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  "Face detected",
+                                  _validation.allOk
+                                      ? "Locking in..."
+                                      : _guidanceMessage,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: _kSoftGreen,
+                                    color: _validation.allOk
+                                        ? _kSoftGreen
+                                        : _kIvory.withValues(alpha: 0.85),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -1144,10 +1270,12 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                         (widget.isHair || _faceDetected),
                     faceDetected: _faceDetected,
                     autoRingController: _autoRingController,
-                    subLabel: (_countdown > 0 || _holdSteady)
-                        ? 'Hold still…'
+                    subLabel: _holdSteady
+                        ? 'Hold still...'
                         : _faceDetected
-                        ? 'Auto-capturing…'
+                        ? (_validation.allOk
+                            ? 'Locking in...'
+                            : _guidanceMessage)
                         : 'Position your face in frame',
                     onTap:
                         (_initialized &&
@@ -1164,7 +1292,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                     _buildLiveBottomLabel(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _kIvory.withOpacity(0.65),
+                      color: _kIvory.withValues(alpha: 0.65),
                       fontSize: 12,
                     ),
                   ),
@@ -1172,7 +1300,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
-          // ── SCANNING OVERLAY ──
+          // -- SCANNING OVERLAY --
           if (isScanning) _buildScanOverlay(),
         ],
       ),
@@ -1183,9 +1311,9 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   /// LIVE BOTTOM LABEL
   /// =================================================
   String _buildLiveBottomLabel() {
-    if (_countdown > 0) return 'Keep your face steady';
-    if (_holdSteady) return 'Capturing…';
-    if (_faceDetected) return 'Nice. Snap incoming…';
+    if (_holdSteady) return 'Capturing...';
+    if (_faceDetected && _validation.allOk) return 'Locking confidence...';
+    if (_faceDetected) return _guidanceMessage;
 
     const tips = [
       'Ensure neutral expression',
@@ -1198,7 +1326,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     if (_liveWaitSeconds <= 0) {
       return 'Align your face in frame';
     }
-    return 'Finding face... ${_liveWaitSeconds}s  •  $tip';
+    return 'Finding face... ${_liveWaitSeconds}s  *  $tip';
   }
 
   /// =================================================
@@ -1214,7 +1342,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
           children: [
             const Spacer(flex: 3),
 
-            // Mapping mesh lines (Phase 1)
             if (_phase == ScanPhase.mapping)
               SizedBox(
                 width: screenW * 0.65,
@@ -1222,7 +1349,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                 child: CustomPaint(painter: _MeshPainter()),
               ),
 
-            // Skin markers (Phase 2)
             if (_phase == ScanPhase.analyzing)
               SizedBox(
                 width: screenW * 0.65,
@@ -1232,7 +1358,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                 ),
               ),
 
-            // Ring progress (Phase 3)
             if (_phase == ScanPhase.calculating || _phase == ScanPhase.complete)
               SizedBox(
                 width: 120,
@@ -1248,7 +1373,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                       style: TextStyle(
                         fontSize: 32,
                         fontFamily: 'serif',
-                        color: _kIvory.withOpacity(0.9),
+                        color: _kIvory.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1258,7 +1383,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
             const Spacer(flex: 2),
 
-            // Scan text
             if (_scanText.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 60),
@@ -1268,7 +1392,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
                   style: TextStyle(
                     fontSize: 15,
                     fontFamily: 'serif',
-                    color: _kIvory.withOpacity(0.85),
+                    color: _kIvory.withValues(alpha: 0.85),
                   ),
                 ),
               ),
@@ -1283,19 +1407,28 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 /// VALIDATION CHIPS
 /// =================================================
 class _ValidationChips extends StatelessWidget {
-  final bool faceDetected;
-  const _ValidationChips({required this.faceDetected});
+  final _ValidationStatus validation;
+  const _ValidationChips({required this.validation});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Chip(label: "Face aligned", valid: faceDetected),
+        _Chip(
+          label: "Face aligned",
+          valid: validation.faceDetected && validation.centeredOk,
+        ),
         const SizedBox(width: 6),
-        _Chip(label: "Good lighting", valid: faceDetected),
+        _Chip(
+          label: "Good lighting",
+          valid: validation.faceDetected && validation.lightingOk,
+        ),
         const SizedBox(width: 6),
-        _Chip(label: "Neutral expression", valid: faceDetected),
+        _Chip(
+          label: "Head straight",
+          valid: validation.faceDetected && validation.poseOk,
+        ),
       ],
     );
   }
@@ -1313,12 +1446,12 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: valid
-            ? _kValidGreenBg.withOpacity(0.85)
-            : _kIvory.withOpacity(0.75),
+            ? _kValidGreenBg.withValues(alpha: 0.85)
+            : _kIvory.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(14),
         border: valid
             ? null
-            : Border.all(color: _kBurgundy.withOpacity(0.25), width: 0.8),
+            : Border.all(color: _kBurgundy.withValues(alpha: 0.25), width: 0.8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1385,14 +1518,14 @@ class _CaptureButton extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: _kBlush.withOpacity(0.35),
+                            color: _kBlush.withValues(alpha: 0.35),
                             blurRadius: 18,
                             spreadRadius: 3,
                           ),
                         ],
                       ),
                     ),
-                  // Auto-ring progress
+                  // Stability ring progress
                   if (autoRingController != null && faceDetected)
                     AnimatedBuilder(
                       animation: autoRingController!,
@@ -1415,8 +1548,8 @@ class _CaptureButton extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: faceDetected
-                            ? _kBlush.withOpacity(0.9)
-                            : _kIvory.withOpacity(0.5),
+                            ? _kBlush.withValues(alpha: 0.9)
+                            : _kIvory.withValues(alpha: 0.5),
                         width: 2,
                       ),
                     ),
@@ -1435,7 +1568,7 @@ class _CaptureButton extends StatelessWidget {
                       boxShadow: faceDetected
                           ? [
                               BoxShadow(
-                                color: _kBlush.withOpacity(0.4),
+                                color: _kBlush.withValues(alpha: 0.4),
                                 blurRadius: 16,
                                 spreadRadius: 2,
                               ),
@@ -1454,7 +1587,7 @@ class _CaptureButton extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'serif',
             fontSize: 13,
-            color: _kIvory.withOpacity(0.8),
+            color: _kIvory.withValues(alpha: 0.8),
           ),
         ),
       ],
@@ -1473,7 +1606,7 @@ class _AutoRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.7)
+      ..color = color.withValues(alpha: 0.7)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
@@ -1519,29 +1652,26 @@ class _FacePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final ovalColor = faceDetected
-        ? _kBlush.withOpacity(0.85)
-        : const Color(0xFFFDF8F3).withOpacity(0.6);
+        ? _kBlush.withValues(alpha: 0.85)
+        : const Color(0xFFFDF8F3).withValues(alpha: 0.6);
 
-    // Glow aura when face detected
     if (faceDetected) {
       final glowPaint = Paint()
-        ..color = _kBlush.withOpacity(0.22)
+        ..color = _kBlush.withValues(alpha: 0.22)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 8.0
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
       canvas.drawOval(Offset.zero & size, glowPaint);
     }
 
-    // Oval
     final ovalPaint = Paint()
       ..color = ovalColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = faceDetected ? 2.0 : 1.5;
     canvas.drawOval(Offset.zero & size, ovalPaint);
 
-    // Vertical center line
     final linePaint = Paint()
-      ..color = ovalColor.withOpacity(0.5)
+      ..color = ovalColor.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
 
@@ -1551,7 +1681,6 @@ class _FacePainter extends CustomPainter {
       linePaint,
     );
 
-    // Eye markers (two small horizontal lines)
     final eyeY = size.height * 0.38;
     final eyeLen = size.width * 0.08;
     final leftEyeX = size.width * 0.32;
@@ -1568,7 +1697,6 @@ class _FacePainter extends CustomPainter {
       linePaint,
     );
 
-    // Chin boundary mark
     final chinY = size.height * 0.90;
     final chinLen = size.width * 0.10;
     canvas.drawLine(
@@ -1583,30 +1711,27 @@ class _FacePainter extends CustomPainter {
 }
 
 /// =================================================
-/// MESH PAINTER (Phase 1 — Mapping)
+/// MESH PAINTER (Phase 1 -- Mapping)
 /// =================================================
 class _MeshPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = _kIvory.withOpacity(0.25)
+      ..color = _kIvory.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.6;
 
-    // Vertical center
     canvas.drawLine(
       Offset(size.width / 2, 0),
       Offset(size.width / 2, size.height),
       paint,
     );
-    // Horizontal center
     canvas.drawLine(
       Offset(0, size.height / 2),
       Offset(size.width, size.height / 2),
       paint,
     );
 
-    // Simple grid overlay for "mesh" feel
     const divisions = 8;
     for (int i = 1; i < divisions; i++) {
       final x = size.width * i / divisions;
@@ -1615,9 +1740,8 @@ class _MeshPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
 
-    // Oval outline
     final ovalPaint = Paint()
-      ..color = _kIvory.withOpacity(0.35)
+      ..color = _kIvory.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     canvas.drawOval(Offset.zero & size, ovalPaint);
@@ -1628,7 +1752,7 @@ class _MeshPainter extends CustomPainter {
 }
 
 /// =================================================
-/// SKIN MARKER PAINTER (Phase 2 — Analyzing)
+/// SKIN MARKER PAINTER (Phase 2 -- Analyzing)
 /// =================================================
 class _SkinMarkerPainter extends CustomPainter {
   final int highlightIndex;
@@ -1636,27 +1760,26 @@ class _SkinMarkerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 5 zones: forehead, left cheek, right cheek, under-eye, chin
     final zones = [
-      Offset(size.width * 0.50, size.height * 0.15), // forehead
-      Offset(size.width * 0.25, size.height * 0.48), // left cheek
-      Offset(size.width * 0.75, size.height * 0.48), // right cheek
-      Offset(size.width * 0.50, size.height * 0.40), // under-eye
-      Offset(size.width * 0.50, size.height * 0.58), // T-zone
-      Offset(size.width * 0.50, size.height * 0.80), // chin
+      Offset(size.width * 0.50, size.height * 0.15),
+      Offset(size.width * 0.25, size.height * 0.48),
+      Offset(size.width * 0.75, size.height * 0.48),
+      Offset(size.width * 0.50, size.height * 0.40),
+      Offset(size.width * 0.50, size.height * 0.58),
+      Offset(size.width * 0.50, size.height * 0.80),
     ];
 
     for (int i = 0; i < zones.length; i++) {
       final active = i <= highlightIndex;
       final paint = Paint()
-        ..color = active ? _kBlush.withOpacity(0.5) : _kIvory.withOpacity(0.1)
+        ..color = active ? _kBlush.withValues(alpha: 0.5) : _kIvory.withValues(alpha: 0.1)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(zones[i], active ? 24 : 16, paint);
 
       if (active) {
         final ringPaint = Paint()
-          ..color = _kBlush.withOpacity(0.3)
+          ..color = _kBlush.withValues(alpha: 0.3)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0;
         canvas.drawCircle(zones[i], 32, ringPaint);
@@ -1670,7 +1793,7 @@ class _SkinMarkerPainter extends CustomPainter {
 }
 
 /// =================================================
-/// RING PROGRESS PAINTER (Phase 3 — Calculating)
+/// RING PROGRESS PAINTER (Phase 3 -- Calculating)
 /// =================================================
 class _RingProgressPainter extends CustomPainter {
   final double progress;
@@ -1682,16 +1805,14 @@ class _RingProgressPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 4;
 
-    // Background ring
     final bgPaint = Paint()
-      ..color = _kIvory.withOpacity(0.15)
+      ..color = _kIvory.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4;
     canvas.drawCircle(center, radius, bgPaint);
 
-    // Progress arc
     final paint = Paint()
-      ..color = color.withOpacity(0.85)
+      ..color = color.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
@@ -1708,3 +1829,4 @@ class _RingProgressPainter extends CustomPainter {
   @override
   bool shouldRepaint(_RingProgressPainter old) => old.progress != progress;
 }
+
