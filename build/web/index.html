@@ -29,10 +29,30 @@
     whose aspect ratio matches the phone screen → minimal cropping / no zoom.
   -->
   <script>
-  (function patchCameraForMobilePortrait() {
+  /*
+   * Camera stream patch — runs before Flutter loads.
+   *
+   * PREVIOUS APPROACH (WRONG):
+   *   Forced width:720 / height:1280 / aspectRatio:9/16.
+   *   This caused Android Chrome to use resizeMode:'crop-and-scale':
+   *   it took the full-width native sensor feed, cropped the center strip
+   *   to 9:16 portrait, then scaled it up → pre-zoomed stream.
+   *   Combined with object-fit:cover in the rendering layer this became
+   *   a double-crop → extremely narrow FOV, face looks unnaturally large.
+   *
+   * CORRECT APPROACH:
+   *   Request the native sensor stream (landscape, no aspect-ratio forcing).
+   *   resizeMode:'none' explicitly asks the browser NOT to crop-and-scale.
+   *   The rendering layer (CameraLayoutManager + Dart FittedBox) handles
+   *   the single correct portrait display crop — same as Instagram/Snapchat.
+   *
+   *   If resizeMode:'none' is unavailable (older browsers), the max:1920/1080
+   *   caps resolution without forcing a specific ratio so the browser still
+   *   returns its natural landscape mode instead of portrait crop-and-scale.
+   */
+  (function patchCameraStream() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
 
-    // Only patch on touch / mobile devices
     var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (!isMobile) return;
 
@@ -41,34 +61,78 @@
     navigator.mediaDevices.getUserMedia = function (constraints) {
       if (constraints && constraints.video) {
         try {
-          // Deep-clone so we don't mutate the caller's object
           var vc = (typeof constraints.video === 'object')
             ? JSON.parse(JSON.stringify(constraints.video))
             : {};
 
-          // Preserve facingMode if caller already set one
           var facingMode = vc.facingMode || { ideal: 'user' };
 
-          // Portrait-first constraints: height > width → browser returns a
-          // portrait stream (720×1280) that matches the phone's natural hold.
           constraints = Object.assign({}, constraints, {
             video: {
-              facingMode:   facingMode,
-              width:        { ideal: 720,  max: 1280 },
-              height:       { ideal: 1280, max: 1920 },
-              aspectRatio:  { ideal: 9/16 },
-              frameRate:    { ideal: 30,   max: 30   }
+              facingMode:  facingMode,
+              // Cap resolution for performance — do NOT specify aspectRatio or
+              // height > width (that triggers crop-and-scale mode in Android Chrome).
+              width:       { ideal: 1280, max: 1920 },
+              height:      { ideal: 720,  max: 1080 },
+              frameRate:   { ideal: 30,   max: 30   },
+              // Prefer native sensor output. Chrome 86+: prevents crop-and-scale.
+              // Silently ignored on browsers that don't support this constraint.
+              resizeMode:  'none',
             }
           });
         } catch (e) {
-          // Fallback: leave original constraints unchanged
-          console.warn('[CameraPatch] Failed to apply portrait constraints:', e);
+          console.warn('[CameraPatch] constraint error:', e);
         }
       }
-      return _orig(constraints);
+
+      var promise = _orig(constraints);
+
+      // Diagnostics: log what the browser actually returned.
+      if (promise && typeof promise.then === 'function') {
+        promise.then(function (stream) {
+          if (!stream) return;
+          var track = stream.getVideoTracks()[0];
+          if (!track) return;
+          try {
+            var s = track.getSettings();
+            console.log('[CameraDiag] getSettings():', {
+              width:       s.width,
+              height:      s.height,
+              aspectRatio: s.aspectRatio ? (+s.aspectRatio).toFixed(3) : 'n/a',
+              frameRate:   s.frameRate,
+              facingMode:  s.facingMode,
+              resizeMode:  s.resizeMode,  // 'none' = native FOV  'crop-and-scale' = ZOOM
+            });
+            if (s.resizeMode === 'crop-and-scale') {
+              console.warn('[CameraDiag] resizeMode=crop-and-scale — stream is ' +
+                'pre-cropped. Attempting renegotiation with resizeMode:none …');
+              track.applyConstraints({ resizeMode: 'none' })
+                .then(function () {
+                  console.log('[CameraDiag] renegotiated:', track.getSettings());
+                })
+                .catch(function (err) {
+                  console.warn('[CameraDiag] resizeMode:none rejected by device:', err.message || err);
+                });
+            }
+            var caps = track.getCapabilities ? track.getCapabilities() : null;
+            if (caps) {
+              console.log('[CameraDiag] getCapabilities():', {
+                width:      caps.width,
+                height:     caps.height,
+                resizeMode: caps.resizeMode,
+                facingMode: caps.facingMode,
+              });
+            }
+          } catch (e) {
+            console.warn('[CameraDiag] could not read track info:', e);
+          }
+        }).catch(function () {});
+      }
+
+      return promise;
     };
 
-    console.log('[CameraPatch] getUserMedia patched for mobile portrait camera');
+    console.log('[CameraPatch] getUserMedia patched — native dims, no portrait forcing');
   })();
   </script>
 
