@@ -32,23 +32,20 @@
   /*
    * Camera stream patch — runs before Flutter loads.
    *
-   * PREVIOUS APPROACH (WRONG):
-   *   Forced width:720 / height:1280 / aspectRatio:9/16.
-   *   This caused Android Chrome to use resizeMode:'crop-and-scale':
-   *   it took the full-width native sensor feed, cropped the center strip
-   *   to 9:16 portrait, then scaled it up → pre-zoomed stream.
-   *   Combined with object-fit:cover in the rendering layer this became
-   *   a double-crop → extremely narrow FOV, face looks unnaturally large.
+   * PROBLEM:
+   *   Flutter camera plugin requests a fixed 1280×720 landscape stream.
+   *   Displaying a 16:9 landscape stream in a 9:16 portrait viewport with
+   *   object-fit:cover crops ~74% of the frame width, making faces look
+   *   heavily zoomed (only 26% of the stream is visible).
    *
-   * CORRECT APPROACH:
-   *   Request the native sensor stream (landscape, no aspect-ratio forcing).
-   *   resizeMode:'none' explicitly asks the browser NOT to crop-and-scale.
-   *   The rendering layer (CameraLayoutManager + Dart FittedBox) handles
-   *   the single correct portrait display crop — same as Instagram/Snapchat.
-   *
-   *   If resizeMode:'none' is unavailable (older browsers), the max:1920/1080
-   *   caps resolution without forcing a specific ratio so the browser still
-   *   returns its natural landscape mode instead of portrait crop-and-scale.
+   * APPROACH:
+   *   Intercept getUserMedia and replace the constraints with just facingMode
+   *   + frameRate + resizeMode:'none'.  No width/height — the browser returns
+   *   the camera's natural native mode.  On many Android front cameras this is
+   *   a 4:3 stream (e.g. 640×480) or a portrait-oriented stream, both of which
+   *   show significantly more of the sensor and reduce the apparent face zoom.
+   *   resizeMode:'none' (Chrome 86+) additionally prevents the browser from
+   *   doing an internal crop-and-scale that would pre-zoom the stream.
    */
   (function patchCameraStream() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -70,13 +67,15 @@
           constraints = Object.assign({}, constraints, {
             video: {
               facingMode:  facingMode,
-              // Cap resolution for performance — do NOT specify aspectRatio or
-              // height > width (that triggers crop-and-scale mode in Android Chrome).
-              width:       { ideal: 1280, max: 1920 },
-              height:      { ideal: 720,  max: 1080 },
-              frameRate:   { ideal: 30,   max: 30   },
+              // No width/height: let the browser return the camera's natural
+              // native mode (often 4:3 or device-specific portrait dims).
+              // Specifying landscape 1280×720 forces a 16:9 stream that — after
+              // object-fit:cover in a portrait viewport — crops to only ~26% of
+              // the frame width, making faces appear heavily zoomed.
+              // Native mode typically gives a wider FOV or portrait stream that
+              // fills the preview with far less cropping.
+              frameRate:   { ideal: 30, max: 30 },
               // Prefer native sensor output. Chrome 86+: prevents crop-and-scale.
-              // Silently ignored on browsers that don't support this constraint.
               resizeMode:  'none',
             }
           });
@@ -132,7 +131,7 @@
       return promise;
     };
 
-    console.log('[CameraPatch] getUserMedia patched — native dims, no portrait forcing');
+    console.log('[CameraPatch] getUserMedia patched — minimal constraints, native camera mode');
   })();
   </script>
 

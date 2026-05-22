@@ -720,13 +720,39 @@ var CameraLayoutManager = (function () {
             track.applyConstraints({ resizeMode: 'none' })
               .then(function () {
                 console.log('[CameraLayout] renegotiated to resizeMode:none:', track.getSettings());
-                // Force layout update after track renegotiation
                 _lastVW = _lastVH = 0;
                 applyLayout(_video, true);
               })
               .catch(function (err) {
                 console.warn('[CameraLayout] resizeMode:none rejected:', err.message || err);
               });
+          }
+
+          // ── Zoom minimization ────────────────────────────────────────────────
+          // Some devices apply digital zoom by default (zoom > 1.0).
+          // Force zoom to its minimum value so the camera uses the widest FOV.
+          try {
+            var caps2 = track.getCapabilities ? track.getCapabilities() : null;
+            if (caps2 && caps2.zoom && typeof caps2.zoom.min === 'number') {
+              var curZoom = (typeof s.zoom === 'number') ? s.zoom : 1;
+              var minZoom = caps2.zoom.min;
+              console.log('[CameraLayout] zoom: current=' + curZoom + ' min=' + minZoom);
+              if (curZoom > minZoom + 0.05) {
+                track.applyConstraints({ zoom: minZoom })
+                  .then(function () {
+                    console.log('[CameraLayout] zoom set to min:', track.getSettings().zoom);
+                    _lastVW = _lastVH = 0;
+                    applyLayout(_video, true);
+                  })
+                  .catch(function (e2) {
+                    console.warn('[CameraLayout] zoom applyConstraints failed:', e2.message || e2);
+                  });
+              }
+            } else {
+              console.log('[CameraLayout] zoom not in capabilities — skipping');
+            }
+          } catch (ze) {
+            console.warn('[CameraLayout] zoom audit error:', ze);
           }
         }
       } catch (e) {
