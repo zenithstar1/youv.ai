@@ -43,12 +43,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# --------------------------------------------------
-# IGNORE ALL BUILD FOLDERS
-# --------------------------------------------------
-build/
-**/build/
-
 # KEEP ONLY WEB BUILD
 !build/web/
 !build/web/**
