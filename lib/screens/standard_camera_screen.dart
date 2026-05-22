@@ -996,7 +996,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     });
 
     const ringSteps = 20;
-    for (int i = 1; i <= ringSteps; i++) { 
+    for (int i = 1; i <= ringSteps; i++) {
       await Future.delayed(const Duration(milliseconds: 50));
       if (!mounted || _isDisposed || _hasNavigated) return;
       setState(() {

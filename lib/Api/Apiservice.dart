@@ -27,7 +27,7 @@ class ApiService {
       'https://demo.youv.ai/skinanalysisdashboard/api/secondary-analyze-skin';
   static const int maxRetries = 1;
   static const Duration retryDelay = Duration(milliseconds: 500);
-  static const Duration requestTimeout = Duration(seconds: 120);
+  static const Duration requestTimeout = Duration(minutes: 5);
   static const int preferredUploadBytes = 700 * 1024;
   static const int minimumUploadBytes = 250 * 1024;
 
