@@ -675,6 +675,64 @@ var CameraLayoutManager = (function () {
       if (_pollId) clearInterval(_pollId);
       _pollId = setInterval(function () { syncIfChanged(_video); }, 500);
 
+      // ── Stream track diagnostics + resizeMode renegotiation ───────────────
+      // If the browser used crop-and-scale despite our constraints, attempt to
+      // renegotiate the track. This is a second line of defense after the
+      // getUserMedia patch in index.html.
+      try {
+        var stream = video.srcObject;
+        var track  = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+        if (track) {
+          var s = track.getSettings ? track.getSettings() : {};
+          console.log('[CameraLayout] track at start:', {
+            stream:     s.width + 'x' + s.height,
+            resizeMode: s.resizeMode,
+            facingMode: s.facingMode,
+            frameRate:  s.frameRate,
+          });
+
+          // FOV audit: how much of the sensor is visible in the current layout?
+          var vp = vpSize();
+          var streamW = video.videoWidth, streamH = video.videoHeight;
+          var screenW = vp.w, screenH = vp.h;
+          var portraitScreen   = screenH > screenW;
+          var landscapeStream  = streamW > streamH;
+          // Display dims after dim-swap (matches Dart FittedBox logic)
+          var displayW = (portraitScreen && landscapeStream) ? streamH : streamW;
+          var displayH = (portraitScreen && landscapeStream) ? streamW : streamH;
+          // Cover scale: fill screen — larger scale factor = more crop
+          var coverScaleW = screenW / displayW;
+          var coverScaleH = screenH / displayH;
+          var coverScale  = Math.max(coverScaleW, coverScaleH);
+          var visW = Math.round(screenW / coverScale);
+          var visH = Math.round(screenH / coverScale);
+          var fovPct = Math.round((visW * visH) / (displayW * displayH) * 100);
+          console.log('[CameraLayout] FOV audit:', {
+            display:     displayW + 'x' + displayH,
+            screen:      screenW  + 'x' + screenH,
+            coverScale:  coverScale.toFixed(3),
+            visibleArea: visW + 'x' + visH + ' (' + fovPct + '% of stream)',
+          });
+
+          if (s.resizeMode === 'crop-and-scale') {
+            console.warn('[CameraLayout] resizeMode=crop-and-scale on track — ' +
+              'attempting renegotiation to prevent double-crop');
+            track.applyConstraints({ resizeMode: 'none' })
+              .then(function () {
+                console.log('[CameraLayout] renegotiated to resizeMode:none:', track.getSettings());
+                // Force layout update after track renegotiation
+                _lastVW = _lastVH = 0;
+                applyLayout(_video, true);
+              })
+              .catch(function (err) {
+                console.warn('[CameraLayout] resizeMode:none rejected:', err.message || err);
+              });
+          }
+        }
+      } catch (e) {
+        console.warn('[CameraLayout] track audit error:', e);
+      }
+
       applyLayout(video, true);
     },
 
