@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dart analyze *)",
+      "Bash(curl -s -X POST https://demo.youv.ai/skinanalysisdashboard/api/auth/mobile-login -H 'Content-Type: application/x-www-form-urlencoded' -d 'phone=9876543210&mobile=9876543210&otp=123456&name=Test&email=' -w '\\\\n\\\\nHTTP_STATUS: %{http_code}')",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" -Recurse -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(Select-String -Pattern \"model\" -CaseSensitive)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" status)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" diff --stat)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" diff -- web/face_detector.js web/index.html lib/screens/standard_camera_screen.dart)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" log --oneline -8)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" status --short web/ lib/)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" stash list)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" show HEAD:web/face_detector.js)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" show HEAD:web/index.html)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/face_detector.js web/index.html)",
+      "Bash(git -C 'c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai' commit -m ' *)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add lib/screens/standard_camera_screen.dart)",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Raw\\) -replace '\\\\.withOpacity\\\\\\(', '.withValues\\(alpha: ' | Set-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Encoding utf8)",
+      "Bash(flutter analyze *)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/face_detector.js lib/screens/standard_camera_screen.dart)",
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/index.html web/face_detector.js)"
+    ]
+  }
+}

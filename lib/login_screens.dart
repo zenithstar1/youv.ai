@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
+import 'package:skin_analysis_app/Bloc/auth_event.dart';
+import 'package:skin_analysis_app/Bloc/auth_state.dart';
+import 'package:skin_analysis_app/utils/responsive.dart';
 import 'signup_screens.dart';
 import 'otp_screen.dart';
 
@@ -12,9 +17,18 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController loginPhoneController = TextEditingController();
+  late final AuthBloc _authBloc;
+  bool _isSendingOtp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authBloc = AuthBloc();
+  }
 
   @override
   void dispose() {
+    _authBloc.close();
     loginPhoneController.dispose();
     super.dispose();
   }
@@ -22,21 +36,53 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     // RESPONSIVE VALUES
+    final r = Responsive(context);
     final W = MediaQuery.of(context).size.width;
     final H = MediaQuery.of(context).size.height;
+    final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
 
     // BUTTON SIZING (hybrid scaling like onboarding)
-    final btnWidth = W * 0.50;      // 50% of screen width
+    final btnWidth = (W * (isTablet ? 0.42 : 0.56)).clamp(220.0, 360.0);
     final btnHeight = H * 0.065;    // 6.5% of screen height
     final btnRadius = btnWidth * 0.45;
+    final actionWidth = (W * 0.82).clamp(230.0, 420.0);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFCE7E7),
-      body: Stack(
-        children: [
+    return BlocProvider.value(
+      value: _authBloc,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoading) {
+            setState(() => _isSendingOtp = true);
+          } else {
+            if (_isSendingOtp) {
+              setState(() => _isSendingOtp = false);
+            }
+          }
+
+          if (state is AuthMessage) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OtpScreen(
+                  phoneNumber: "+91${loginPhoneController.text.trim()}",
+                  flow: 'login',
+                ),
+              ),
+            );
+          } else if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.error, style: GoogleFonts.lora())),
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFFFCE7E7),
+          body: Stack(
+            children: [
           // BACK ARROW
           Positioned(
-            top: H * 0.07,
+            top: topInset + 16,
             left: W * 0.06,
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
@@ -46,17 +92,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // MAIN CONTENT AREA
           Positioned.fill(
-            top: H * 0.12,
+            top: (topInset + (isTablet ? 92 : 82)).clamp(72.0, 160.0),
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(horizontal: W * 0.08),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // TITLE
                   Text(
                     "Welcome Back!",
                     style: GoogleFonts.lora(
-                      fontSize: 28,
+                      fontSize: r.sp(28), // responsive title
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
@@ -68,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     "Phone Number",
                     style: GoogleFonts.lora(
-                      fontSize: 17,
+                      fontSize: r.sp(17), // responsive label
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
@@ -89,14 +138,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           "+91 - ",
                           style: GoogleFonts.lora(
-                            fontSize: 18,
+                            fontSize: r.sp(18), // responsive input prefix
                             color: Colors.black,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Expanded(
                           child: TextField(
-                            controller: loginPhoneController,   // ADDED
+                            controller: loginPhoneController,
                             keyboardType: TextInputType.number,
                             maxLength: 10,
                             decoration: const InputDecoration(
@@ -104,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               isCollapsed: true,
                               border: InputBorder.none,
                             ),
-                            style: GoogleFonts.lora(fontSize: 18),
+                            style: GoogleFonts.lora(fontSize: r.sp(18)),
                           ),
                         ),
                       ],
@@ -116,8 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // LOGIN BUTTON
                   Center(
                     child: GestureDetector(
-                      onTap: () {
-                        // VALIDATE PHONE NUMBER
+                      onTap: _isSendingOtp ? null : () {
                         if (loginPhoneController.text.length != 10) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -129,14 +177,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                           return;
                         }
-
-                        // GO TO OTP SCREEN WITH REAL NUMBER
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OtpScreen(
-                              phoneNumber: "+91${loginPhoneController.text}",
-                            ),
+                        context.read<AuthBloc>().add(
+                          SendOtpRequested(
+                            phone: loginPhoneController.text.trim(),
+                            flow: 'login',
                           ),
                         );
                       },
@@ -156,14 +200,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         child: Center(
-                          child: Text(
-                            "Log In",
-                            style: GoogleFonts.lora(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
+                          child: _isSendingOtp
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : Text(
+                                  "Log In",
+                                  style: GoogleFonts.lora(
+                                    fontSize: r.sp(20), // responsive button text
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -176,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       "or",
                       style: GoogleFonts.lora(
-                        fontSize: 16,
+                        fontSize: r.sp(16), // responsive
                         color: Colors.black87,
                       ),
                     ),
@@ -187,8 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   // CONTINUE WITH GOOGLE BUTTON
                   Center(
                     child: Container(
-                      width: 286,
-                      height: 53,
+                      width: actionWidth,
+                      height: r.h(53), // responsive button height
                       decoration: BoxDecoration(
                         color: const Color(0xFFD79096),
                         borderRadius: BorderRadius.circular(158),
@@ -208,18 +261,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(50),
                             child: Image.asset(
                               "assets/images/google_chat.png",
-                              height: 30,
-                              width: 30,
+                              height: r.w(30), // responsive icon
+                              width: r.w(30),
                               fit: BoxFit.cover,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Continue with Google",
-                            style: GoogleFonts.lora(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                          SizedBox(width: r.w(10)),
+                          Flexible(
+                            child: Text(
+                              "Continue with Google",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.lora(
+                                fontSize: r.sp(isTablet ? 20 : 18), // responsive
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                         ],
@@ -242,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         text: TextSpan(
                           text: "Don't have an account? ",
                           style: GoogleFonts.lora(
-                            fontSize: 16,
+                            fontSize: r.sp(16), // responsive
                             fontWeight: FontWeight.w700,
                             color: Colors.black87,
                           ),
@@ -250,7 +307,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextSpan(
                               text: "Sign Up!",
                               style: GoogleFonts.lora(
-                                fontSize: 16,
+                                fontSize: r.sp(16), // responsive
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF510808),
                                 decoration: TextDecoration.underline,
@@ -263,12 +320,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   SizedBox(height: H * 0.05),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }
 }
+
