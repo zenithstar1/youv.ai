@@ -93,6 +93,12 @@ class HistoryCard extends StatelessWidget {
                       ],
                     ),
 
+                    // Overall skin health index
+                    if (activity.overallScore != null) ...[
+                      SizedBox(height: r.h(8)),
+                      _HealthIndexBar(score: activity.overallScore!, r: r),
+                    ],
+
                     SizedBox(height: r.h(10)),
 
                     // Score pills row
@@ -260,6 +266,67 @@ class _StatusChip extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: color,
         ),
+      ),
+    );
+  }
+}
+
+class _HealthIndexBar extends StatelessWidget {
+  final double score;
+  final Responsive r;
+  const _HealthIndexBar({required this.score, required this.r});
+
+  Color get _color {
+    if (score >= 75) return const Color(0xFF4CAF50);
+    if (score >= 50) return const Color(0xFFFF9800);
+    return const Color(0xFFF44336);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: r.w(10), vertical: r.h(7)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(r.w(10)),
+        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+      ),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Skin Health Index',
+                style: GoogleFonts.poppins(
+                  fontSize: r.sp(9),
+                  color: const Color(0xFF8A7A72),
+                ),
+              ),
+              Text(
+                '${score.toStringAsFixed(0)}/100',
+                style: GoogleFonts.poppins(
+                  fontSize: r.sp(13),
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(width: r.w(12)),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(r.w(4)),
+              child: LinearProgressIndicator(
+                value: (score / 100).clamp(0.0, 1.0),
+                minHeight: r.h(6),
+                backgroundColor: color.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -21,7 +21,8 @@
       "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/face_detector.js web/index.html)",
       "Bash(git -C 'c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai' commit -m ' *)",
       "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add lib/screens/standard_camera_screen.dart)",
-      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Raw\\) -replace '\\\\.withOpacity\\\\\\(', '.withValues\\(alpha: ' | Set-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Encoding utf8)"
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Raw\\) -replace '\\\\.withOpacity\\\\\\(', '.withValues\\(alpha: ' | Set-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Encoding utf8)",
+      "Bash(flutter analyze *)"
     ]
   }
 }

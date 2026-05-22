@@ -13,13 +13,15 @@ Timer? _faceStableTimer;
 
 // --- CONFIDENCE CONSTANTS ----------------------------------------------------
 const _kCameraWarmupMs = 1500;
-const _kStabilityHoldMs = 1500;
-const _kMotionThreshold = 0.016;
-const _kMinFaceWidthRatio = 0.24;
-const _kMaxFaceWidthRatio = 0.74;
+const _kStabilityHoldMs = 1500;       // was 1200 — longer hold for stricter feel
+const _kMotionThreshold = 0.020;      // was 0.024 — tighter stability requirement
+const _kMinFaceWidthRatio = 0.34;     // face must reasonably fill oval
+const _kMaxFaceWidthRatio = 0.58;     // was 0.78 — clinical maximum framing
+const _kStabilityGraceFrames = 3;
 
 const _kLostFramesThreshold = 5;
-const _kFeedbackDebounceMs = 600;
+const _kFeedbackDebounceMs = 500;
+const _kShowDebug = false; // set true to show live metric overlay for tuning
 
 /// =================================================
 /// VALIDATION STATUS
@@ -33,6 +35,7 @@ class _ValidationStatus {
   final bool lightingOk;
   final bool tooClose;
   final bool tooFar;
+  final bool cameraTooLow; // pitch: phone held below face level
 
   const _ValidationStatus({
     this.faceDetected = false,
@@ -43,6 +46,7 @@ class _ValidationStatus {
     this.lightingOk = false,
     this.tooClose = false,
     this.tooFar = false,
+    this.cameraTooLow = false,
   });
 
   bool get allOk =>
@@ -50,8 +54,9 @@ class _ValidationStatus {
 
   String get primaryGuidance {
     if (!faceDetected) return 'Position your face in the frame';
-    if (!centeredOk) return 'Center your face';
-    if (tooFar) return 'Move slightly closer';
+    if (cameraTooLow) return 'Raise phone to eye level';
+    if (!centeredOk) return 'Center your face in the oval';
+    if (tooFar) return 'Bring your face closer';
     if (tooClose) return 'Move slightly back';
     if (!poseOk) return 'Look straight ahead';
     if (!motionOk) return 'Hold still';
@@ -69,7 +74,8 @@ class _ValidationStatus {
       motionOk == other.motionOk &&
       lightingOk == other.lightingOk &&
       tooClose == other.tooClose &&
-      tooFar == other.tooFar;
+      tooFar == other.tooFar &&
+      cameraTooLow == other.cameraTooLow;
 
   @override
   int get hashCode => Object.hash(
@@ -81,6 +87,7 @@ class _ValidationStatus {
         lightingOk,
         tooClose,
         tooFar,
+        cameraTooLow,
       );
 }
 
@@ -183,6 +190,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   Timer? _warmupTimer;
   String _guidanceMessage = 'Position your face in the frame';
   Timer? _feedbackDebounceTimer;
+  Map<String, String> _debugMap = {};
 
   String _getRandomSkinFact() {
     final facts = List<String>.from(_skinFacts);
@@ -367,6 +375,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       if (!_cameraWarmedUp) return;
 
       final validation = _computeValidation(frame);
+      _updateDebug(frame, validation);
       _processConfidence(validation);
     });
 
@@ -400,14 +409,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       return const _ValidationStatus(faceDetected: true);
     }
 
-    // Distance
-    final tooFar = faceW < _kMinFaceWidthRatio;
+    // Distance — face bounding box width must meet minimum for analysis framing.
+    var tooFar = faceW < _kMinFaceWidthRatio;
     final tooClose = faceW > _kMaxFaceWidthRatio;
-    final distanceOk = !tooFar && !tooClose;
+    var distanceOk = !tooFar && !tooClose;
 
-    // Centering
+    // Centering — tighter for analysis-grade oval fit (was 0.28)
     final centeredOk =
-        frame.faceCenterOffsetX <= 0.28 && frame.faceCenterOffsetY <= 0.28;
+        frame.faceCenterOffsetX <= 0.18 && frame.faceCenterOffsetY <= 0.18;
 
     // Vertical position relative to oval guide
     if (frame.faceCenterYRatio < 0.38 || frame.faceCenterYRatio > 0.64) {
@@ -458,50 +467,118 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
     }
 
-    // Head pose — pure landmark geometry, fully device-independent.
-    // MediaPipe euler angles are skipped entirely: they vary wildly across
-    // Android sensors and routinely report 25-40° for a forward-facing person.
-    //
-    // Yaw proxy: nose tip should sit near the horizontal midpoint of the eyes.
-    //   Threshold 0.75× inter-eye distance catches true side profiles.
-    final noseToEyeMidX =
-        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs();
-    final yawOk = noseToEyeMidX <= eyeDx * 0.75;
-
-    // Roll proxy: eyes should be at roughly the same height.
-    //   0.40 allows ≈22° of head tilt — fine for a natural selfie.
-    final eyeDy = (leftEye[1] - rightEye[1]).abs();
-    final rollOk = (eyeDy / eyeDx) <= 0.40;
-
-    final poseOk = yawOk && rollOk;
-
-    // Nose centered check (reuse noseToEyeMidX already computed above)
-    final noseCenteredOk = noseToEyeMidX <= eyeDx * 1.40;
-
-    // Eye vertical position to match oval guide
     final eyeMidY = (leftEye[1] + rightEye[1]) / 2;
-    final eyeMidYRatio =
-        (eyeMidY / math.max(frame.imageHeight, 1.0)).clamp(0.0, 1.0);
-    final eyePositionOk = eyeMidYRatio >= 0.28 && eyeMidYRatio <= 0.48;
 
-    // Nose must be below eyes
+    // Nose must be below eyes — guards extreme low-angle where nostrils face camera
     if (nose[1] <= eyeMidY) {
       return _ValidationStatus(
         faceDetected: true,
         distanceOk: distanceOk,
         tooFar: tooFar,
         tooClose: tooClose,
-        centeredOk: centeredOk && eyePositionOk,
+        centeredOk: centeredOk,
         poseOk: false,
+        cameraTooLow: true,
       );
     }
+
+    // Fetch mouth landmarks once — reused for pitch and lighting checks
+    List<double>? mouthLeft;
+    List<double>? mouthRight;
+    bool hasMouth = false;
+    double mouthMidY = 0;
+    if (frame.landmarks.length >= 7) {
+      final ml = frame.landmarks[5];
+      final mr = frame.landmarks[6];
+      if (ml.length >= 2 &&
+          mr.length >= 2 &&
+          ml[0].isFinite &&
+          mr[0].isFinite &&
+          ml[1].isFinite &&
+          mr[1].isFinite) {
+        mouthLeft = ml;
+        mouthRight = mr;
+        hasMouth = true;
+        mouthMidY = (ml[1] + mr[1]) / 2;
+      }
+    }
+
+    // --- YAW: nose tip near horizontal midpoint of eyes ---
+    // Tightened from 0.75 → 0.42 of inter-eye distance
+    final noseToEyeMidX =
+        (nose[0] - ((leftEye[0] + rightEye[0]) / 2)).abs();
+    final yawOk = noseToEyeMidX <= eyeDx * 0.42;
+
+    // --- ROLL: eyes at the same height ---
+    // Tightened from 0.40 → 0.20 (~11° max vs 22° before)
+    final eyeDy = (leftEye[1] - rightEye[1]).abs();
+    final rollOk = (eyeDy / eyeDx) <= 0.20;
+
+    // --- PITCH: vertical camera angle relative to face ---
+    // MediaPipe Euler angles are unreliable on Android (report 25-40° for
+    // a forward-facing person), so we use pure landmark geometry instead.
+    //
+    // When the camera is below face level the face tilts back, causing the nose
+    // tip (which protrudes from the face plane) to appear much closer to the eye
+    // line due to perspective foreshortening. Two independent signals detect this:
+    //
+    //   1. noseToEyeV / eyeDx — absolute nose displacement vs inter-eye span
+    //   2. noseToEyeV / eyeToMouthV — nose position relative to eye→mouth range
+    //      (nose tip foreshortening is stronger than cheek/mouth landmark shift)
+    bool pitchOk = true;
+    bool cameraTooLow = false;
+
+    final noseToEyeV = nose[1] - eyeMidY; // always > 0 after guard above
+
+    // Primary: nose vertical displacement vs inter-eye distance.
+    // Frontal normal: ~0.55-0.65. Collapses toward 0 as camera drops.
+    final noseEyeDistRatio = noseToEyeV / eyeDx;
+    if (noseEyeDistRatio < 0.35) {
+      pitchOk = false;
+      cameraTooLow = true;
+    } else if (noseEyeDistRatio > 2.40) {
+      pitchOk = false; // extreme upward angle
+    }
+
+    // Secondary: nose proportion within eye→mouth range (requires mouth landmarks).
+    // Frontal normal: ~0.45-0.68. Drops when nose tip foreshortens faster than mouth.
+    if (pitchOk && hasMouth) {
+      final eyeToMouthV = mouthMidY - eyeMidY;
+      if (eyeToMouthV > eyeDx * 0.30) {
+        final pitchProportion = noseToEyeV / eyeToMouthV;
+        if (pitchProportion < 0.24) {
+          pitchOk = false;
+          cameraTooLow = true;
+        } else if (pitchProportion > 0.78) {
+          pitchOk = false; // extreme downward angle
+        }
+      }
+    }
+
+    final poseOk = yawOk && rollOk && pitchOk;
+
+    // Eye vertical position within oval guide
+    final eyeMidYRatio =
+        (eyeMidY / math.max(frame.imageHeight, 1.0)).clamp(0.0, 1.0);
+    final eyePositionOk = eyeMidYRatio >= 0.28 && eyeMidYRatio <= 0.48;
+
+    // Nose horizontal centering relative to eyes (tightened from 1.40 → 1.20)
+    final noseCenteredOk = noseToEyeMidX <= eyeDx * 1.20;
 
     // Motion stability
     final motionOk = _checkMotion(frame, nose);
 
-    // Lighting quality -- eye spread ratio as a proxy for image sharpness/exposure
-    final eyeDistanceRatio = eyeDx / math.max(frame.imageWidth, 1.0);
-    final lightingOk = eyeDistanceRatio >= 0.05 && eyeDistanceRatio <= 0.45;
+    // Detection-quality proxy for image/lighting conditions.
+    // Mouth width proportional to inter-eye distance indicates consistent
+    // landmark detection — fails under heavy shadow, overexposure, or strong
+    // glasses glare that disrupts lower-face detection.
+    bool lightingOk = false;
+    if (hasMouth) {
+      final mouthWidth = (mouthRight![0] - mouthLeft![0]).abs();
+      final mouthToEyeRatio = mouthWidth / eyeDx;
+      // Normal frontal: mouth is 0.40-0.85× inter-eye distance
+      lightingOk = mouthToEyeRatio >= 0.40 && mouthToEyeRatio <= 0.85;
+    }
 
     return _ValidationStatus(
       faceDetected: true,
@@ -512,6 +589,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       poseOk: poseOk,
       motionOk: motionOk,
       lightingOk: lightingOk,
+      cameraTooLow: cameraTooLow,
     );
   }
 
@@ -1287,6 +1365,14 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               ),
             ),
 
+          // -- DEBUG OVERLAY (live only, toggled by _kShowDebug) --
+          if (isLive && _kShowDebug && _debugMap.isNotEmpty)
+            Positioned(
+              top: topPadding + 132,
+              left: 8,
+              child: IgnorePointer(child: _buildDebugOverlay()),
+            ),
+
           // -- SCANNING OVERLAY --
           if (isScanning) _buildScanOverlay(),
         ],
@@ -1314,6 +1400,141 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       return 'Align your face in frame';
     }
     return 'Finding face... ${_liveWaitSeconds}s  *  $tip';
+  }
+
+  /// =================================================
+  /// DEBUG METRICS UPDATE (called every native frame)
+  /// =================================================
+  void _updateDebug(FaceDetectionFrame frame, _ValidationStatus v) {
+    if (!_kShowDebug) return;
+
+    final faceW = frame.faceWidthRatio;
+    final faceH = frame.faceHeightRatio;
+    double eyeSpan = -1, cheekSpan = -1, eyeToChin = -1;
+    double yaw = -1, roll = -1, pitchNE = -1, pitchProp = -1;
+
+    if (frame.hasFace && frame.landmarks.length >= 3) {
+      final nose = frame.landmarks[0];
+      final le = frame.landmarks[1];
+      final re = frame.landmarks[2];
+      if ([nose, le, re].every((p) => p.length >= 2 && p[0].isFinite && p[1].isFinite)) {
+        final eyeDx = (le[0] - re[0]).abs();
+        if (eyeDx > 6) {
+          final eyeMidY = (le[1] + re[1]) / 2;
+          eyeSpan = eyeDx / math.max(frame.imageWidth, 1.0);
+          yaw = (nose[0] - (le[0] + re[0]) / 2).abs() / eyeDx;
+          roll = (le[1] - re[1]).abs() / eyeDx;
+          final noseToEyeV = nose[1] - eyeMidY;
+          pitchNE = noseToEyeV / eyeDx;
+
+          if (frame.landmarks.length >= 7) {
+            final ml = frame.landmarks[5];
+            final mr = frame.landmarks[6];
+            if ([ml, mr].every((p) => p.length >= 2 && p[0].isFinite && p[1].isFinite)) {
+              final eyeToMouthV = (ml[1] + mr[1]) / 2 - eyeMidY;
+              if (eyeToMouthV > 0) pitchProp = noseToEyeV / eyeToMouthV;
+            }
+          }
+          if (frame.landmarks.length >= 9) {
+            final lc = frame.landmarks[7];
+            final rc = frame.landmarks[8];
+            if ([lc, rc].every((p) => p.length >= 2 && p[0].isFinite && p[1].isFinite)) {
+              cheekSpan = (rc[0] - lc[0]).abs() / math.max(frame.imageWidth, 1.0);
+            }
+          }
+          if (frame.landmarks.length >= 10) {
+            final chin = frame.landmarks[9];
+            if (chin.length >= 2 && chin[1].isFinite) {
+              eyeToChin = (chin[1] - eyeMidY) / math.max(frame.imageHeight, 1.0);
+            }
+          }
+        }
+      }
+    }
+
+    String fmt(double val) => val < 0 ? '--   ' : val.toStringAsFixed(3);
+    String ok(bool pass) => pass ? '✓' : '✗';
+    final elapsedMs = _stabilityStartTime != null
+        ? DateTime.now().difference(_stabilityStartTime!).inMilliseconds
+        : 0;
+
+    final newMap = <String, String>{
+      'faceW    ': '${fmt(faceW)}  ≥${_kMinFaceWidthRatio.toStringAsFixed(2)}',
+      'faceH    ': '${fmt(faceH)}  ≥0.38',
+      'eyeSpan  ': '${fmt(eyeSpan)}  ≥0.09',
+      'cheekSpan': '${fmt(cheekSpan)}  ≥0.20',
+      'eyeToChin': '${fmt(eyeToChin)}  ≥0.16',
+      'yaw      ': '${fmt(yaw)}  ≤0.42',
+      'roll     ': '${fmt(roll)}  ≤0.20',
+      'pitchNE  ': '${fmt(pitchNE)}  ≥0.35',
+      'pitchProp': '${fmt(pitchProp)}  0.24–0.78',
+      'dist  ': '${ok(v.distanceOk)} far=${v.tooFar} close=${v.tooClose}',
+      'center': ok(v.centeredOk),
+      'pose  ': '${ok(v.poseOk)} low=${v.cameraTooLow}',
+      'light ': ok(v.lightingOk),
+      'motion': ok(v.motionOk),
+      'ALL   ': v.allOk ? '✓ PASS' : '✗ FAIL',
+      'stable': '${elapsedMs}ms / ${_kStabilityHoldMs}ms',
+    };
+
+    if (mounted && !_isDisposed) setState(() => _debugMap = newMap);
+  }
+
+  /// =================================================
+  /// DEBUG OVERLAY WIDGET
+  /// =================================================
+  Widget _buildDebugOverlay() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'VALIDATION DEBUG',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 7,
+              color: Colors.white.withValues(alpha: 0.45),
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 3),
+          ..._debugMap.entries.map((e) {
+            final val = e.value;
+            final isAll = e.key.trim() == 'ALL';
+            final isPass = val.startsWith('✓');
+            final isFail = val.startsWith('✗') ||
+                val.contains('far=true') ||
+                val.contains('close=true') ||
+                val.contains('low=true');
+            Color color;
+            if (isAll) {
+              color = isPass ? Colors.greenAccent : Colors.redAccent;
+            } else if (isPass) {
+              color = const Color(0xFF8CCC7E);
+            } else if (isFail) {
+              color = const Color(0xFFFF8080);
+            } else {
+              color = Colors.white.withValues(alpha: 0.80);
+            }
+            return Text(
+              '${e.key}: ${e.value}',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 9,
+                color: color,
+                fontWeight: isAll ? FontWeight.bold : FontWeight.normal,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   /// =================================================
@@ -1404,7 +1625,7 @@ class _ValidationChips extends StatelessWidget {
       children: [
         _Chip(
           label: "Face aligned",
-          valid: validation.faceDetected && validation.centeredOk,
+          valid: validation.faceDetected && validation.centeredOk && validation.distanceOk,
         ),
         const SizedBox(width: 6),
         _Chip(
