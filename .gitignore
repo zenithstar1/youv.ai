@@ -18,14 +18,16 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# VS Code (optional)
-#.vscode/
+# VS Code
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 coverage/
@@ -41,19 +43,33 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# ------------------------------------------------------------------------------
-# CUSTOM RULE → Ignore ALL build folders EXCEPT build/web
-# ------------------------------------------------------------------------------
-# Ignore all build folders anywhere
-
-# But do NOT ignore web build output
-!build/web/
-# Also keep contents
-!build/web/**
-
-# Ignore all build folders
+# --------------------------------------------------
+# IGNORE ALL BUILD FOLDERS
+# --------------------------------------------------
 build/
+**/build/
 
-# Keep only Flutter web build
+# KEEP ONLY WEB BUILD
 !build/web/
 !build/web/**
+
+# Ignore generated Android plugin folders
+.generated/
+.transformed/
+.cxx/
+
+# Ignore backend folder completely
+youvai_backend/
+
+# Native/generated folders
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Temp
+tmp/
+temp/
