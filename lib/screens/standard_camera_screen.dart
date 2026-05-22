@@ -1076,45 +1076,61 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
     }
 
-    final size = controller.value.previewSize!;
-
     if (kIsWeb) {
-      // If the browser ignored getUserMedia portrait constraints and returned a
-      // landscape stream (videoWidth > videoHeight), the browser still applies
-      // rotation metadata so the VISUAL content is portrait. But previewSize
-      // reports the raw stream dims (e.g. 1280x720). Using those raw dims for
-      // FittedBox means it treats the content as landscape -> 1.17x zoom and
-      // only 26% of the frame width is visible.
+      // ── Reactive web preview ───────────────────────────────────────────────
+      // Wrapped in ValueListenableBuilder so the FittedBox dimensions
+      // recompute automatically whenever previewSize changes dynamically
+      // (stream re-negotiated, camera restart, tab resume).
+      // MediaQuery.of(context) inside the builder also registers a dependency
+      // so the widget rebuilds on viewport changes (address bar show/hide).
       //
-      // Fix: swap w<->h when stream is landscape on a portrait screen so
-      // FittedBox scales correctly (0.66x) for a natural portrait fill.
-      final screenSize = MediaQuery.of(context).size;
-      final isPortraitScreen = screenSize.height > screenSize.width;
-      final streamIsLandscape = size.width > size.height;
-      final displayW =
-          (isPortraitScreen && streamIsLandscape) ? size.height : size.width;
-      final displayH =
-          (isPortraitScreen && streamIsLandscape) ? size.width : size.height;
-      debugPrint(
-        '[CameraPreview:web] stream=${size.width.toInt()}x${size.height.toInt()}'
-        ' display=${displayW.toInt()}x${displayH.toInt()}'
-        ' screen=${screenSize.width.toInt()}x${screenSize.height.toInt()}'
-        ' dpr=${MediaQuery.of(context).devicePixelRatio}',
-      );
-      return ClipRect(
-        child: OverflowBox(
-          alignment: Alignment.center,
-          child: FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: displayW,
-              height: displayH,
-              child: CameraPreview(controller),
+      // Dimension swap rule:
+      //   landscape stream + portrait screen → swap w↔h for FittedBox.
+      //   The browser reports raw stream dims (1280×720 landscape) but applies
+      //   rotation metadata so the visual content IS portrait. If we give
+      //   FittedBox the landscape dims it scales 1.17× and shows only 26% of
+      //   the frame width. Swapping to 720×1280 gives scale 0.66× → natural
+      //   portrait selfie view.
+      return ValueListenableBuilder<CameraValue>(
+        valueListenable: controller,
+        builder: (context, camVal, _) {
+          if (!camVal.isInitialized) return const SizedBox.shrink();
+          final sz = camVal.previewSize;
+          if (sz == null) return const SizedBox.shrink();
+
+          final screen = MediaQuery.of(context).size;
+          final portraitScreen   = screen.height > screen.width;
+          final streamIsLandscape = sz.width > sz.height;
+          final displayW =
+              (portraitScreen && streamIsLandscape) ? sz.height : sz.width;
+          final displayH =
+              (portraitScreen && streamIsLandscape) ? sz.width  : sz.height;
+
+          debugPrint(
+            '[CameraPreview:web] stream=${sz.width.toInt()}x${sz.height.toInt()}'
+            ' display=${displayW.toInt()}x${displayH.toInt()}'
+            ' screen=${screen.width.toInt()}x${screen.height.toInt()}'
+            ' dpr=${MediaQuery.of(context).devicePixelRatio}',
+          );
+
+          return ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.center,
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: displayW,
+                  height: displayH,
+                  child: CameraPreview(controller),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
     }
+
+    final size = controller.value.previewSize!;
 
     // Native: swap w<->h for portrait aspect ratio
     return ClipRect(

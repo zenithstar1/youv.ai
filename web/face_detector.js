@@ -469,6 +469,9 @@ async function processFrame(timestamp) {
     targetVideo = findBestVideoElement(targetVideo);
   }
 
+  // Continuously sync CSS layout — cheap no-op when nothing changed.
+  if (targetVideo) CameraLayoutManager.sync(targetVideo);
+
   if (!targetVideo) {
     consecutiveFaceFrames = 0;
     missedFaceFrames = 0;
@@ -520,71 +523,183 @@ window.stopFaceDetection = function() {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
   }
+  CameraLayoutManager.stop();
 };
 
-// ── Video diagnostics ─────────────────────────────────────────────────────────
-function logVideoState(video, label) {
-  if (!video) { console.log('[VideoDiag:' + label + '] no video element'); return; }
-  var rect = video.getBoundingClientRect();
-  var cs   = window.getComputedStyle(video);
-  console.log('[VideoDiag:' + label + ']', {
-    ua:         navigator.userAgent,
-    screenWH:   screen.width + '×' + screen.height,
-    innerWH:    window.innerWidth + '×' + window.innerHeight,
-    dpr:        window.devicePixelRatio,
-    streamWH:   video.videoWidth + '×' + video.videoHeight,
-    readyState: video.readyState,
-    rectWH:     rect.width.toFixed(1) + '×' + rect.height.toFixed(1),
-    rectPos:    '(' + rect.left.toFixed(1) + ',' + rect.top.toFixed(1) + ')',
-    cssWidth:   cs.width,
-    cssHeight:  cs.height,
-    objectFit:  cs.objectFit,
-    transform:  cs.transform,
-    position:   cs.position,
-  });
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// CameraLayoutManager
+//
+// Single source of truth for video element CSS on Flutter Web.
+// Continuously monitors stream dims, viewport dims, and any DOM change that
+// could affect rendering.  Re-applies corrections from scratch on every
+// detected change — no transform accumulation.
+//
+// Responsibilities:
+//   object-fit : cover   (fills Flutter-allocated box without distortion)
+//   transform  : scaleX(-1)  (front-camera selfie mirror)
+//
+// NOT responsible for element width/height — that is Flutter's domain.
+// The Dart ValueListenableBuilder in standard_camera_screen.dart handles
+// FittedBox dimension recalculation whenever previewSize changes.
+// ─────────────────────────────────────────────────────────────────────────────
+var CameraLayoutManager = (function () {
+  var _video       = null;
+  var _lastVW      = 0, _lastVH      = 0;
+  var _lastSW      = 0, _lastSH      = 0;
+  var _resizeObs   = null;
+  var _pollId      = null;
+  var _listening   = false;
 
-// ── Ensure video element renders correctly ────────────────────────────────────
-function fixVideoRendering(video) {
-  if (!video) return;
-
-  logVideoState(video, 'before-fix');
-
-  // Set object-fit and mirror inline so they take priority regardless of
-  // CSS cascade order or whether the CSS rule applied before the element existed.
-  video.style.objectFit = 'cover';
-  video.style.transform = 'scaleX(-1)';
-
-  // DO NOT apply CSS rotation even when videoWidth > videoHeight on a portrait
-  // screen. Both Android Chrome and iOS Safari apply rotation metadata
-  // internally, so the content already displays portrait even when the reported
-  // stream dimensions look landscape. Adding a CSS rotation on top would
-  // double-rotate the content sideways. The getUserMedia portrait constraints
-  // in index.html handle the actual stream orientation request.
-  var isPortraitScreen  = window.innerHeight > window.innerWidth;
-  var isLandscapeStream = video.videoWidth  > video.videoHeight;
-  if (isPortraitScreen && isLandscapeStream) {
-    console.log('[VideoFix] note: stream dims landscape but browser likely applies rotation metadata — not adding CSS rotation',
-      'stream=' + video.videoWidth + '×' + video.videoHeight,
-      'screen=' + window.innerWidth + '×' + window.innerHeight);
-  } else {
-    console.log('[VideoFix] stream orientation OK:',
-      'stream=' + video.videoWidth + '×' + video.videoHeight,
-      'screen=' + window.innerWidth + '×' + window.innerHeight);
+  // ── viewport size — prefer visualViewport for address-bar awareness ──────
+  function vpSize() {
+    var vv = window.visualViewport;
+    return {
+      w: vv ? Math.round(vv.width)  : window.innerWidth,
+      h: vv ? Math.round(vv.height) : window.innerHeight,
+    };
   }
 
-  logVideoState(video, 'after-fix');
-}
+  // ── core: compute state and apply CSS exactly once per change ─────────────
+  function applyLayout(video, force) {
+    if (!video || video.videoWidth === 0 || video.readyState < 2) return;
 
-// Re-run fix on orientation change (user rotates device)
-window.addEventListener('orientationchange', function() {
-  setTimeout(function() {
-    if (targetVideo) {
-      console.log('[VideoFix] re-running after orientationchange');
-      fixVideoRendering(targetVideo);
+    var vw = video.videoWidth;
+    var vh = video.videoHeight;
+    var vp = vpSize();
+    var sw = vp.w, sh = vp.h;
+
+    if (!force && vw === _lastVW && vh === _lastVH && sw === _lastSW && sh === _lastSH) return;
+
+    _lastVW = vw; _lastVH = vh; _lastSW = sw; _lastSH = sh;
+
+    var isPortrait       = sh > sw;
+    var streamLandscape  = vw > vh;
+    var rect = video.getBoundingClientRect();
+    var cs   = window.getComputedStyle(video);
+
+    console.log('[CameraLayout]', {
+      stream:      vw + 'x' + vh,
+      viewport:    sw + 'x' + sh,
+      elementRect: Math.round(rect.width) + 'x' + Math.round(rect.height),
+      cssWH:       cs.width + ' / ' + cs.height,
+      objectFit:   cs.objectFit,
+      transform:   cs.transform,
+      portraitScreen:  isPortrait,
+      landscapeStream: streamLandscape,
+      dpr: window.devicePixelRatio,
+      ua:  navigator.userAgent.slice(0, 60),
+    });
+
+    // ── Reset inline props — no accumulation ────────────────────────────────
+    video.style.objectFit      = '';
+    video.style.transform      = '';
+    video.style.transformOrigin = '';
+    // width / height intentionally NOT touched — Flutter controls those.
+
+    // ── Apply: fill box + mirror ─────────────────────────────────────────────
+    // object-fit:cover fills the Flutter-allocated SizedBox without distortion.
+    video.style.objectFit = 'cover';
+
+    // scaleX(-1): selfie mirror for front-facing camera.
+    // CSS rotation is intentionally omitted.  Android Chrome and iOS Safari
+    // both apply rotation metadata internally, so the visual content is already
+    // portrait even when videoWidth > videoHeight.  A CSS rotate() on top
+    // double-rotates the frame sideways — as we verified empirically.
+    // The dimension swap in Dart's FittedBox (landscape → portrait) handles
+    // the sizing without any CSS rotation.
+    video.style.transform = 'scaleX(-1)';
+
+    if (isPortrait && streamLandscape) {
+      console.log('[CameraLayout] landscape stream on portrait screen — ' +
+        'Dart FittedBox swaps dims; CSS rotation NOT applied (browser handles orientation)');
     }
-  }, 400);
-});
+  }
+
+  // ── cheap sync called from rAF loop ─────────────────────────────────────
+  function syncIfChanged(video) {
+    if (!video || video.videoWidth === 0) return;
+    var vp = vpSize();
+    if (video.videoWidth  !== _lastVW || video.videoHeight !== _lastVH ||
+        vp.w !== _lastSW  || vp.h     !== _lastSH) {
+      applyLayout(video, false);
+    }
+  }
+
+  // ── attach global event listeners once ──────────────────────────────────
+  function attachListeners() {
+    if (_listening) return;
+    _listening = true;
+
+    // visualViewport: address bar show/hide, pinch-zoom, soft keyboard
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function () { applyLayout(_video, true); });
+      window.visualViewport.addEventListener('scroll', function () { applyLayout(_video, true); });
+    }
+    window.addEventListener('resize', function () { applyLayout(_video, true); });
+
+    // device rotation — wait for browser to report new dims
+    window.addEventListener('orientationchange', function () {
+      setTimeout(function () { applyLayout(_video, true); }, 350);
+    });
+
+    // tab becomes visible again (camera may have been re-init'd)
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') applyLayout(_video, true);
+    });
+
+    // PWA / browser regains focus
+    window.addEventListener('focus', function () { applyLayout(_video, true); });
+
+    // page resume (bfcache restore on mobile)
+    window.addEventListener('pageshow', function () { applyLayout(_video, true); });
+  }
+
+  return {
+    // Call once when the video element is confirmed ready (readyState >= 2).
+    start: function (video) {
+      if (!video) return;
+      _video = video;
+      _lastVW = _lastVH = _lastSW = _lastSH = 0; // force first apply
+
+      attachListeners();
+
+      // ResizeObserver: fires when Flutter reallocates the platform-view box
+      if (window.ResizeObserver) {
+        if (_resizeObs) _resizeObs.disconnect();
+        _resizeObs = new ResizeObserver(function () { applyLayout(_video, true); });
+        _resizeObs.observe(video);
+      }
+
+      // Polling fallback: catches dynamic videoWidth/videoHeight changes that
+      // no DOM event fires for (e.g. browser internally re-negotiates stream).
+      if (_pollId) clearInterval(_pollId);
+      _pollId = setInterval(function () { syncIfChanged(_video); }, 500);
+
+      applyLayout(video, true);
+    },
+
+    // Call from processFrame rAF loop — no-op when nothing changed.
+    sync: function (video) {
+      if (!video) return;
+      if (video !== _video) {
+        // Video element changed (camera restart / element recycled).
+        if (_resizeObs && _video) _resizeObs.unobserve(_video);
+        _video = video;
+        if (_resizeObs) _resizeObs.observe(video);
+        _lastVW = _lastVH = 0; // force re-apply
+      }
+      syncIfChanged(video);
+    },
+
+    // Call from stopFaceDetection.
+    stop: function () {
+      if (_resizeObs) { _resizeObs.disconnect(); _resizeObs = null; }
+      if (_pollId)    { clearInterval(_pollId);  _pollId    = null; }
+      _video = null;
+      _lastVW = _lastVH = _lastSW = _lastSH = 0;
+    },
+  };
+})();
 
 window.startFaceDetection = function(videoElement) {
   console.log("startFaceDetection called, element:", videoElement?.tagName);
@@ -663,7 +778,7 @@ window.startFaceDetection = function(videoElement) {
     if (targetVideo && targetVideo.readyState >= 2 && targetVideo.videoWidth > 0) {
       console.log("Video ready, starting face detection loop. Size:",
         targetVideo.videoWidth, "x", targetVideo.videoHeight);
-      fixVideoRendering(targetVideo);
+      CameraLayoutManager.start(targetVideo);
       animFrameId = requestAnimationFrame(processFrame);
     } else {
       const rs = targetVideo ? targetVideo.readyState : "none";
