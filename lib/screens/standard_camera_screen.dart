@@ -1079,11 +1079,27 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     final size = controller.value.previewSize!;
 
     if (kIsWeb) {
+      // If the browser ignored getUserMedia portrait constraints and returned a
+      // landscape stream (videoWidth > videoHeight), the browser still applies
+      // rotation metadata so the VISUAL content is portrait. But previewSize
+      // reports the raw stream dims (e.g. 1280x720). Using those raw dims for
+      // FittedBox means it treats the content as landscape -> 1.17x zoom and
+      // only 26% of the frame width is visible.
+      //
+      // Fix: swap w<->h when stream is landscape on a portrait screen so
+      // FittedBox scales correctly (0.66x) for a natural portrait fill.
+      final screenSize = MediaQuery.of(context).size;
+      final isPortraitScreen = screenSize.height > screenSize.width;
+      final streamIsLandscape = size.width > size.height;
+      final displayW =
+          (isPortraitScreen && streamIsLandscape) ? size.height : size.width;
+      final displayH =
+          (isPortraitScreen && streamIsLandscape) ? size.width : size.height;
       debugPrint(
-        '[CameraPreview:web] previewSize=${size.width.toInt()}Ã—${size.height.toInt()}'
-        ' | screen=${MediaQuery.of(context).size.width.toInt()}'
-        'Ã—${MediaQuery.of(context).size.height.toInt()}'
-        ' | dpr=${MediaQuery.of(context).devicePixelRatio}',
+        '[CameraPreview:web] stream=${size.width.toInt()}x${size.height.toInt()}'
+        ' display=${displayW.toInt()}x${displayH.toInt()}'
+        ' screen=${screenSize.width.toInt()}x${screenSize.height.toInt()}'
+        ' dpr=${MediaQuery.of(context).devicePixelRatio}',
       );
       return ClipRect(
         child: OverflowBox(
@@ -1091,8 +1107,8 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
           child: FittedBox(
             fit: BoxFit.cover,
             child: SizedBox(
-              width: size.width,
-              height: size.height,
+              width: displayW,
+              height: displayH,
               child: CameraPreview(controller),
             ),
           ),
