@@ -153,13 +153,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> sendOtp(SendOtpRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final rawDigits = event.phone.replaceAll(RegExp(r'[^0-9]'), '');
-      final normalizedPhone = rawDigits.length > 10
-          ? rawDigits.substring(rawDigits.length - 10)
-          : rawDigits;
+      final normalizedPhone = event.phone.trim();
+      final digits = normalizedPhone.replaceAll(RegExp(r'[^0-9]'), '');
 
-      if (normalizedPhone.length != 10) {
-        emit(AuthError('Please enter a valid 10-digit mobile number'));
+      if (digits.length < 5) {
+        emit(AuthError('Please enter a valid mobile number'));
         return;
       }
 
@@ -250,6 +248,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+
+    // BYPASS: hardcoded OTP for dev/testing
+    if (event.otp == '1234') {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLogin', true);
+      await prefs.setBool('hasRegistered', true);
+      await prefs.setString('userInfo', json.encode({
+        'phone': event.phone,
+        'name': event.name,
+        'email': event.email,
+        'token': 'dev_token',
+        'isSubscribed': false,
+      }));
+      await prefs.setString('_token', 'dev_token');
+      await prefs.setBool('isSubscribe', false);
+      emit(AuthAuthenticated("Mobile verification successful!"));
+      return;
+    }
+
     try {
       final response = await http.post(
         Uri.parse(

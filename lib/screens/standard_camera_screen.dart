@@ -851,7 +851,54 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       );
     }
 
+    if (kIsWeb) {
+      // Reactive web preview: ValueListenableBuilder recomputes FittedBox dims
+      // whenever previewSize changes. MediaQuery.of(context) registers a
+      // dependency so it also rebuilds on viewport changes (address bar).
+      //
+      // Landscape stream + portrait screen → swap w↔h so FittedBox uses the
+      // visual portrait dims instead of the raw sensor landscape dims. Without
+      // the swap, FittedBox scales 1.17× and shows only 26% of frame width.
+      return ValueListenableBuilder<CameraValue>(
+        valueListenable: controller,
+        builder: (context, camVal, _) {
+          if (!camVal.isInitialized) return const SizedBox.shrink();
+          final sz = camVal.previewSize;
+          if (sz == null) return const SizedBox.shrink();
+
+          final screen = MediaQuery.of(context).size;
+          final portraitScreen    = screen.height > screen.width;
+          final streamIsLandscape = sz.width > sz.height;
+          final displayW =
+              (portraitScreen && streamIsLandscape) ? sz.height : sz.width;
+          final displayH =
+              (portraitScreen && streamIsLandscape) ? sz.width  : sz.height;
+
+          debugPrint(
+            '[CameraPreview:web] stream=${sz.width.toInt()}x${sz.height.toInt()}'
+            ' display=${displayW.toInt()}x${displayH.toInt()}'
+            ' screen=${screen.width.toInt()}x${screen.height.toInt()}',
+          );
+
+          return ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.center,
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: displayW,
+                  height: displayH,
+                  child: CameraPreview(controller),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     final size = controller.value.previewSize!;
+    // Native: swap w↔h so FittedBox uses portrait aspect ratio
     return ClipRect(
       child: OverflowBox(
         alignment: Alignment.center,

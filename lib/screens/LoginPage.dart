@@ -157,7 +157,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       );
     }
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController(text: '+91');
+  final TextEditingController _phoneController = TextEditingController(text: '+');
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _citySearchController = TextEditingController();
   final List<String> _cities = [
@@ -202,18 +202,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   String _normalizedPhone() {
-    final digits = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length > 10) {
-      return digits.substring(digits.length - 10);
-    }
-    return digits;
+    return _phoneController.text.trim();
   }
 
   void _requestOtpForSignup() {
     final phone = _normalizedPhone();
-    if (phone.length != 10) {
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length < 5) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+        const SnackBar(content: Text('Please enter a valid mobile number')),
       );
       return;
     }

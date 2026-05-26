@@ -1,5 +1,17 @@
 console.log("face_detector.js loaded");
 
+// ── Page-load diagnostics ─────────────────────────────────────────────────────
+(function logPageState() {
+  console.log('[PageDiag]', {
+    ua:        navigator.userAgent,
+    screenWH:  screen.width + '×' + screen.height,
+    innerWH:   window.innerWidth + '×' + window.innerHeight,
+    dpr:       window.devicePixelRatio,
+    isMobile:  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+    isIOS:     /iPhone|iPad|iPod/i.test(navigator.userAgent),
+  });
+})();
+
 let faceMesh = null;
 let cameraStarted = false;
 let animFrameId = null;
@@ -457,6 +469,9 @@ async function processFrame(timestamp) {
     targetVideo = findBestVideoElement(targetVideo);
   }
 
+  // Continuously sync CSS layout — cheap no-op when nothing changed.
+  if (targetVideo) CameraLayoutManager.sync(targetVideo);
+
   if (!targetVideo) {
     consecutiveFaceFrames = 0;
     missedFaceFrames = 0;
@@ -508,7 +523,267 @@ window.stopFaceDetection = function() {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
   }
+  CameraLayoutManager.stop();
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CameraLayoutManager
+//
+// Single source of truth for video element CSS on Flutter Web.
+// Continuously monitors stream dims, viewport dims, and any DOM change that
+// could affect rendering.  Re-applies corrections from scratch on every
+// detected change — no transform accumulation.
+//
+// Responsibilities:
+//   object-fit : cover   (fills Flutter-allocated box without distortion)
+//   transform  : scaleX(-1)  (front-camera selfie mirror)
+//
+// NOT responsible for element width/height — that is Flutter's domain.
+// The Dart ValueListenableBuilder in standard_camera_screen.dart handles
+// FittedBox dimension recalculation whenever previewSize changes.
+// ─────────────────────────────────────────────────────────────────────────────
+var CameraLayoutManager = (function () {
+  var _video       = null;
+  var _lastVW      = 0, _lastVH      = 0;
+  var _lastSW      = 0, _lastSH      = 0;
+  var _resizeObs   = null;
+  var _pollId      = null;
+  var _listening   = false;
+
+  // ── viewport size — prefer visualViewport for address-bar awareness ──────
+  function vpSize() {
+    var vv = window.visualViewport;
+    return {
+      w: vv ? Math.round(vv.width)  : window.innerWidth,
+      h: vv ? Math.round(vv.height) : window.innerHeight,
+    };
+  }
+
+  // ── core: compute state and apply CSS exactly once per change ─────────────
+  function applyLayout(video, force) {
+    if (!video || video.videoWidth === 0 || video.readyState < 2) return;
+
+    var vw = video.videoWidth;
+    var vh = video.videoHeight;
+    var vp = vpSize();
+    var sw = vp.w, sh = vp.h;
+
+    if (!force && vw === _lastVW && vh === _lastVH && sw === _lastSW && sh === _lastSH) return;
+
+    _lastVW = vw; _lastVH = vh; _lastSW = sw; _lastSH = sh;
+
+    var isPortrait       = sh > sw;
+    var streamLandscape  = vw > vh;
+    var rect = video.getBoundingClientRect();
+    var cs   = window.getComputedStyle(video);
+
+    console.log('[CameraLayout]', {
+      stream:      vw + 'x' + vh,
+      viewport:    sw + 'x' + sh,
+      elementRect: Math.round(rect.width) + 'x' + Math.round(rect.height),
+      cssWH:       cs.width + ' / ' + cs.height,
+      objectFit:   cs.objectFit,
+      transform:   cs.transform,
+      portraitScreen:  isPortrait,
+      landscapeStream: streamLandscape,
+      dpr: window.devicePixelRatio,
+      ua:  navigator.userAgent.slice(0, 60),
+    });
+
+    // ── Reset inline props — no accumulation ────────────────────────────────
+    video.style.objectFit      = '';
+    video.style.transform      = '';
+    video.style.transformOrigin = '';
+    // width / height intentionally NOT touched — Flutter controls those.
+
+    // ── Apply: fill box + mirror ─────────────────────────────────────────────
+    // object-fit:cover fills the Flutter-allocated SizedBox without distortion.
+    video.style.objectFit = 'cover';
+
+    // scaleX(-1): selfie mirror for front-facing camera.
+    // CSS rotation is intentionally omitted.  Android Chrome and iOS Safari
+    // both apply rotation metadata internally, so the visual content is already
+    // portrait even when videoWidth > videoHeight.  A CSS rotate() on top
+    // double-rotates the frame sideways — as we verified empirically.
+    // The dimension swap in Dart's FittedBox (landscape → portrait) handles
+    // the sizing without any CSS rotation.
+    video.style.transform = 'scaleX(-1)';
+
+    if (isPortrait && streamLandscape) {
+      console.log('[CameraLayout] landscape stream on portrait screen — ' +
+        'Dart FittedBox swaps dims; CSS rotation NOT applied (browser handles orientation)');
+    }
+  }
+
+  // ── cheap sync called from rAF loop ─────────────────────────────────────
+  function syncIfChanged(video) {
+    if (!video || video.videoWidth === 0) return;
+    var vp = vpSize();
+    if (video.videoWidth  !== _lastVW || video.videoHeight !== _lastVH ||
+        vp.w !== _lastSW  || vp.h     !== _lastSH) {
+      applyLayout(video, false);
+    }
+  }
+
+  // ── attach global event listeners once ──────────────────────────────────
+  function attachListeners() {
+    if (_listening) return;
+    _listening = true;
+
+    // visualViewport: address bar show/hide, pinch-zoom, soft keyboard
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function () { applyLayout(_video, true); });
+      window.visualViewport.addEventListener('scroll', function () { applyLayout(_video, true); });
+    }
+    window.addEventListener('resize', function () { applyLayout(_video, true); });
+
+    // device rotation — wait for browser to report new dims
+    window.addEventListener('orientationchange', function () {
+      setTimeout(function () { applyLayout(_video, true); }, 350);
+    });
+
+    // tab becomes visible again (camera may have been re-init'd)
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') applyLayout(_video, true);
+    });
+
+    // PWA / browser regains focus
+    window.addEventListener('focus', function () { applyLayout(_video, true); });
+
+    // page resume (bfcache restore on mobile)
+    window.addEventListener('pageshow', function () { applyLayout(_video, true); });
+  }
+
+  return {
+    // Call once when the video element is confirmed ready (readyState >= 2).
+    start: function (video) {
+      if (!video) return;
+      _video = video;
+      _lastVW = _lastVH = _lastSW = _lastSH = 0; // force first apply
+
+      attachListeners();
+
+      // ResizeObserver: fires when Flutter reallocates the platform-view box
+      if (window.ResizeObserver) {
+        if (_resizeObs) _resizeObs.disconnect();
+        _resizeObs = new ResizeObserver(function () { applyLayout(_video, true); });
+        _resizeObs.observe(video);
+      }
+
+      // Polling fallback: catches dynamic videoWidth/videoHeight changes that
+      // no DOM event fires for (e.g. browser internally re-negotiates stream).
+      if (_pollId) clearInterval(_pollId);
+      _pollId = setInterval(function () { syncIfChanged(_video); }, 500);
+
+      // ── Stream track diagnostics + resizeMode renegotiation ───────────────
+      // If the browser used crop-and-scale despite our constraints, attempt to
+      // renegotiate the track. This is a second line of defense after the
+      // getUserMedia patch in index.html.
+      try {
+        var stream = video.srcObject;
+        var track  = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+        if (track) {
+          var s = track.getSettings ? track.getSettings() : {};
+          console.log('[CameraLayout] track at start:', {
+            stream:     s.width + 'x' + s.height,
+            resizeMode: s.resizeMode,
+            facingMode: s.facingMode,
+            frameRate:  s.frameRate,
+          });
+
+          // FOV audit: how much of the sensor is visible in the current layout?
+          var vp = vpSize();
+          var streamW = video.videoWidth, streamH = video.videoHeight;
+          var screenW = vp.w, screenH = vp.h;
+          var portraitScreen   = screenH > screenW;
+          var landscapeStream  = streamW > streamH;
+          // Display dims after dim-swap (matches Dart FittedBox logic)
+          var displayW = (portraitScreen && landscapeStream) ? streamH : streamW;
+          var displayH = (portraitScreen && landscapeStream) ? streamW : streamH;
+          // Cover scale: fill screen — larger scale factor = more crop
+          var coverScaleW = screenW / displayW;
+          var coverScaleH = screenH / displayH;
+          var coverScale  = Math.max(coverScaleW, coverScaleH);
+          var visW = Math.round(screenW / coverScale);
+          var visH = Math.round(screenH / coverScale);
+          var fovPct = Math.round((visW * visH) / (displayW * displayH) * 100);
+          console.log('[CameraLayout] FOV audit:', {
+            display:     displayW + 'x' + displayH,
+            screen:      screenW  + 'x' + screenH,
+            coverScale:  coverScale.toFixed(3),
+            visibleArea: visW + 'x' + visH + ' (' + fovPct + '% of stream)',
+          });
+
+          if (s.resizeMode === 'crop-and-scale') {
+            console.warn('[CameraLayout] resizeMode=crop-and-scale on track — ' +
+              'attempting renegotiation to prevent double-crop');
+            track.applyConstraints({ resizeMode: 'none' })
+              .then(function () {
+                console.log('[CameraLayout] renegotiated to resizeMode:none:', track.getSettings());
+                _lastVW = _lastVH = 0;
+                applyLayout(_video, true);
+              })
+              .catch(function (err) {
+                console.warn('[CameraLayout] resizeMode:none rejected:', err.message || err);
+              });
+          }
+
+          // ── Zoom minimization ────────────────────────────────────────────────
+          // Some devices apply digital zoom by default (zoom > 1.0).
+          // Force zoom to its minimum value so the camera uses the widest FOV.
+          try {
+            var caps2 = track.getCapabilities ? track.getCapabilities() : null;
+            if (caps2 && caps2.zoom && typeof caps2.zoom.min === 'number') {
+              var curZoom = (typeof s.zoom === 'number') ? s.zoom : 1;
+              var minZoom = caps2.zoom.min;
+              console.log('[CameraLayout] zoom: current=' + curZoom + ' min=' + minZoom);
+              if (curZoom > minZoom + 0.05) {
+                track.applyConstraints({ zoom: minZoom })
+                  .then(function () {
+                    console.log('[CameraLayout] zoom set to min:', track.getSettings().zoom);
+                    _lastVW = _lastVH = 0;
+                    applyLayout(_video, true);
+                  })
+                  .catch(function (e2) {
+                    console.warn('[CameraLayout] zoom applyConstraints failed:', e2.message || e2);
+                  });
+              }
+            } else {
+              console.log('[CameraLayout] zoom not in capabilities — skipping');
+            }
+          } catch (ze) {
+            console.warn('[CameraLayout] zoom audit error:', ze);
+          }
+        }
+      } catch (e) {
+        console.warn('[CameraLayout] track audit error:', e);
+      }
+
+      applyLayout(video, true);
+    },
+
+    // Call from processFrame rAF loop — no-op when nothing changed.
+    sync: function (video) {
+      if (!video) return;
+      if (video !== _video) {
+        // Video element changed (camera restart / element recycled).
+        if (_resizeObs && _video) _resizeObs.unobserve(_video);
+        _video = video;
+        if (_resizeObs) _resizeObs.observe(video);
+        _lastVW = _lastVH = 0; // force re-apply
+      }
+      syncIfChanged(video);
+    },
+
+    // Call from stopFaceDetection.
+    stop: function () {
+      if (_resizeObs) { _resizeObs.disconnect(); _resizeObs = null; }
+      if (_pollId)    { clearInterval(_pollId);  _pollId    = null; }
+      _video = null;
+      _lastVW = _lastVH = _lastSW = _lastSH = 0;
+    },
+  };
+})();
 
 window.startFaceDetection = function(videoElement) {
   console.log("startFaceDetection called, element:", videoElement?.tagName);
@@ -587,6 +862,7 @@ window.startFaceDetection = function(videoElement) {
     if (targetVideo && targetVideo.readyState >= 2 && targetVideo.videoWidth > 0) {
       console.log("Video ready, starting face detection loop. Size:",
         targetVideo.videoWidth, "x", targetVideo.videoHeight);
+      CameraLayoutManager.start(targetVideo);
       animFrameId = requestAnimationFrame(processFrame);
     } else {
       const rs = targetVideo ? targetVideo.readyState : "none";

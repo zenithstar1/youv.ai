@@ -396,8 +396,8 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
             ],
           ),
         ),
-          ),
-        ),
+          ),      
+         ),
       ),
     );
   }
