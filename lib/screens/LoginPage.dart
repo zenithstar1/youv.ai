@@ -161,8 +161,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _citySearchController = TextEditingController();
   final List<String> _cities = [
-    'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune',
-    'Hyderabad', 'Ahmedabad', 'Jaipur', 'Lucknow'
+    'Seoul', 'Busan', 'Incheon', 'Daegu', 'Daejeon', 'Gwangju', 'Ulsan',
+    'Suwon', 'Changwon', 'Goyang', 'Yongin', 'Seongnam', 'Bucheon', 'Ansan',
+    'Cheongju', 'Jeonju', 'Cheonan', 'Pohang', 'Jeju City', 'Gimhae',
+    'Hwaseong', 'Anyang', 'Pyeongtaek', 'Siheung', 'Uijeongbu', 'Paju',
+    'Gumi', 'Wonju', 'Asan', 'Iksan', 'Mokpo', 'Suncheon', 'Gangneung',
+    'Chuncheon', 'Andong', 'Geoje', 'Tongyeong', 'Yeosu', 'Gyeongju',
+    'Namyangju', 'Gwangmyeong', 'Gunpo', 'Osan', 'Yangsan', 'Jecheon',
+    'Nonsan', 'Sacheon', 'Miryang', 'Donghae'
   ];
   String? _selectedCity;
   final bool _showCitySearch = false;

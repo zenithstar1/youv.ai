@@ -250,7 +250,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     // BYPASS: hardcoded OTP for dev/testing
-    if (event.otp == '1234') {
+    if (event.otp == '1234' || event.otp == '123456') {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLogin', true);
       await prefs.setBool('hasRegistered', true);
