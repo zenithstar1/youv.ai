@@ -8,9 +8,9 @@ import 'package:skin_analysis_app/Models/FaceRatioLine.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import '../models/skin_analysis_model.dart';
+import '../services/profile_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'profile_screen.dart';
-import 'dart:convert';
 
 // ─────────────────────────────────────
 //  Design System (from PM's React spec)
@@ -788,6 +788,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   bool _reportSent = false;
   bool _disclaimerExpanded = false;
   String _initials = '';
+  bool _canSendReport = false;
 
   // Facial structure swipe
   late PageController _structurePageController;
@@ -821,19 +822,34 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   }
 
   Future<void> _loadInitials() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('userInfo') ?? '{}';
+    // Apply cached profile immediately — zero network cost, prevents flicker.
+    _applyProfileSnapshot(await ProfileService.getCachedProfile());
+
+    // Fetch fresh profile from /user/profile (single source of truth for
+    // can_send_report). ProfileService writes the result back to cache so
+    // every subsequent read is always up-to-date.
     try {
-      final info = json.decode(raw) as Map<String, dynamic>;
-      final name = (info['name'] ?? '').toString().trim();
-      if (name.isNotEmpty && mounted) {
+      _applyProfileSnapshot(await ProfileService.getProfile());
+    } on ProfileException catch (_) {
+      // Session expired — cached value (applied above) remains.
+    } catch (_) {
+      // Network error — cached value remains.
+    }
+  }
+
+  void _applyProfileSnapshot(Map<String, dynamic>? info) {
+    if (info == null || !mounted) return;
+    final name = (info['name'] ?? '').toString().trim();
+    final canSendReport = (info['can_send_report'] as bool?) ?? false;
+    setState(() {
+      _canSendReport = canSendReport;
+      if (name.isNotEmpty) {
         final parts = name.split(RegExp(r'\s+'));
-        final initials = parts.length >= 2
+        _initials = parts.length >= 2
             ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
             : parts[0][0].toUpperCase();
-        setState(() => _initials = initials);
       }
-    } catch (_) {}
+    });
   }
 
   @override
@@ -1281,9 +1297,11 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             SliverToBoxAdapter(
               child: _FadeSlideIn(child: _buildStructuralBreakdown()),
             ),
-            // STAGE 7: Report CTA
-            // const SliverToBoxAdapter(child: _SectionRule()),
-            // SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
+            // STAGE 7: Report CTA (visibility driven by backend can_send_report flag)
+            if (_canSendReport) ...[
+              const SliverToBoxAdapter(child: _SectionRule()),
+              SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
+            ],
             // Disclaimer
             SliverToBoxAdapter(child: _buildDisclaimer()),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -2939,7 +2957,6 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   // ═══════════════════════════════════════════
   //  STAGE 7: REPORT CTA
   // ═══════════════════════════════════════════
-  /*
   Widget _buildReportCTA() {
     final r = Responsive(context);
     return Padding(
@@ -3106,7 +3123,6 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
       ),
     );
   }
-  */
 
   // ═══════════════════════════════════════════
   //  DISCLAIMER

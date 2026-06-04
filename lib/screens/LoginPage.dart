@@ -7,8 +7,6 @@ import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -170,52 +168,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   
   Color? get headlineText => null;
 
-List<dynamic> _clinicLocations = [];
-
-
-
-bool _loadingClinics = false;
-String? _selectedClinic;
-int? _selectedClinicId;
-
-Future<void> fetchClinicLocations() async {
-  try {
-    setState(() {
-      _loadingClinics = true;
-    });
-
-    final response = await http.get(
-      Uri.parse(
-        'https://akumentis.youv.ai/dashboard/api/clinic-locations',
-      ),
-    );
-
-    print("Clinic API Response: ${response.body}");
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final locations = data['data'] ?? [];
-
-      setState(() {
-        _clinicLocations = locations;
-        if (locations.length == 1) {
-          _selectedClinic = locations[0]['name'].toString();
-          _selectedClinicId = locations[0]['id'];
-        }
-      });
-    }
-  } catch (e) {
-    print("Clinic Fetch Error: $e");
-  } finally {
-    setState(() {
-      _loadingClinics = false;
-    });
-  }
-}
   @override
   void initState() {
     super.initState();
-    fetchClinicLocations();
     _authBloc = AuthBloc();
     _animController = AnimationController(
       vsync: this,
@@ -302,7 +257,7 @@ Future<void> fetchClinicLocations() async {
                   child: OTPVerificationScreen(
                     phone: _normalizedPhone(),
                     name: _nameController.text.trim(),
-                    clinicId: _selectedClinicId,
+                    clinicId: null,
                   ),
                 ),
               ),
@@ -507,101 +462,18 @@ Container(
       ),
     ],
   ),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  child: Row(
     children: [
-
+      const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+      const SizedBox(width: 6),
       Text(
-        'Location',
-      ),
-
-      SizedBox(height: labelInputGap),
-
-DropdownButtonFormField<String>(
-  value: _selectedClinic,
-
-  isExpanded: true,
-  itemHeight: null,
-
-selectedItemBuilder: (context) {
-  return _clinicLocations.map<Widget>((clinic) {
-
-    return Align(
-      alignment: Alignment.centerLeft,
-
-      child: Text(
-        "${clinic['name']} • ${clinic['city']}",
-        
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-
-        style: const TextStyle(
-          fontSize: 14,
+        'India',
+        style: TextStyle(
+          fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
+          color: Colors.black87,
           fontWeight: FontWeight.w500,
         ),
       ),
-    );
-  }).toList();
-},
-
-  items: _clinicLocations
-      .map<DropdownMenuItem<String>>((clinic) {
-
-    return DropdownMenuItem<String>(
-      value: clinic['name'].toString(),
-
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-
-          children: [
-
-            Text(
-              clinic['name'] ?? '',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-
-            const SizedBox(height: 2),
-
-            Text(
-              "${clinic['city']} • ${clinic['state']}",
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }).toList(),
-
- onChanged: (value) {
-
-  final selectedClinic = _clinicLocations.firstWhere(
-    (clinic) => clinic['name'] == value,
-  );
-
-  setState(() {
-    _selectedClinic = value;
-    _selectedClinicId = selectedClinic['id'];
-  });
-},
-
-  decoration: InputDecoration(
-    hintText: 'Select location',
-
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-    ),
-  ),
-),
     ],
   ),
 ),         SizedBox(height: consentSpacing),
@@ -687,7 +559,6 @@ selectedItemBuilder: (context) {
 final allFilled =
     _nameController.text.trim().isNotEmpty &&
     _phoneController.text.trim().isNotEmpty &&
-    _selectedClinicId != null &&
     _consent;
                                   final anyFilled = _nameController.text.trim().isNotEmpty ||
                                       _phoneController.text.trim().isNotEmpty;
