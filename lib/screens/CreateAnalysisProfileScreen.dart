@@ -17,8 +17,24 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
     with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _mobileController = TextEditingController(text: "+91");
-  final _cityController = TextEditingController();
+  String? _selectedCity;
   bool _consent = false;
+
+  static const List<String> _indianCities = [
+    'Agra', 'Ahmedabad', 'Aizawl', 'Ajmer', 'Aligarh', 'Allahabad',
+    'Amravati', 'Amritsar', 'Asansol', 'Aurangabad', 'Bareilly', 'Bengaluru',
+    'Bhopal', 'Bhubaneswar', 'Chandigarh', 'Chennai', 'Coimbatore',
+    'Cuttack', 'Dehradun', 'Delhi', 'Dhanbad', 'Durgapur', 'Faridabad',
+    'Ghaziabad', 'Goa', 'Gorakhpur', 'Gurgaon', 'Guwahati', 'Gwalior',
+    'Howrah', 'Hubli', 'Hyderabad', 'Imphal', 'Indore', 'Itanagar',
+    'Jabalpur', 'Jaipur', 'Jalandhar', 'Jammu', 'Jamshedpur', 'Jodhpur',
+    'Kanpur', 'Kochi', 'Kohima', 'Kolkata', 'Kota', 'Kozhikode', 'Lucknow',
+    'Ludhiana', 'Madurai', 'Mangaluru', 'Meerut', 'Mumbai', 'Mysuru',
+    'Nagpur', 'Nashik', 'Navi Mumbai', 'Noida', 'Patna', 'Pune', 'Raipur',
+    'Rajkot', 'Ranchi', 'Srinagar', 'Surat', 'Thane', 'Thiruvananthapuram',
+    'Tiruchirappalli', 'Udaipur', 'Vadodara', 'Varanasi', 'Vijayawada',
+    'Visakhapatnam', 'Warangal',
+  ];
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -41,7 +57,6 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
     _animController.dispose();
     _nameController.dispose();
     _mobileController.dispose();
-    _cityController.dispose();
     super.dispose();
   }
 
@@ -164,12 +179,13 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
                                 microText: "OTP verification required.",
                               ),
                               SizedBox(height: fieldSpacing),
-                              AdaptiveInputField(
+                              AdaptiveDropdownField(
                                 label: "City",
-                                controller: _cityController,
-                                keyboardType: TextInputType.text,
+                                value: _selectedCity,
+                                items: _indianCities,
                                 labelInputGap: labelInputGap,
                                 inputHeight: inputHeight,
+                                onChanged: (v) => setState(() => _selectedCity = v),
                               ),
                               SizedBox(height: consentSpacing),
                               Row(
@@ -278,6 +294,76 @@ class _CreateAnalysisProfileScreenState extends State<CreateAnalysisProfileScree
           ),
         ),
       );
+  }
+}
+
+class AdaptiveDropdownField extends StatelessWidget {
+  final String label;
+  final String? value;
+  final List<String> items;
+  final double labelInputGap;
+  final double inputHeight;
+  final ValueChanged<String?> onChanged;
+
+  const AdaptiveDropdownField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.labelInputGap,
+    required this.inputHeight,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final W = MediaQuery.of(context).size.width;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: W * 0.032,
+            color: kGrey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: labelInputGap),
+        SizedBox(
+          height: inputHeight + 2,
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            underline: const SizedBox.shrink(),
+            hint: Text(
+              'Select city',
+              style: TextStyle(
+                fontSize: W * 0.040,
+                color: kGrey,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            style: TextStyle(
+              fontSize: W * 0.040,
+              color: Colors.black87,
+              fontWeight: FontWeight.w400,
+            ),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: kGrey, size: 20),
+            dropdownColor: kCardCream,
+            borderRadius: BorderRadius.circular(12),
+            items: items
+                .map((city) => DropdownMenuItem(value: city, child: Text(city)))
+                .toList(),
+            onChanged: onChanged,
+          ),
+        ),
+        Container(
+          height: 1,
+          color: kGrey.withValues(alpha: 0.4),
+        ),
+      ],
+    );
   }
 }
 

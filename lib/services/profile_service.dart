@@ -58,6 +58,12 @@ class ProfileService {
   /// Returns the locally cached profile without hitting the network.
   static Future<Map<String, dynamic>?> getCachedProfile() => _readCache();
 
+  /// Returns the cached [can_send_report] flag. Defaults to false.
+  static Future<bool> getCanSendReport() async {
+    final cached = await _readCache();
+    return (cached?['can_send_report'] as bool?) ?? false;
+  }
+
   /// Uploads a new avatar image. Returns the updated [avatar_url] or null.
   static Future<String?> uploadAvatar(XFile xFile) async {
     final token = await _getToken();
