@@ -5,6 +5,7 @@ import 'package:http_parser/http_parser.dart' as http_parser;
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/skin_analysis_model.dart';
+import '../services/auth_service.dart';
 
 class SkinAnalyzeResponse {
   final SkinAnalysisModel analysis;
@@ -43,21 +44,9 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  Future<String> _getBearerToken() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final direct = prefs.getString('_token') ?? '';
-    if (direct.trim().isNotEmpty) return direct.trim();
-
-    final userInfoStr = prefs.getString('userInfo') ?? '{}';
-    try {
-      final userInfo = json.decode(userInfoStr);
-      final token = (userInfo is Map) ? (userInfo['token']?.toString() ?? '') : '';
-      return token.trim();
-    } catch (_) {
-      return '';
-    }
-  }
+Future<String> _getBearerToken() async {
+  return await AuthService.getAccessToken();
+}
 
   /// Analyzes skin from uploaded image bytes (for web)
   /// Retries up to 3 times on failure
@@ -80,7 +69,6 @@ class ApiService {
 
     while (attemptCount < maxRetries) {
       attemptCount++;
-      print('Attempt $attemptCount of $maxRetries.. .');
 
       try {
         var request = http.MultipartRequest(
@@ -107,12 +95,6 @@ class ApiService {
           'Accept': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         });
-        print('Auth header attached to analyze request: ${token.isNotEmpty}');
-
-        print('Sending request to: $skinAnalyzeEndpoint');
-        print('Multipart field: $currentFieldName');
-        print('File name: $effectiveFileName');
-        print('File size: ${uploadBytes.length} bytes');
 
         var streamedResponse = await request.send().timeout(
           requestTimeout,
@@ -122,12 +104,6 @@ class ApiService {
         );
 
         var response = await http.Response.fromStream(streamedResponse);
-
-        print('Response status: ${response.statusCode}');
-        final responsePreview = response.body.length > 500
-            ? '${response.body.substring(0, 500)}...'
-            : response.body;
-        print('Response body: $responsePreview');
 
         if (response.statusCode == 200) {
           final jsonData = json.decode(response.body) as Map<String, dynamic>;
@@ -170,9 +146,7 @@ class ApiService {
                     symmetryData['image_base64'] = extracted;
                   }
                 }
-              } catch (e) {
-                print('⚠️ Failed to fetch symmetry image_blob_url: $e');
-              }
+              } catch (_) {}
             }
           }
 
@@ -183,10 +157,8 @@ class ApiService {
           if (model.analysisId != null && model.analysisId!.isNotEmpty) {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('analysis_id', model.analysisId!);
-            print('✅ Stored analysis_id from model: ${model.analysisId}');
           }
 
-          print('✅ Success on attempt $attemptCount');
           return SkinAnalyzeResponse(
             analysis: model,
             rawJson: jsonData,
@@ -210,17 +182,10 @@ class ApiService {
             lastException = Exception(
               'Server upload failed (payload adjusted)',
             );
-            print(
-              '⚠️ Upload failed on server, retrying with smaller image (${uploadBytes.length} bytes)',
-            );
           } else {
             nextRetryDelay = retryDelay;
             lastException = Exception('Server error (${response.statusCode})');
           }
-
-          print(
-            '⚠️ Server error on attempt $attemptCount:  ${response.statusCode}',
-          );
         } else {
           // Client error - don't retry
           throw Exception(
@@ -228,8 +193,6 @@ class ApiService {
           );
         }
       } catch (e) {
-        print('❌ Error on attempt $attemptCount: $e');
-
         if (e.toString().contains('SocketException')) {
           nextRetryDelay = const Duration(milliseconds: 800);
           lastException = Exception('No internet connection');
@@ -248,15 +211,11 @@ class ApiService {
 
       // Wait before retrying (except on last attempt)
       if (attemptCount < maxRetries) {
-        print(
-          '⏳ Waiting ${(nextRetryDelay.inMilliseconds / 1000).toStringAsFixed(1)} seconds before retry...',
-        );
         await Future.delayed(nextRetryDelay);
       }
     }
 
     // All attempts failed
-    print('❌ All $maxRetries attempts failed');
     throw Exception(
       'Server is busy. Please try again later.\n\n'
       'We attempted $maxRetries times but couldn\'t process your request.\n'
@@ -359,7 +318,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
       final userInfo = json.decode(userInfoStr);
-      final token = userInfo['token'] ?? '';
+      final token = await AuthService.getAccessToken();
 
       if (token.isEmpty) {
         throw Exception('User not authenticated');
@@ -384,7 +343,6 @@ class ApiService {
         throw Exception('Failed to get PDF URL: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error getting PDF URL: $e');
       return {'success': false, 'message': 'Error getting PDF:  $e'};
     }
   }
@@ -395,7 +353,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
       final userInfo = json.decode(userInfoStr);
-      final token = userInfo['token'] ?? '';
+      final token = await AuthService.getAccessToken();
 
       if (token.isEmpty) {
         throw Exception('User not authenticated');
@@ -412,7 +370,6 @@ class ApiService {
         throw Exception('Failed to download PDF: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error downloading PDF: $e');
       return null;
     }
   }
@@ -424,7 +381,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
       final userInfo = json.decode(userInfoStr);
-      final token = userInfo['token'] ?? '';
+      final token = await AuthService.getAccessToken();
 
       if (token.isEmpty) {
         throw Exception('User not authenticated');
@@ -458,9 +415,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
       final userInfo = json.decode(userInfoStr);
-      final token = userInfo['token'] ?? '';
-
-      print('Generating PDF for analysis_id: $analysisId');
+      final token = await AuthService.getAccessToken();
 
       final response = await http.post(
         Uri.parse('$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId'),
@@ -470,9 +425,6 @@ class ApiService {
           'Accept': 'application/json',
         },
       );
-
-      print('Generate PDF response status: ${response.statusCode}');
-      print('Generate PDF response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -491,7 +443,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error generating PDF: $e');
       return {'success': false, 'message': 'Error generating PDF: $e'};
     }
   }
@@ -505,20 +456,15 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       final userInfoStr = prefs.getString('userInfo') ?? '{}';
       final userInfo = json.decode(userInfoStr);
-      final token = userInfo['token'] ?? '';
+      final token = await AuthService.getAccessToken();
 
       final userName = userInfo['user']?['name'] ?? userInfo['name'] ?? 'User';
       final userPhone = userInfo['user']?['phone'] ?? userInfo['phone'] ?? '';
       final userEmail = userInfo['user']?['email'] ?? userInfo['email'] ?? '';
 
-      print('DEBUG userInfo: $userInfoStr');
-      print('DEBUG phone=$userPhone, name=$userName, email=$userEmail');
-      print('Starting report send process for analysis_id: $analysisId');
-
       // Step 1: Generate PDF (no auth required)
       final pdfGenUrl =
           '$liveReportBaseUrl/generate-pdf-from-analysis/$analysisId';
-      print('Generate PDF URL: $pdfGenUrl');
 
       final pdfResponse = await http.post(
         Uri.parse(pdfGenUrl),
@@ -528,9 +474,6 @@ class ApiService {
           'Accept': 'application/json',
         },
       );
-
-      print('Generate PDF response status: ${pdfResponse.statusCode}');
-      print('Generate PDF response body: ${pdfResponse.body}');
 
        if (pdfResponse.statusCode != 200) {
         throw Exception('Failed to generate PDF: ${pdfResponse.statusCode}');
@@ -543,8 +486,6 @@ class ApiService {
         throw Exception('PDF URL not returned from server');
       }
 
-      print('✅ PDF generated: $pdfUrl');
-
       bool whatsappSent = false;
       bool emailSent = false;
       String message = '';
@@ -555,7 +496,6 @@ class ApiService {
           final whatsappUrl =
               //'http://127.0.0.1:8000/api/send-template-report';
               'https://akumentis.youv.ai/dashboard/api/send-template-report';
-          print('WhatsApp send URL: $whatsappUrl');
 
           final waPayload = {
             'to': userPhone,
@@ -563,7 +503,6 @@ class ApiService {
             'value1': userName,
             'value2': 'YouV.ai Team',
           };
-          print('DEBUG WhatsApp payload: ${jsonEncode(waPayload)}');
 
           final waResponse = await http.post(
             Uri.parse(whatsappUrl),
@@ -575,18 +514,10 @@ class ApiService {
             body: jsonEncode(waPayload),
           );
 
-          print('WhatsApp response status: ${waResponse.statusCode}');
-          print('WhatsApp response body: ${waResponse.body}');
-
           if (waResponse.statusCode == 200) {
             whatsappSent = true;
-            print('✅ WhatsApp sent successfully');
           }
-        } catch (e) {
-          print('WhatsApp send error: $e');
-        }
-      } else {
-        print('⚠️ No phone number found, skipping WhatsApp');
+        } catch (_) {}
       }
 
       // Step 3: Send email via send-both (best-effort, may fail if auth expired)
@@ -606,13 +537,8 @@ class ApiService {
           if (emailResponse.statusCode == 200) {
             final emailData = json.decode(emailResponse.body);
             emailSent = emailData['results']?['email']?['sent'] ?? false;
-            print('✅ Email sent: $emailSent');
-          } else {
-            print('Email send returned ${emailResponse.statusCode} — skipping');
           }
-        } catch (e) {
-          print('Email send error (non-critical): $e');
-        }
+        } catch (_) {}
       }
 
       if (whatsappSent || emailSent) {
@@ -636,7 +562,6 @@ class ApiService {
         'data': {'pdf_url': pdfUrl},
       };
     } catch (e) {
-      print('❌ Error in sendDetailedReport: $e');
       return {'success': false, 'message': 'Error sending report: $e'};
     }
   }

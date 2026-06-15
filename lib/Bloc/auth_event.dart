@@ -16,6 +16,9 @@ class RegisterRequested extends AuthEvent {
   final String? phone;
   final int? clinicId;
   final String? otp;
+  final String scannerUrl;
+  final String latitude;
+  final String longitude;
 
   RegisterRequested(
       {required this.name,
@@ -25,7 +28,10 @@ class RegisterRequested extends AuthEvent {
       this.gender,
       required this.phone,
       this.clinicId,
-      this.otp});
+      this.otp,
+      this.scannerUrl = '',
+      this.latitude = '',
+      this.longitude = ''});
 }
 
 class GoogleLoginRequested extends AuthEvent {
@@ -60,8 +66,10 @@ class VerifyLoginMobile extends AuthEvent {
   final String password;
   final String? city;
   final int? clinicId;
-
   final String otp;
+  final String scannerUrl;
+  final String latitude;
+  final String longitude;
 
   VerifyLoginMobile(
       {required this.phone,
@@ -70,7 +78,10 @@ class VerifyLoginMobile extends AuthEvent {
       required this.password,
       required this.otp,
       this.city,
-      this.clinicId,});
+      this.clinicId,
+      this.scannerUrl = '',
+      this.latitude = '',
+      this.longitude = ''});
 }
 class LogoutRequested extends AuthEvent {}
 

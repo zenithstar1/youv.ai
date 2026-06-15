@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:skin_analysis_app/utils/location_utils.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
@@ -57,7 +59,7 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  void _onVerify(BuildContext context) {
+  Future<void> _onVerify(BuildContext context) async {
     if (expired) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -89,12 +91,19 @@ class _OtpScreenState extends State<OtpScreen> {
         ? rawPhone.substring(rawPhone.length - 10)
         : rawPhone;
 
+    final (lat, lng) = widget.flow == 'login'
+        ? ('', '')
+        : await fetchLocationCoords();
+    if (!context.mounted) return;
     _authBloc.add(VerifyLoginMobile(
       phone: phone,
       otp: otp.join(),
       name: widget.name,
       email: '',
       password: '',
+      scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      latitude: lat,
+      longitude: lng,
     ));
   }
 

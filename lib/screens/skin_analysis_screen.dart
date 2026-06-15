@@ -323,9 +323,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           'Authorization': 'Bearer $token',
         },
       );
-    } catch (e) {
-      print("Error storing payment data: $e");
-    }
+    } catch (_) {}
 
     setState(() {
       _hasPaid = true;
@@ -368,9 +366,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           'Authorization': 'Bearer $token',
         },
       );
-    } catch (e) {
-      print("Error storing payment data: $e");
-    }
+    } catch (_) {}
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Payment failed or cancelled.  Please try again."),
@@ -864,28 +860,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         (wrinklesDetailScore * wrinklesWeight) +
         (agingScore * agingWeight);
 
-    debugPrint('=== Skin Health Score ===');
-    debugPrint(
-      'Acne:  ${acneDetailScore.toStringAsFixed(2)} × 25% = ${(acneDetailScore * acneWeight).toStringAsFixed(2)}',
-    );
-    debugPrint(
-      'Hydration: ${hydrationDetailScore.toStringAsFixed(2)} × 20% = ${(hydrationDetailScore * hydrationWeight).toStringAsFixed(2)}',
-    );
-    debugPrint(
-      'Pigmentation: ${pigmentationDetailScore.toStringAsFixed(2)} × 20% = ${(pigmentationDetailScore * pigmentationWeight).toStringAsFixed(2)}',
-    );
-    debugPrint(
-      'Pores: ${poresDetailScore.toStringAsFixed(2)} × 15% = ${(poresDetailScore * poresWeight).toStringAsFixed(2)}',
-    );
-    debugPrint(
-      'Wrinkles: ${wrinklesDetailScore.toStringAsFixed(2)} × 15% = ${(wrinklesDetailScore * wrinklesWeight).toStringAsFixed(2)}',
-    );
-    debugPrint(
-      'Aging:  ${agingScore.toStringAsFixed(2)} × 5% = ${(agingScore * agingWeight).toStringAsFixed(2)}',
-    );
-    debugPrint('Final Skin Health Score: ${totalScore.toStringAsFixed(2)}%');
-    debugPrint('========================================');
-
     return totalScore.clamp(0.0, 100.0);
   }
 
@@ -1153,16 +1127,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 
     if (widget.faceRatioJson != null) {
       try {
-        debugPrint('Attempting to parse faceRatioJson...');
         faceData = FaceRatioData.fromMap(widget.faceRatioJson!);
         hasValidData = true;
-        debugPrint('Successfully parsed faceRatioJson');
-      } catch (e) {
-        debugPrint('Error parsing face ratio data: $e');
-        debugPrint('Stack trace: ${StackTrace.current}');
-      }
-    } else {
-      debugPrint('widget.faceRatioJson is NULL');
+      } catch (_) {}
     }
 
     final symmetryPercentage = symmetryScore * 10.0;

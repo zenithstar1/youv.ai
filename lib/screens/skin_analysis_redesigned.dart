@@ -1297,11 +1297,9 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             SliverToBoxAdapter(
               child: _FadeSlideIn(child: _buildStructuralBreakdown()),
             ),
-            // STAGE 7: Report CTA (visibility driven by backend can_send_report flag)
-            if (_canSendReport) ...[
-              const SliverToBoxAdapter(child: _SectionRule()),
-              SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
-            ],
+            // STAGE 7: Report CTA
+            const SliverToBoxAdapter(child: _SectionRule()),
+            SliverToBoxAdapter(child: _FadeSlideIn(child: _buildReportCTA())),
             // Disclaimer
             SliverToBoxAdapter(child: _buildDisclaimer()),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),

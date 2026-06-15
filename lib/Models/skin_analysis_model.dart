@@ -43,8 +43,6 @@ class SkinAnalysisModel {
     final rawFactors = analysis['raw_factors'] ?? analysis['raw_data'] ?? {};
     final ageAnalysis = analysis['age_analysis'] ?? {};
 
-    print('Parsing analysis_id: $analysisId'); // Debug log
-
     return SkinAnalysisModel(
       acneScore: (scores['acne'] as num?)?.toDouble() ?? 0.0,
       hydrationScore: (scores['hydration'] as num?)?.toDouble() ?? 0.0,

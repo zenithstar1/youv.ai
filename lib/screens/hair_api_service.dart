@@ -27,8 +27,6 @@ class HairApiService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode != 200) {
-         print('❌ Hair API status: ${response.statusCode}');
-  print('❌ Hair API response body: ${response.body}');
   throw Exception('Hair API failed: ${response.statusCode}');
       }
 

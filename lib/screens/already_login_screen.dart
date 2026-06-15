@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
@@ -95,7 +96,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
   }
 
   /// verify OTP
-  void _verifyOtp() async {
+  void _verifyOtp() {
     final phone = _normalizedPhone();
     if (_otpController.text.trim().isEmpty) {
       setState(() => _error = 'Please enter OTP');
@@ -109,6 +110,9 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
         email: '',
         password: '',
         otp: _otpController.text.trim(),
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+        latitude: '',
+        longitude: '',
       ),
     );
   }

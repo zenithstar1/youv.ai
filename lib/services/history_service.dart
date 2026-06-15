@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
+import 'package:skin_analysis_app/services/auth_service.dart';
 
 /// Wraps the paginated response from GET /analysis-history.
 class HistoryResult {
@@ -31,8 +31,7 @@ class HistoryService {
   static const Duration _timeout = Duration(seconds: 15);
 
   static Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('_token');
+    return AuthService.getAccessToken();
   }
 
   /// Fetches a page of analysis history for the logged-in user.

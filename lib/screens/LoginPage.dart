@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:skin_analysis_app/utils/location_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -1007,7 +1009,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     });
   }
 
-  void _verifyOtp() {
+  Future<void> _verifyOtp() async {
     final otp = _otpControllers.map((c) => c.text).join();
     if (otp.length != 6) {
       setState(() => _error = 'Please enter the 6-digit OTP');
@@ -1015,6 +1017,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     }
 
     setState(() { _loading = true; });
+    final (lat, lng) = await fetchLocationCoords();
+    if (!mounted) return;
     context.read<AuthBloc>().add(
       RegisterRequested(
         name: widget.name,
@@ -1022,6 +1026,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         password: widget.phone,
         otp: otp,
         clinicId: widget.clinicId,
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+        latitude: lat,
+        longitude: lng,
       ),
     );
   }

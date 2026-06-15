@@ -34,6 +34,7 @@ dependencies:
 
   # ---------- LOCAL STORAGE ----------
   shared_preferences: ^2.5.4
+  flutter_secure_storage: ^9.2.4
 
   # ---------- UI ----------
   pinput: ^6.0.1
@@ -53,6 +54,9 @@ dependencies:
 
   change_app_package_name: ^1.5.0
 
+  # ---------- LOCATION ----------
+  geolocator: ^12.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -68,7 +72,3 @@ flutter:
     - assets/images/
     - assets/videos/intro.mp4
     - assets/videos/intro1.mp4
-
-
-# location calculator 
-geolocator: ^12.0.0
