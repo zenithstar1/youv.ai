@@ -11,9 +11,7 @@ import 'dart:convert';
 // Local (Android emulator)  → 'http://10.0.2.2:8000/api/auth'
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
 // Production                → 'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth'
-const String _authBaseUrl =
-    'https://narayana.youv.ai/dashboard/api/auth';
-  //'http://127.0.0.1:8000/api/auth';
+const String _authBaseUrl = ApiService.authBaseUrl;
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
@@ -95,10 +93,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'gender': event.gender ?? '',
           'phone': event.phone ?? '',
           if (event.otp != null) 'otp': event.otp!,
-          if (event.clinicId != null) 'clinic_id': event.clinicId!.toString(),
+          'clinic_id': '',
           'scanner_url': event.scannerUrl,
-          'latitude': event.latitude,
-          'longitude': event.longitude,
+          'latitude': '',
+          'longitude': '',
         },
       ).timeout(Duration(seconds: 10));
 
@@ -249,11 +247,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'mobile': event.phone,
           if (event.name.isNotEmpty) 'name': event.name,
           if (event.email.isNotEmpty) 'email': event.email,
-          if (event.city != null) 'city': event.city!,
-          if (event.clinicId != null) 'clinic_id': event.clinicId!.toString(),
+          'city': '',
+          'clinic_id': '',
           'scanner_url': event.scannerUrl,
-          'latitude': event.latitude,
-          'longitude': event.longitude,
+          'latitude': '',
+          'longitude': '',
         },
       ).timeout(Duration(seconds: 10));
 

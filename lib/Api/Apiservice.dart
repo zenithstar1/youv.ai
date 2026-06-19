@@ -21,11 +21,12 @@ class SkinAnalyzeResponse {
 
 class ApiService {
   // Use live backend endpoints.
-  static const String baseUrl = 'https://narayana.youv.ai/dashboard/api';
+  static const String baseUrl = 'https://akumentis.youv.ai/dashboard/api';
   static const String localBaseUrl = baseUrl;
-  static const String liveReportBaseUrl = 'https://narayana.youv.ai/dashboard/api';
+  static const String liveReportBaseUrl = 'https://akumentis.youv.ai/dashboard/api';
+  static const String authBaseUrl = '$baseUrl/auth';
   static const String skinAnalyzeEndpoint =
-      'https://narayana.youv.ai/dashboard/api/secondary-analyze-skin';
+      'https://akumentis.youv.ai/dashboard/api/secondary-analyze-skin';
 
   // Named aliases used by services that import this class.
   static const String dashboardBaseUrl = baseUrl;
@@ -495,7 +496,7 @@ Future<String> _getBearerToken() async {
         try {
           final whatsappUrl =
               //'http://127.0.0.1:8000/api/send-template-report';
-              'https://narayana.youv.ai/dashboard/api/send-template-report';
+              'https://akumentis.youv.ai/dashboard/api/send-template-report';
 
           final waPayload = {
             'to': userPhone,

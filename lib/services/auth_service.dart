@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_analysis_app/Api/Apiservice.dart';
 
 class AuthService {
   AuthService._();
 
-  static const String authBaseUrl =
-      'https://akumentis.youv.ai/dashboard/api/auth';
+  static const String authBaseUrl = ApiService.authBaseUrl;
 
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
