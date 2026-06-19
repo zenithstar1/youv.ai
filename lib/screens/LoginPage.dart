@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:skin_analysis_app/utils/location_utils.dart';
+import 'package:skin_analysis_app/services/clinic_location_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -161,6 +161,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final TextEditingController _phoneController = TextEditingController(text: '+91');
   bool _consent = false;
   bool _isSendingOtp = false;
+  List<ClinicLocation> _clinics = [];
+  ClinicLocation? _selectedClinic;
+  String? _portalLabel;
+  bool _isLoadingLocation = true;
+  int? _clinicId;
   late final AuthBloc _authBloc;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -182,6 +187,135 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    final scannerUrl = kIsWeb ? Uri.base.toString() : '';
+    final result = await ClinicLocationService.fetch(scannerUrl: scannerUrl);
+    if (!mounted) return;
+    setState(() {
+      _clinics = result?.clinics ?? [];
+      _portalLabel = result?.portalLabel;
+      _selectedClinic = result?.matchedClinic ??
+          (_clinics.length == 1 ? _clinics.first : null);
+      _clinicId = _selectedClinic?.id ?? result?.clinicId;
+      _isLoadingLocation = false;
+    });
+  }
+
+  Widget _buildClinicLocationField(double compactScale, double fieldSpacing) {
+    final labelStyle = TextStyle(
+      fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(),
+      color: Colors.black87,
+      fontWeight: FontWeight.w500,
+    );
+    final valueStyle = TextStyle(
+      fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
+      color: Colors.black87,
+      fontWeight: FontWeight.w500,
+    );
+
+    return Container(
+      margin: EdgeInsets.only(bottom: fieldSpacing),
+      padding: EdgeInsets.all(8 * compactScale),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Clinic Location', style: labelStyle),
+          SizedBox(height: (6 * compactScale).clamp(4.0, 8.0).toDouble()),
+          if (_isLoadingLocation)
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: (14 * compactScale).clamp(12.0, 16.0).toDouble(),
+                  height: (14 * compactScale).clamp(12.0, 16.0).toDouble(),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFFE8B4BA),
+                  ),
+                ),
+              ],
+            )
+          else if (_clinics.isNotEmpty)
+            DropdownButtonFormField<int>(
+              value: _selectedClinic?.id,
+              isExpanded: true,
+              decoration: InputDecoration(
+                hintText: 'Select clinic',
+                isDense: true,
+                prefixIcon: const Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE8B4BA), width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              style: valueStyle,
+              items: _clinics
+                  .map(
+                    (clinic) => DropdownMenuItem<int>(
+                      value: clinic.id,
+                      child: Text(clinic.label),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (clinicId) {
+                if (clinicId == null) return;
+                setState(() {
+                  _selectedClinic = _clinics.firstWhere(
+                    (clinic) => clinic.id == clinicId,
+                  );
+                  _clinicId = clinicId;
+                });
+              },
+            )
+          else
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _portalLabel ?? '—',
+                    style: valueStyle,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -206,6 +340,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+      );
+      return;
+    }
+
+    if (_clinics.isNotEmpty && _selectedClinic == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a clinic')),
       );
       return;
     }
@@ -259,7 +400,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   child: OTPVerificationScreen(
                     phone: _normalizedPhone(),
                     name: _nameController.text.trim(),
-                    clinicId: null,
+                    clinicId: _clinicId,
                   ),
                 ),
               ),
@@ -450,35 +591,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ],
                                 ),
                               ),
-Container(
-  margin: EdgeInsets.only(bottom: fieldSpacing),
-  padding: EdgeInsets.all(8 * compactScale),
-  decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(14),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black12,
-        blurRadius: 4,
-        offset: const Offset(0, 1),
-      ),
-    ],
-  ),
-  child: Row(
-    children: [
-      const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-      const SizedBox(width: 6),
-      Text(
-        'India',
-        style: TextStyle(
-          fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
-          color: Colors.black87,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ],
-  ),
-),         SizedBox(height: consentSpacing),
+                              _buildClinicLocationField(compactScale, fieldSpacing),
+         SizedBox(height: consentSpacing),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -1017,7 +1131,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     }
 
     setState(() { _loading = true; });
-    final (lat, lng) = await fetchLocationCoords();
     if (!mounted) return;
     context.read<AuthBloc>().add(
       RegisterRequested(
@@ -1027,8 +1140,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         otp: otp,
         clinicId: widget.clinicId,
         scannerUrl: kIsWeb ? Uri.base.toString() : '',
-        latitude: lat,
-        longitude: lng,
       ),
     );
   }

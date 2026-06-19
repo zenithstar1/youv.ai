@@ -201,7 +201,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
   }
 
   void _startMessageCycling() {
-    _messageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _messageTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
       if (mounted) {
         setState(() {
           _currentMessageIndex =

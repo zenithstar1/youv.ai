@@ -12,7 +12,7 @@ import 'dart:convert';
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
 // Production                → 'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth'
 const String _authBaseUrl =
-    'https://akumentis.youv.ai/dashboard/api/auth';
+    'https://narayana.youv.ai/dashboard/api/auth';
   //'http://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
