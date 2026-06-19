@@ -40,10 +40,11 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
 
   @override
   void dispose() {
-    _authBloc.close();
     _mobileController.dispose();
     _otpController.dispose();
+    final bloc = _authBloc;
     super.dispose();
+    Future.microtask(bloc.close);
   }
 
   String _normalizedPhone() {

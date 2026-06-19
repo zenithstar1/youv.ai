@@ -138,6 +138,15 @@
     }
   }
 
+  function hideLoadingOverlay() {
+    var loading = document.getElementById('loading');
+    if (loading) {
+      loading.style.display = 'none';
+    }
+  }
+
+  window.addEventListener('flutter-first-frame', hideLoadingOverlay);
+
   async function bootstrapFlutter() {
     await unregisterServiceWorkers();
     await clearFlutterCaches();
@@ -155,6 +164,7 @@
 
     await loadScript('flutter_bootstrap.js?v=' + encodeURIComponent(cacheBust));
 
+    hideLoadingOverlay();
     window.setInterval(checkForUpdates, POLL_INTERVAL_MS);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible') {

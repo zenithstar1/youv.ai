@@ -51,18 +51,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
-        final media = MediaQuery.of(context);
-        final shortestSide = media.size.shortestSide;
+        if (child == null) return const SizedBox.shrink();
+        final shortestSide = MediaQuery.sizeOf(context).shortestSide;
         final maxScale = shortestSide >= 600 ? 1.18 : 1.10;
-
-        return MediaQuery(
-          data: media.copyWith(
-            textScaler: media.textScaler.clamp(
-              minScaleFactor: 0.90,
-              maxScaleFactor: maxScale,
-            ),
-          ),
-          child: child ?? const SizedBox.shrink(),
+        return MediaQuery.withClampedTextScaling(
+          minScaleFactor: 0.90,
+          maxScaleFactor: maxScale,
+          child: child,
         );
       },
       home: const AuthGate(),
@@ -82,6 +77,8 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
+  Widget? _screen;
+
   @override
   void initState() {
     super.initState();
@@ -96,7 +93,6 @@ class _AuthGateState extends State<AuthGate> {
 
     if (!mounted) return;
 
-    // Determine where to land AFTER the intro screen.
     Widget destination;
     if (isLogin && restoredSession) {
       destination = const AnalysisTypeScreen();
@@ -106,25 +102,25 @@ class _AuthGateState extends State<AuthGate> {
       destination = const OnboardingFlow();
     }
 
-    // Always show the intro/splash screen first, then navigate to destination.
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => OnboardingScreen(destination: destination),
-      ),
-    );
+    setState(() {
+      _screen = OnboardingScreen(destination: destination);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFFDEDED),
-      body: Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFD79096),
-          strokeWidth: 2.5,
+    if (_screen == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFDEDED),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFD79096),
+            strokeWidth: 2.5,
+          ),
         ),
-      ),
-    );
+      );
+    }
+    return _screen!;
   }
 }
 
