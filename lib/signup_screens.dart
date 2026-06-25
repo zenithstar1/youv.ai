@@ -10,6 +10,7 @@ import 'terms_and_conditions.dart';
 import 'package:flutter/gestures.dart';
 import 'screens/analysis_type_screen.dart';
 
+
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 

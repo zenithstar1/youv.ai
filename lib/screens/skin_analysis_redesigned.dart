@@ -2955,7 +2955,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
           ),
           SizedBox(height: r.h(8)),
           Text(
-            'Retake your scan .',
+            'Retake your scan.',
             style: TextStyle(
               fontSize: r.sp(13),
               fontWeight: FontWeight.w300,

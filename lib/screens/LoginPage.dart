@@ -10,6 +10,7 @@ import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
+import '../services/app_config_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -171,6 +172,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _isLoadingLocation = true;
   bool _locationLoadFailed = false;
   int? _clinicId;
+
+  // NEW
+  final AppConfigService _configService = AppConfigService();
+  bool _showLocationField = true;
+  bool _configLoaded = false;
+
   late final AuthBloc _authBloc;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -192,7 +199,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
-    _loadLocations();
+    _loadAppConfig();
   }
 
   Future<void> _loadLocations() async {
@@ -228,10 +235,52 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
   }
 
-  bool get _locationReady {
+
+  Future<void> _loadAppConfig() async {
+    try {
+      final config = await _configService.getConfig();
+      if (!mounted) return;
+
+      setState(() {
+        _showLocationField = !config.hideLocation;
+        _configLoaded = true;
+      });
+
+      if (_showLocationField) {
+        await _loadLocations();
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingLocation = false;
+            _locationLoadFailed = false;
+            _clinics = [];
+            _selectedClinic = null;
+            _portalLabel = null;
+            _clinicId = null;
+          });
+        }
+      }
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _showLocationField = true;
+        _configLoaded = true;
+      });
+      await _loadLocations();
+    }
+  }
+
+
+    bool get _locationReady {
+    if (!_showLocationField) {
+        return true;
+    }
     if (_isLoadingLocation) return false;
     if (_locationLoadFailed) return false;
-    if (_clinics.isEmpty) return _clinicId != null || _portalLabel != null;
+    if (_clinics.isEmpty) {
+        return _clinicId != null || _portalLabel != null;
+    }
     return _selectedClinic != null;
   }
 
@@ -401,6 +450,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   void _requestOtpForSignup() {
+    if (!_configLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please wait… loading configuration')),
+      );
+      return;
+    }
     final phone = _normalizedPhone();
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -409,19 +464,27 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       return;
     }
 
-    if (_locationLoadFailed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please load a location before continuing')),
-      );
-      return;
-    }
+  if (_showLocationField) {
 
-    if (_clinics.isNotEmpty && _selectedClinic == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a location')),
-      );
-      return;
-    }
+  if (_locationLoadFailed) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please load a location before continuing'),
+      ),
+    );
+    return;
+  }
+
+  if (_clinics.isNotEmpty && _selectedClinic == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select a location'),
+      ),
+    );
+    return;
+  }
+
+ }
 
     _authBloc.add(
       SendOtpRequested(phone: phone, flow: 'signup'),
@@ -472,7 +535,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   child: OTPVerificationScreen(
                     phone: _normalizedPhone(),
                     name: _nameController.text.trim(),
-                    clinicId: _clinicId,
+                    clinicId: _showLocationField 
+                    ? _clinicId
+                    : null,
                     age: _ageController.text.trim(),
                     height: _heightController.text.trim(),
                     weight: _weightController.text.trim(),
@@ -713,9 +778,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                               isDense: true,
                                               contentPadding:
                                                   EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: (11 * compactScale)
-                                                    .clamp(9.0, 13.0)
+                                                horizontal: 10,
+                                                vertical: (10 * compactScale)
+                                                    .clamp(8.0, 12.0)
                                                     .toDouble(),
                                               ),
                                               border: OutlineInputBorder(
@@ -749,13 +814,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                                   .toDouble(),
                                             ),
                                             decoration: InputDecoration(
-                                              hintText: 'Height (cm)',
+                                              hintText: 'Height',
                                               isDense: true,
+                                              suffixText: 'ft',
                                               contentPadding:
                                                   EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: (11 * compactScale)
-                                                    .clamp(9.0, 13.0)
+                                                horizontal: 10,
+                                                vertical: (10 * compactScale)
+                                                    .clamp(8.0, 12.0)
                                                     .toDouble(),
                                               ),
                                               border: OutlineInputBorder(
@@ -789,13 +855,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                                   .toDouble(),
                                             ),
                                             decoration: InputDecoration(
-                                              hintText: 'Weight (kg)',
+                                              hintText: 'Weight',
                                               isDense: true,
+                                              suffixText: 'kg',
                                               contentPadding:
                                                   EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: (11 * compactScale)
-                                                    .clamp(9.0, 13.0)
+                                                horizontal: 10,
+                                                vertical: (10 * compactScale)
+                                                    .clamp(8.0, 12.0)
                                                     .toDouble(),
                                               ),
                                               border: OutlineInputBorder(
@@ -815,7 +882,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ],
                                 ),
                               ),
-                              _buildClinicLocationField(compactScale, fieldSpacing),
+                              if (_configLoaded && _showLocationField)
+                                _buildClinicLocationField(compactScale, fieldSpacing),
          SizedBox(height: consentSpacing),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -902,6 +970,7 @@ final allFilled =
     _ageController.text.trim().isNotEmpty &&
     _heightController.text.trim().isNotEmpty &&
     _weightController.text.trim().isNotEmpty &&
+    _configLoaded &&
     _locationReady &&
     _consent;
                                   final anyFilled = _nameController.text.trim().isNotEmpty ||
