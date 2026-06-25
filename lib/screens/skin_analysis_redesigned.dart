@@ -10,6 +10,7 @@ import 'package:skin_analysis_app/utils/responsive.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import '../models/skin_analysis_model.dart';
 import '../services/profile_service.dart';
+import '../services/app_config_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'profile_screen.dart';
 import 'standard_camera_screen.dart';
@@ -791,6 +792,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   bool _disclaimerExpanded = false;
   String _initials = '';
   bool _canSendReport = false;
+  final AppConfigService _configService = AppConfigService();
 
   // Facial structure swipe
   late PageController _structurePageController;
@@ -821,15 +823,26 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
         (widget.analysisData?.fitzpatrickType ?? 1).clamp(1, 5) - 1;
     _structurePageController = PageController(viewportFraction: 0.85);
     _loadInitials();
+    _loadReportConfig();
+  }
+
+  Future<void> _loadReportConfig() async {
+    try {
+      final config = await _configService.getConfig();
+      if (!mounted) return;
+      setState(() => _canSendReport = config.canSendReport);
+    } catch (_) {
+      // Config unavailable — default to Retake (same as missing flag).
+      if (!mounted) return;
+      setState(() => _canSendReport = false);
+    }
   }
 
   Future<void> _loadInitials() async {
     // Apply cached profile immediately — zero network cost, prevents flicker.
     _applyProfileSnapshot(await ProfileService.getCachedProfile());
 
-    // Fetch fresh profile from /user/profile (single source of truth for
-    // can_send_report). ProfileService writes the result back to cache so
-    // every subsequent read is always up-to-date.
+    // Fetch fresh profile for display name / initials only.
     try {
       _applyProfileSnapshot(await ProfileService.getProfile());
     } on ProfileException catch (_) {
@@ -842,9 +855,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   void _applyProfileSnapshot(Map<String, dynamic>? info) {
     if (info == null || !mounted) return;
     final name = (info['name'] ?? '').toString().trim();
-    final canSendReport = (info['can_send_report'] as bool?) ?? false;
     setState(() {
-      _canSendReport = canSendReport;
       if (name.isNotEmpty) {
         final parts = name.split(RegExp(r'\s+'));
         _initials = parts.length >= 2
