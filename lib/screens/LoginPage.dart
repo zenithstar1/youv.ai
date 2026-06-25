@@ -227,13 +227,25 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     setState(() {
       _clinics = result.clinics;
       _portalLabel = result.portalLabel;
-      _selectedClinic =
-          result.matchedClinic ?? (result.clinics.length == 1 ? result.clinics.first : null);
-      _clinicId = _selectedClinic?.id ?? result.clinicId;
+      _selectedClinic = _resolveDefaultClinic(result);
+      _clinicId = _selectedClinic?.id;
       _isLoadingLocation = false;
       _locationLoadFailed = false;
     });
   }
+
+  /// Auto-selects only when the backend returns exactly one clinic.
+  ClinicLocation? _resolveDefaultClinic(ClinicLocationsResult result) {
+    if (result.clinics.length == 1) return result.clinics.first;
+    return null;
+  }
+
+  TextStyle _locationValueStyle(double compactScale) => TextStyle(
+        fontSize: (14 * compactScale).clamp(12.5, 15.0).toDouble(),
+        color: Colors.black87,
+        fontWeight: FontWeight.w500,
+        height: 1.25,
+      );
 
 
   Future<void> _loadAppConfig() async {
@@ -290,11 +302,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       color: Colors.black87,
       fontWeight: FontWeight.w500,
     );
-    final valueStyle = TextStyle(
-      fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
-      color: Colors.black87,
-      fontWeight: FontWeight.w500,
-    );
+    final valueStyle = _locationValueStyle(compactScale);
 
     return Container(
       margin: EdgeInsets.only(bottom: fieldSpacing),
@@ -365,17 +373,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             DropdownButtonFormField<int>(
               value: _selectedClinic?.id,
               isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 22),
               decoration: InputDecoration(
                 hintText: 'Select location',
-                isDense: true,
                 prefixIcon: const Icon(
                   Icons.location_on_outlined,
                   size: 18,
                   color: Colors.grey,
                 ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 40,
+                ),
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: (11 * compactScale).clamp(9.0, 13.0).toDouble(),
+                  vertical: (13 * compactScale).clamp(11.0, 14.0).toDouble(),
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -393,11 +405,29 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 fillColor: Colors.white,
               ),
               style: valueStyle,
+              selectedItemBuilder: (context) => _clinics
+                  .map(
+                    (clinic) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        clinic.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: valueStyle,
+                      ),
+                    ),
+                  )
+                  .toList(),
               items: _clinics
                   .map(
                     (clinic) => DropdownMenuItem<int>(
                       value: clinic.id,
-                      child: Text(clinic.label),
+                      child: Text(
+                        clinic.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: valueStyle,
+                      ),
                     ),
                   )
                   .toList(),
