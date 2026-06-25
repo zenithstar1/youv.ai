@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,7 @@ import '../models/skin_analysis_model.dart';
 import '../services/profile_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'profile_screen.dart';
+import 'standard_camera_screen.dart';
 
 // ─────────────────────────────────────
 //  Design System (from PM's React spec)
@@ -1078,6 +1080,18 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
         .map((e) => e.value * (wts[e.key] / tw))
         .fold(0.0, (a, b) => a + b)
         .clamp(3.0, 9.5);
+  }
+
+  void _retakeAnalysis() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const StandardCameraScreen(
+          lensDirection: CameraLensDirection.front,
+          isHair: false,
+        ),
+      ),
+    );
   }
 
   // ─── REPORT SENDING (same logic as original) ───
@@ -2870,6 +2884,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   //  STAGE 7: REPORT CTA
   // ═══════════════════════════════════════════
   Widget _buildReportCTA() {
+    return _canSendReport ? _buildSaveReportCTA() : _buildRetakeAnalysisCTA();
+  }
+
+  Widget _buildReportCardShell({required Widget child}) {
     final r = Responsive(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(r.w(20), 0, r.w(20), 0),
@@ -2895,143 +2913,230 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             ),
           ],
         ),
-        child: Column(
-          children: [
-            // Icon
-            Container(
-              width: r.w(56),
-              height: r.w(56),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildRetakeAnalysisCTA() {
+    final r = Responsive(context);
+    return _buildReportCardShell(
+      child: Column(
+        children: [
+          Container(
+            width: r.w(56),
+            height: r.w(56),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.10),
+                  blurRadius: 12,
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.camera_alt_outlined,
+              color: Colors.white,
+              size: r.w(28),
+            ),
+          ),
+          SizedBox(height: r.h(14)),
+          Text(
+            'Take Another Scan',
+            style: TextStyle(
+              fontSize: r.sp(22),
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(8)),
+          Text(
+            'Retake your scan .',
+            style: TextStyle(
+              fontSize: r.sp(13),
+              fontWeight: FontWeight.w300,
+              color: Colors.white.withOpacity(0.82),
+              height: 1.65,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(18)),
+          GestureDetector(
+            onTap: _retakeAnalysis,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: r.h(16)),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(50),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.10),
+                    color: Colors.black.withOpacity(0.12),
                     blurRadius: 12,
-                    spreadRadius: -2,
+                    offset: const Offset(0, 4),
                   ),
                 ],
-              ),
-              child: Icon(
-                Icons.description_outlined,
-                color: Colors.white,
-                size: r.w(28),
-              ),
-            ),
-            SizedBox(height: r.h(14)),
-            Text(
-              'Save Your Full Skin Analysis',
-              style: TextStyle(
-                fontSize: r.sp(22),
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: r.h(8)),
-            Text(
-              'Includes detailed breakdowns, insights, and future scan comparisons.',
-              style: TextStyle(
-                fontSize: r.sp(13),
-                fontWeight: FontWeight.w300,
-                color: Colors.white.withOpacity(0.82),
-                height: 1.65,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: r.h(18)),
-
-            // Primary CTA
-            GestureDetector(
-              onTap: _sendingReport ? null : _sendDetailedReport,
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: r.h(16)),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.96),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_sendingReport)
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _DS.blushDark,
-                        ),
-                      )
-                    else
-                      Icon(Icons.save_outlined, size: 16, color: _DS.blush),
-                    const SizedBox(width: 10),
-                    Text(
-                      _reportSent
-                          ? 'Report Sent ✓'
-                          : (_sendingReport
-                                ? 'Sending...'
-                                : 'Save My Analysis'),
-                      style: TextStyle(
-                        fontSize: r.sp(16),
-                        fontWeight: FontWeight.w700,
-                        color: _DS.blushDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Track changes over time with future scans.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-
-            // Secondary
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(50),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 13,
-                    color: Colors.white.withOpacity(0.65),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'The account you created will track your progress over time.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withOpacity(0.72),
-                      ),
-                      textAlign: TextAlign.center,
+                  Icon(Icons.refresh, size: 16, color: _DS.blush),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Retake Analysis',
+                    style: TextStyle(
+                      fontSize: r.sp(16),
+                      fontWeight: FontWeight.w700,
+                      color: _DS.blushDark,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveReportCTA() {
+    final r = Responsive(context);
+    return _buildReportCardShell(
+      child: Column(
+        children: [
+          Container(
+            width: r.w(56),
+            height: r.w(56),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.10),
+                  blurRadius: 12,
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.description_outlined,
+              color: Colors.white,
+              size: r.w(28),
+            ),
+          ),
+          SizedBox(height: r.h(14)),
+          Text(
+            'Save Your Full Skin Analysis',
+            style: TextStyle(
+              fontSize: r.sp(22),
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(8)),
+          Text(
+            'Includes detailed breakdowns, insights, and future scan comparisons.',
+            style: TextStyle(
+              fontSize: r.sp(13),
+              fontWeight: FontWeight.w300,
+              color: Colors.white.withOpacity(0.82),
+              height: 1.65,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(18)),
+          GestureDetector(
+            onTap: _sendingReport ? null : _sendDetailedReport,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: r.h(16)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(50),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_sendingReport)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _DS.blushDark,
+                      ),
+                    )
+                  else
+                    Icon(Icons.save_outlined, size: 16, color: _DS.blush),
+                  const SizedBox(width: 10),
+                  Text(
+                    _reportSent
+                        ? 'Report Sent ✓'
+                        : (_sendingReport
+                              ? 'Sending...'
+                              : 'Save My Analysis'),
+                    style: TextStyle(
+                      fontSize: r.sp(16),
+                      fontWeight: FontWeight.w700,
+                      color: _DS.blushDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Track changes over time with future scans.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.6),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 13,
+                  color: Colors.white.withOpacity(0.65),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'The account you created will track your progress over time.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.72),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
