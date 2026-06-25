@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
+import 'package:skin_analysis_app/config/api_config.dart';
 import 'package:skin_analysis_app/services/auth_service.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -10,9 +11,8 @@ import 'dart:convert';
 // Switch between local and production backend:
 // Local (Android emulator)  → 'http://10.0.2.2:8000/api/auth'
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
-// Production                → 'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth'
-const String _authBaseUrl =
-    'https://akumentis.youv.ai/dashboard/api/auth';
+// Production                → ApiConfig.authBaseUrl
+const String _authBaseUrl = ApiConfig.authBaseUrl;
   //'http://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -99,16 +99,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'scanner_url': event.scannerUrl,
           'latitude': event.latitude,
           'longitude': event.longitude,
+          if (event.age != null && event.age!.isNotEmpty) 'age': event.age!,
+          if (event.height != null && event.height!.isNotEmpty)
+            'height': event.height!,
+          if (event.weight != null && event.weight!.isNotEmpty)
+            'weight': event.weight!,
         },
       ).timeout(Duration(seconds: 10));
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
 
-        if (responseData is Map && responseData.containsKey('data')) {
-          await AuthService.saveSession(
-            Map<String, dynamic>.from(responseData['data'] as Map),
-          );
+        if (responseData is Map) {
+          final data = (responseData['data'] is Map)
+              ? Map<String, dynamic>.from(responseData['data'] as Map)
+              : Map<String, dynamic>.from(responseData.cast<String, dynamic>());
+
+          await AuthService.saveSession(data);
           emit(AuthAuthenticated("Registration successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -379,6 +386,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         body: json.encode({
           'gender': event.gender,
           'date_of_birth': event.dateOfBirth?.toIso8601String(),
+          if (event.age != null && event.age!.isNotEmpty) 'age': event.age!,
+          if (event.height != null && event.height!.isNotEmpty)
+            'height': event.height!,
+          if (event.weight != null && event.weight!.isNotEmpty)
+            'weight': event.weight!,
         }),
       ).timeout(Duration(seconds: 10));
 
@@ -405,6 +417,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             updatedUserData['gender'] = event.gender;
             updatedUserData['date_of_birth'] = event.dateOfBirth
                 ?.toIso8601String();
+            if (event.age != null && event.age!.isNotEmpty) {
+              updatedUserData['age'] = event.age;
+            }
+            if (event.height != null && event.height!.isNotEmpty) {
+              updatedUserData['height'] = event.height;
+            }
+            if (event.weight != null && event.weight!.isNotEmpty) {
+              updatedUserData['weight'] = event.weight;
+            }
 
             // Save updated user data
             prefs.setString('userInfo', json.encode(updatedUserData));

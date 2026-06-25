@@ -94,9 +94,9 @@ class HistoryCard extends StatelessWidget {
                     ),
 
                     // Overall skin health index
-                    if (activity.overallScore != null) ...[
+                    if (activity.skinHealthIndex != null) ...[
                       SizedBox(height: r.h(8)),
-                      _HealthIndexBar(score: activity.overallScore!, r: r),
+                      _HealthIndexBar(score: activity.skinHealthIndex!, r: r),
                     ],
 
                     SizedBox(height: r.h(10)),
