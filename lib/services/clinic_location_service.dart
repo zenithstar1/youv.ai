@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:http/http.dart' as http;
-import 'package:skin_analysis_app/Api/Apiservice.dart';
+import 'package:skin_analysis_app/config/api_config.dart';
 
 class ClinicLocation {
   final int id;
@@ -26,7 +26,7 @@ class ClinicLocation {
     final label = (json['label']?.toString() ?? '').trim();
 
     return ClinicLocation(
-      id: json['id'] as int? ?? 0,
+      id: _readClinicId(json['id']),
       name: name,
       city: city,
       state: state,
@@ -35,6 +35,13 @@ class ClinicLocation {
           : [name, city, state].where((part) => part.isNotEmpty).join(' · '),
     );
   }
+}
+
+int _readClinicId(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString()) ?? 0;
 }
 
 class ClinicLocationsResult {
@@ -59,7 +66,7 @@ class ClinicLocationsResult {
 class ClinicLocationService {
   static const Duration _timeout = Duration(seconds: 15);
 
-  /// Fetches clinic/location for registration from
+  /// Fetches clinic/location options for registration from
   /// [GET /clinic-locations](https://narayana.youv.ai/dashboard/api/clinic-locations).
   static Future<ClinicLocationsResult?> fetch({String scannerUrl = ''}) async {
     try {
@@ -71,34 +78,37 @@ class ClinicLocationService {
         query['scanner_url'] = scannerUrl;
       }
 
-      final uri = Uri.parse('${ApiService.dashboardBaseUrl}/clinic-locations')
+      final uri = Uri.parse('${ApiConfig.apiBaseUrl}/clinic-locations')
           .replace(queryParameters: query.isEmpty ? null : query);
+
+      debugPrint('[ClinicLocationService] GET $uri');
 
       final response = await http
           .get(uri, headers: {'Accept': 'application/json'})
           .timeout(_timeout);
 
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        debugPrint(
+          '[ClinicLocationService] HTTP ${response.statusCode}: ${response.body}',
+        );
+        return null;
+      }
 
-      final body = json.decode(response.body) as Map<String, dynamic>;
-      if (body['success'] != true) return null;
+      final decoded = json.decode(response.body);
+      if (decoded is! Map) return null;
+      final body = Map<String, dynamic>.from(decoded);
+
+      if (!_isSuccess(body['success'])) {
+        debugPrint('[ClinicLocationService] success=false: $body');
+        return null;
+      }
 
       final portal = body['portal'] is Map
           ? Map<String, dynamic>.from(body['portal'] as Map)
           : null;
       final portalLabel = _labelFromPortal(portal);
 
-      final clinics = body['data'] is List
-          ? (body['data'] as List)
-              .whereType<Map>()
-              .map(
-                (item) => ClinicLocation.fromJson(
-                  Map<String, dynamic>.from(item),
-                ),
-              )
-              .where((clinic) => clinic.id > 0)
-              .toList()
-          : <ClinicLocation>[];
+      final clinics = _parseClinicList(body['data']);
 
       final matchedId = _readInt(portal?['clinic_id']) ??
           _readInt(portal?['primary_clinic_id']);
@@ -112,11 +122,13 @@ class ClinicLocationService {
           }
         }
       }
-      matched ??= clinics.isNotEmpty ? clinics.first : null;
+      matched ??= clinics.length == 1 ? clinics.first : null;
 
       final clinicId = matched?.id ?? matchedId;
 
-      if (matched == null && portalLabel == null) return null;
+      if (clinics.isEmpty && clinicId == null && portalLabel == null) {
+        return null;
+      }
 
       return ClinicLocationsResult(
         clinics: clinics,
@@ -124,9 +136,37 @@ class ClinicLocationService {
         portalLabel: portalLabel,
         clinicId: clinicId,
       );
-    } catch (_) {
+    } catch (error, stack) {
+      debugPrint('[ClinicLocationService] fetch failed: $error');
+      debugPrint('$stack');
       return null;
     }
+  }
+
+  static List<ClinicLocation> _parseClinicList(dynamic raw) {
+    if (raw is! List) return const [];
+
+    final clinics = <ClinicLocation>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final clinic = ClinicLocation.fromJson(
+        Map<String, dynamic>.from(item),
+      );
+      if (clinic.id > 0) {
+        clinics.add(clinic);
+      }
+    }
+    return clinics;
+  }
+
+  static bool _isSuccess(dynamic value) {
+    if (value == true) return true;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1';
+    }
+    return false;
   }
 
   static String? _labelFromPortal(Map<String, dynamic>? portal) {
@@ -151,6 +191,7 @@ class ClinicLocationService {
   static int? _readInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
+    if (value is num) return value.toInt();
     return int.tryParse(value.toString());
   }
 }

@@ -4,7 +4,10 @@ class LoginRequested extends AuthEvent {
   final String email;
   final String password;
 
-  LoginRequested({required this.email, required this.password});
+  LoginRequested({
+    required this.email,
+    required this.password,
+  });
 }
 
 class RegisterRequested extends AuthEvent {
@@ -19,19 +22,26 @@ class RegisterRequested extends AuthEvent {
   final String scannerUrl;
   final String latitude;
   final String longitude;
+  final String? age;
+  final String? height;
+  final String? weight;
 
-  RegisterRequested(
-      {required this.name,
-      this.email,
-      required this.password,
-      this.dateOfBirth,
-      this.gender,
-      required this.phone,
-      this.clinicId,
-      this.otp,
-      this.scannerUrl = '',
-      this.latitude = '',
-      this.longitude = ''});
+  RegisterRequested({
+    required this.name,
+    this.email,
+    required this.password,
+    this.dateOfBirth,
+    this.gender,
+    required this.phone,
+    this.clinicId,
+    this.otp,
+    this.scannerUrl = '',
+    this.latitude = '',
+    this.longitude = '',
+    this.age,
+    this.height,
+    this.weight,
+  });
 }
 
 class GoogleLoginRequested extends AuthEvent {
@@ -71,27 +81,35 @@ class VerifyLoginMobile extends AuthEvent {
   final String latitude;
   final String longitude;
 
-  VerifyLoginMobile(
-      {required this.phone,
-      required this.name,
-      required this.email,
-      required this.password,
-      required this.otp,
-      this.city,
-      this.clinicId,
-      this.scannerUrl = '',
-      this.latitude = '',
-      this.longitude = ''});
+  VerifyLoginMobile({
+    required this.phone,
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.otp,
+    this.city,
+    this.clinicId,
+    this.scannerUrl = '',
+    this.latitude = '',
+    this.longitude = '',
+  });
 }
+
 class LogoutRequested extends AuthEvent {}
 
 class UpdateProfileRequested extends AuthEvent {
   final String? gender;
   final DateTime? dateOfBirth;
+  final String? age;
+  final String? height;
+  final String? weight;
 
   UpdateProfileRequested({
     this.gender,
     this.dateOfBirth,
+    this.age,
+    this.height,
+    this.weight,
   });
 }
 

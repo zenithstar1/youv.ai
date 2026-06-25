@@ -981,92 +981,6 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     ];
   }
 
-  // ─── SCORING (same exact logic as original) ───
-  double _calculateSkinHealthScore() {
-    if (widget.analysisData == null) return 0;
-    final d = widget.analysisData!;
-
-    // Use the detail scores with the weighted formula
-    final acne = _calcAcneDetail();
-    final hydration = _calcHydrationDetail();
-    final pigmentation = _calcPigmentationDetail();
-    final pores = _calcPoresDetail();
-    final wrinkles = _calcWrinklesDetail();
-    final aging = _calcAging((d.skinAge + d.eyeAge) / 2);
-
-    return ((acne * 0.25) +
-            (hydration * 0.20) +
-            (pigmentation * 0.20) +
-            (pores * 0.15) +
-            (wrinkles * 0.15) +
-            (aging * 0.05))
-        .clamp(0, 100);
-  }
-
-  double _calcAcneDetail() {
-    final f = widget.analysisData!.acneFactors;
-    return (1 - f.activeAcne) * 100 * 0.25 +
-        (1 - f.comedones) * 100 * 0.10 +
-        (1 - f.congestion) * 100 * 0.10 +
-        (1 - f.cysticAcne) * 100 * 0.20 +
-        (1 - f.inflammation) * 100 * 0.15 +
-        (1 - f.oiliness) * 100 * 0.05 +
-        (1 - f.scarring) * 100 * 0.15;
-  }
-
-  double _calcHydrationDetail() {
-    final f = widget.analysisData!.hydrationFactors;
-    return (1 - f.fineLines) * 100 * 0.20 +
-        (1 - f.flakiness) * 100 * 0.10 +
-        (1 - f.oilBalance) * 100 * 0.15 +
-        (1 - f.radiance) * 100 * 0.30 +
-        (1 - f.texture) * 100 * 0.25;
-  }
-
-  double _calcPigmentationDetail() {
-    final f = widget.analysisData!.pigmentationFactors;
-    return (1 - f.darkSpots) * 100 * 0.15 +
-        (1 - f.hyperpigmentation) * 100 * 0.20 +
-        (1 - f.melaninUnevenness) * 100 * 0.15 +
-        (1 - f.overallEvenness) * 100 * 0.25 +
-        (1 - f.redness) * 100 * 0.05 +
-        (1 - f.underEyePigmentation) * 100 * 0.10 +
-        (1 - f.uvDamage) * 100 * 0.10;
-  }
-
-  double _calcPoresDetail() {
-    final f = widget.analysisData!.poresFactors;
-    return (1 - f.visibility) * 100 * 0.25 +
-        (1 - f.size) * 100 * 0.20 +
-        (1 - f.enlargedPores) * 100 * 0.20 +
-        (1 - f.cloggedPores) * 100 * 0.15 +
-        (1 - f.tZoneProminence) * 100 * 0.05 +
-        (1 - f.cheekProminence) * 100 * 0.05 +
-        (1 - f.textureRoughness) * 100 * 0.10;
-  }
-
-  double _calcWrinklesDetail() {
-    final f = widget.analysisData!.wrinklesFactors;
-    return (1 - f.overallSeverity) * 100 * 0.20 +
-        (1 - f.depth) * 100 * 0.15 +
-        (1 - f.foreheadLines) * 100 * 0.10 +
-        (1 - f.crowsFeet) * 100 * 0.10 +
-        (1 - f.frownLines) * 100 * 0.08 +
-        (1 - f.nasolabialFolds) * 100 * 0.12 +
-        (1 - f.underEyeWrinkles) * 100 * 0.08 +
-        (1 - f.lipLines) * 100 * 0.05 +
-        (1 - f.marionelleLines) * 100 * 0.04 +
-        (1 - f.neckLines) * 100 * 0.02 +
-        (1 - f.staticWrinkles) * 100 * 0.04 +
-        (1 - f.dynamicWrinkles) * 100 * 0.02;
-  }
-
-  double _calcAging(double avgAge) {
-    if (avgAge >= 20 && avgAge <= 25) return 100;
-    if (avgAge > 25) return (100 - (avgAge - 25) * 2).clamp(0, 100);
-    return (100 - (20 - avgAge) * 1).clamp(0, 100);
-  }
-
   // ─── SYMMETRY (same logic) ───
   double _safeDiv(double a, double b) => b == 0 ? 0 : a / b;
 
@@ -1250,7 +1164,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   // ═══════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    final skinHealth = _calculateSkinHealthScore();
+    final skinHealth = widget.analysisData?.skinHealthIndex ?? 0;
     final symmetry = _calcSymmetryScore();
     final metrics = _buildMetrics();
 
