@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/screens/already_login_screen.dart';
+import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:skin_analysis_app/services/clinic_location_service.dart';
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_state.dart';
@@ -555,9 +556,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             }
           }
 
-          if (state is AuthAuthenticated) {
-            Navigator.of(context).pop(true);
-          } else if (state is AuthMessage) {
+          if (state is AuthMessage) {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => BlocProvider.value(
@@ -1500,7 +1499,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           });
         } else if (state is AuthAuthenticated) {
           setState(() => _loading = false);
-          Navigator.of(context).pop();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
+            (_) => false,
+          );
         } else if (state is AuthMessage) {
           setState(() => _loading = false);
           ScaffoldMessenger.of(context).showSnackBar(
