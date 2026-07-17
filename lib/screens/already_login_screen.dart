@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
+import 'package:skin_analysis_app/config/otp_bypass_config.dart';
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_event.dart';
 import '../Bloc/auth_state.dart';
@@ -98,8 +99,15 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
   /// verify OTP
   void _verifyOtp() {
     final phone = _normalizedPhone();
-    if (_otpController.text.trim().isEmpty) {
+    final otp = _otpController.text.trim();
+    if (otp.isEmpty) {
       setState(() => _error = 'Please enter OTP');
+      return;
+    }
+    if (!OtpBypassConfig.isValid(otp)) {
+      setState(() => _error = OtpBypassConfig.enabled
+          ? OtpBypassConfig.invalidOtpMessage
+          : 'Please enter a valid 6-digit OTP');
       return;
     }
 
@@ -109,7 +117,7 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
         name: '',
         email: '',
         password: '',
-        otp: _otpController.text.trim(),
+        otp: otp,
         scannerUrl: kIsWeb ? Uri.base.toString() : '',
         latitude: '',
         longitude: '',

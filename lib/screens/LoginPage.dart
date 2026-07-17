@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:skin_analysis_app/config/otp_bypass_config.dart';
 import 'package:skin_analysis_app/screens/already_login_screen.dart';
 import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:skin_analysis_app/services/clinic_location_service.dart';
@@ -12,6 +13,7 @@ import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
 import '../services/app_config_service.dart';
+import '../utils/height_input.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -495,6 +497,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       return;
     }
 
+    if (HeightInput.parseToCentimeters(_heightController.text.trim()) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Enter a valid height (e.g. 5'9, 175, or 1.75m)"),
+        ),
+      );
+      return;
+    }
+
   if (_showLocationField) {
 
   if (_locationLoadFailed) {
@@ -568,7 +579,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     ? _clinicId
                     : null,
                     age: _ageController.text.trim(),
-                    height: _heightController.text.trim(),
+                    height: HeightInput.normalizeForApi(
+                          _heightController.text.trim(),
+                        ) ??
+                        _heightController.text.trim(),
                     weight: _weightController.text.trim(),
                   ),
                 ),
@@ -586,35 +600,44 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         resizeToAvoidBottomInset: true,
         body: LayoutBuilder(
           builder: (context, viewport) {
+            final viewInsets = MediaQuery.of(context).viewInsets;
+            final keyboardOpen = viewInsets.bottom > 0;
+            final headerTopSpacing = keyboardOpen
+                ? 8.0
+                : topSpacing;
+
             return SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(bottom: viewInsets.bottom),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: viewport.maxHeight),
-                child: IntrinsicHeight(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                        child: FadeTransition(
-                          opacity: _fadeAnim,
-                          child: SlideTransition(
-                            position: _slideAnim,
-                            child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              top: topSpacing,
-                              bottom: betweenSubCard,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
+                constraints: BoxConstraints(
+                  minHeight: keyboardOpen ? 0 : viewport.maxHeight,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                      child: FadeTransition(
+                        opacity: _fadeAnim,
+                        child: SlideTransition(
+                          position: _slideAnim,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: keyboardOpen
+                                ? MainAxisAlignment.start
+                                : MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: headerTopSpacing,
+                                  bottom: betweenSubCard,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
                                 Text(
                                   'AI FACIAL ANALYSIS',
                                   textAlign: TextAlign.center,
@@ -653,7 +676,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               ],
                             ),
                           ),
-                        ),
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
@@ -828,14 +850,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                         Expanded(
                                           child: TextField(
                                             controller: _heightController,
-                                            keyboardType:
-                                                const TextInputType.numberWithOptions(
-                                              decimal: true,
-                                            ),
+                                            keyboardType: TextInputType.text,
                                             inputFormatters: [
                                               FilteringTextInputFormatter.allow(
-                                                RegExp(r'^\d*\.?\d*'),
+                                                HeightInput.allowedInput,
                                               ),
+                                              LengthLimitingTextInputFormatter(8),
                                             ],
                                             style: TextStyle(
                                               fontSize: (15 * compactScale)
@@ -845,7 +865,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                             decoration: InputDecoration(
                                               hintText: 'Height',
                                               isDense: true,
-                                              suffixText: 'ft',
+                                              suffixText: 'cm',
                                               contentPadding:
                                                   EdgeInsets.symmetric(
                                                 horizontal: 10,
@@ -1065,12 +1085,11 @@ final allFilled =
                           ),
                         ),
                         SizedBox(height: (H * 0.02).clamp(8.0, 16.0)),
-                      ],
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            ),
                   ),
                 ),
               ),
@@ -1457,8 +1476,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   Future<void> _verifyOtp() async {
     final otp = _otpControllers.map((c) => c.text).join();
-    if (otp.length != 6) {
-      setState(() => _error = 'Please enter the 6-digit OTP');
+    if (!OtpBypassConfig.isValid(otp)) {
+      setState(() => _error = OtpBypassConfig.enabled
+          ? OtpBypassConfig.invalidOtpMessage
+          : 'Please enter the 6-digit OTP');
       return;
     }
 
@@ -1631,7 +1652,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           } else if (v.isEmpty && i > 0) {
             FocusScope.of(context).previousFocus();
           }
-          if (_otpControllers.every((c) => c.text.isNotEmpty)) {
+          if (_otpControllers.every((c) => c.text.isNotEmpty) ||
+              OtpBypassConfig.matches(
+                _otpControllers.map((c) => c.text).join(),
+              )) {
             _verifyOtp();
           }
         },

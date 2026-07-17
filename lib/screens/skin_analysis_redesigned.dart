@@ -58,6 +58,22 @@ _Threshold getThreshold(double v) {
   return const _Threshold(Color(0xFF43A047), 'Excellent', 'High Stability');
 }
 
+/// Acne-only bands (independent of [getThreshold]): ≥95 green, ≥90 orange, else red.
+_Threshold getAcneThreshold(double v) {
+  if (v >= 95) {
+    return const _Threshold(Color(0xFF43A047), 'Excellent', 'High Stability');
+  }
+  if (v >= 90) {
+    return const _Threshold(Color(0xFFFB8C00), 'Okay', 'Moderate Stability');
+  }
+  return const _Threshold(Color(0xFFF44336), 'Not Good', 'Low Stability');
+}
+
+_Threshold thresholdForMetric(String label, double v) {
+  if (label == 'Acne') return getAcneThreshold(v);
+  return getThreshold(v);
+}
+
 // ─────────────────────────────────────
 //  Metric data holder (dynamic from API)
 // ─────────────────────────────────────
@@ -1814,7 +1830,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
 
   Widget _buildPillarCard(_MetricData m, int idx) {
     final r = Responsive(context);
-    final t = getThreshold(m.value);
+    final t = thresholdForMetric(m.label, m.value);
     final isActive = _activeMetricIdx == idx;
 
     return GestureDetector(
@@ -1866,6 +1882,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 value: m.value,
                 size: 72,
                 delay: Duration(milliseconds: idx * 120),
+                overrideColor: t.color,
               ),
               const SizedBox(height: 6),
               Text(
@@ -1886,7 +1903,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
 
   Widget _buildActiveMetricDetail(_MetricData m) {
     final r = Responsive(context);
-    final t = getThreshold(m.value);
+    final t = thresholdForMetric(m.label, m.value);
     return Padding(
       padding: EdgeInsets.fromLTRB(r.w(16), r.h(8), r.w(16), 0),
       child: Container(
@@ -1956,7 +1973,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     final r = Responsive(context);
     final sorted = [...metrics]..sort((a, b) => a.value.compareTo(b.value));
     final focus = sorted.first;
-    final t = getThreshold(focus.value);
+    final t = thresholdForMetric(focus.label, focus.value);
 
     // Bottom 3 indicators
     final worstIndicators = [...focus.indicators]
@@ -2070,6 +2087,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                       value: focus.value,
                       size: 78,
                       delay: const Duration(milliseconds: 300),
+                      overrideColor: t.color,
                     ),
                   ],
                 ),
@@ -2079,7 +2097,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 ...bottom3.asMap().entries.map((entry) {
                   final i = entry.key;
                   final ind = entry.value;
-                  final it = getThreshold(ind.score);
+                  final it = thresholdForMetric(focus.label, ind.score);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Column(
@@ -2166,7 +2184,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                 const SizedBox(height: 10),
                 Row(
                   children: metrics.map((m) {
-                    final tc = getThreshold(m.value);
+                    final tc = thresholdForMetric(m.label, m.value);
                     // Short labels for compact view
                     const shortLabels = {
                       'Pigmentation': 'Pigmentation',
@@ -3234,7 +3252,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   //  METRIC DETAIL BOTTOM SHEET
   // ═══════════════════════════════════════════
   void _showMetricModal(_MetricData metric) {
-    final t = getThreshold(metric.value);
+    final t = thresholdForMetric(metric.label, metric.value);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -3358,7 +3376,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
                   itemCount: metric.indicators.length,
                   itemBuilder: (context, i) {
                     final ind = metric.indicators[i];
-                    final it = getThreshold(ind.score);
+                    final it = thresholdForMetric(metric.label, ind.score);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 15),
                       child: Column(
@@ -3466,7 +3484,9 @@ class _RadarPainter extends CustomPainter {
         p,
         Paint()
           ..color = isActive
-              ? getThreshold(metrics[i].value).color.withOpacity(0.9)
+              ? thresholdForMetric(metrics[i].label, metrics[i].value)
+                  .color
+                  .withOpacity(0.9)
               : _DS.blush.withOpacity(0.5)
           ..strokeWidth = isActive ? 2.0 : 1.2,
       );
@@ -3512,7 +3532,7 @@ class _RadarPainter extends CustomPainter {
     // Highlighted spoke line from center to data point (drawn on top of polygon)
     if (activeIdx != null && activeIdx! < n) {
       final m = metrics[activeIdx!];
-      final tc = getThreshold(m.value);
+      final tc = thresholdForMetric(m.label, m.value);
       final rv = (m.value / 100) * maxR;
       final dataP = pt(rv, activeIdx!);
       final fullP = pt(maxR, activeIdx!);
@@ -3541,7 +3561,7 @@ class _RadarPainter extends CustomPainter {
       final rv = (metrics[i].value / 100) * maxR;
       final p = pt(rv, i);
       final isActive = activeIdx == i;
-      final tc = getThreshold(metrics[i].value);
+      final tc = thresholdForMetric(metrics[i].label, metrics[i].value);
       final hasSelection = activeIdx != null;
 
       // Dot (skip active dot — already drawn above)

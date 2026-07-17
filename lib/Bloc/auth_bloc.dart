@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
 import 'package:skin_analysis_app/config/api_config.dart';
+import 'package:skin_analysis_app/config/otp_bypass_config.dart';
 import 'package:skin_analysis_app/services/auth_service.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -82,6 +83,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     emit(AuthLoading());
     try {
+      if (OtpBypassConfig.enabled) {
+        if (event.otp == null || !OtpBypassConfig.matches(event.otp!)) {
+          emit(AuthError(OtpBypassConfig.invalidOtpMessage));
+          return;
+        }
+        await AuthService.saveDevBypassSession(
+          phone: event.phone ?? '',
+          name: event.name,
+        );
+        emit(AuthAuthenticated('Registration successful!'));
+        return;
+      }
+
       // Replace with your actual API endpoint
       final response = await http.post(
         Uri.parse(
@@ -157,6 +171,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (normalizedPhone.length != 10) {
         emit(AuthError('Please enter a valid 10-digit mobile number'));
+        return;
+      }
+
+      if (OtpBypassConfig.enabled) {
+        emit(AuthMessage('OTP sent successfully!'));
         return;
       }
 
@@ -246,6 +265,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
+      if (OtpBypassConfig.enabled) {
+        if (!OtpBypassConfig.matches(event.otp)) {
+          emit(AuthError(OtpBypassConfig.invalidOtpMessage));
+          return;
+        }
+        await AuthService.saveDevBypassSession(
+          phone: event.phone,
+          name: event.name,
+        );
+        emit(AuthAuthenticated('Mobile verification successful!'));
+        return;
+      }
+
       final response = await http.post(
         Uri.parse(
           '$_authBaseUrl/mobile-login',

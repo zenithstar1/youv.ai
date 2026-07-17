@@ -1381,6 +1381,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                           0,
                         ),
                         label: 'Acne',
+                        useAcneColorScale: true,
                         factors: _getAcneFactors(),
                       ),
                     ),

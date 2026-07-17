@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:skin_analysis_app/Bloc/auth_bloc.dart';
 import 'package:skin_analysis_app/Bloc/auth_event.dart';
 import 'package:skin_analysis_app/Bloc/auth_state.dart';
+import 'package:skin_analysis_app/config/otp_bypass_config.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 import 'screens/analysis_type_screen.dart';
 
@@ -59,7 +60,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _onVerify(BuildContext context) async {
-    if (expired) {
+    if (expired && !OtpBypassConfig.enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red.shade900,
@@ -72,12 +73,14 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    if (otp.join().length != 6) {
+    if (!OtpBypassConfig.isValid(otp.join())) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red.shade900,
           content: Text(
-            "Please enter the 6-digit OTP",
+            OtpBypassConfig.enabled
+                ? OtpBypassConfig.invalidOtpMessage
+                : "Please enter the 6-digit OTP",
             style: GoogleFonts.lora(),
           ),
         ),
@@ -221,6 +224,9 @@ class _OtpScreenState extends State<OtpScreen> {
                                       if (i > 0) FocusScope.of(context).previousFocus();
                                     }
                                     setState(() {});
+                                    if (OtpBypassConfig.matches(otp.join())) {
+                                      _onVerify(context);
+                                    }
                                   },
                                 ),
                               );

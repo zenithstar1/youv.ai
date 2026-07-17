@@ -11,6 +11,8 @@ import 'screens/already_login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/camera_setup_noop.dart'
     if (dart.library.io) 'services/camera_setup_mobile.dart';
+import 'widgets/dev_mode_badge.dart';
+import 'config/otp_bypass_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,7 +57,7 @@ class MyApp extends StatelessWidget {
         final shortestSide = media.size.shortestSide;
         final maxScale = shortestSide >= 600 ? 1.18 : 1.10;
 
-        return MediaQuery(
+        Widget content = MediaQuery(
           data: media.copyWith(
             textScaler: media.textScaler.clamp(
               minScaleFactor: 0.90,
@@ -64,6 +66,21 @@ class MyApp extends StatelessWidget {
           ),
           child: child ?? const SizedBox.shrink(),
         );
+
+        if (OtpBypassConfig.enabled) {
+          content = Stack(
+            children: [
+              content,
+              Positioned(
+                top: media.padding.top + 6,
+                right: 8,
+                child: const DevModeBadge(),
+              ),
+            ],
+          );
+        }
+
+        return content;
       },
       home: const AuthGate(),
     );

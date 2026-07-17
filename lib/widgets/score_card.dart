@@ -7,17 +7,21 @@ class ScoreCard extends StatelessWidget {
   final String score;
   final String label;
   final List<FactorItem> factors;
+  /// Acne-only color bands: ≥95 green, ≥90 orange, else red.
+  final bool useAcneColorScale;
 
   const ScoreCard({
     super.key,
     required this.score,
     required this.label,
     required this.factors,
+    this.useAcneColorScale = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final scoreValue = double.tryParse(score) ?? 0;
+    final scoreColor = _getScoreColor(scoreValue);
 
     return GestureDetector(
       onTap: () {
@@ -51,16 +55,14 @@ class ScoreCard extends StatelessWidget {
                     value: scoreValue / 100,
                     strokeWidth: 5,
                     backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _getScoreColor(scoreValue),
-                    ),
+                    valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
                   ),
                   Text(
                     score,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: _getScoreColor(scoreValue),
+                      color: scoreColor,
                     ),
                   ),
                 ],
@@ -91,8 +93,20 @@ class ScoreCard extends StatelessWidget {
     );
   }
 
-  // Health score color (0-100, higher is better)
   Color _getScoreColor(double score) {
+    if (useAcneColorScale) return _getAcneScoreColor(score);
+    return _getDefaultScoreColor(score);
+  }
+
+  // Acne only: ≥95 green, 90–94 orange, below 90 red
+  Color _getAcneScoreColor(double score) {
+    if (score >= 95) return Colors.green[600]!;
+    if (score >= 90) return Colors.orange[600]!;
+    return Colors.red[600]!;
+  }
+
+  // Health score color (0-100, higher is better)
+  Color _getDefaultScoreColor(double score) {
     if (score >= 80) return Colors.green[600]!; // Excellent
     if (score >= 60) return Colors.lightGreen[600]!; // Good
     if (score >= 40) return Colors.orange[600]!; // Fair
@@ -108,6 +122,7 @@ class ScoreCard extends StatelessWidget {
 
   // Health score color based on inverted problem value
   Color _getHealthColor(double healthScore) {
+    if (useAcneColorScale) return _getAcneScoreColor(healthScore);
     if (healthScore >= 80) return Colors.green[600]!; // Excellent health
     if (healthScore >= 60) return Colors.lightGreen[600]!; // Good health
     if (healthScore >= 40) return Colors.orange[600]!; // Fair health
@@ -116,6 +131,11 @@ class ScoreCard extends StatelessWidget {
   }
 
   Color _getHealthBgColor(double healthScore) {
+    if (useAcneColorScale) {
+      if (healthScore >= 95) return Colors.green[50]!;
+      if (healthScore >= 90) return Colors.orange[50]!;
+      return Colors.red[50]!;
+    }
     if (healthScore >= 80) return Colors.green[50]!;
     if (healthScore >= 60) return Colors.lightGreen[50]!;
     if (healthScore >= 40) return Colors.orange[50]!;

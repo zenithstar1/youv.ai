@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:skin_analysis_app/config/api_config.dart';
+import 'package:skin_analysis_app/config/otp_bypass_config.dart';
 
 class AuthService {
   AuthService._();
@@ -22,6 +23,9 @@ class AuthService {
   static const String _legacyTokenKey = '_token';
   static const String _webAccessTokenKey = 'auth_access_token_web';
   static const String _webRefreshTokenKey = 'auth_refresh_token_web';
+  static const String devBypassToken = 'dev_otp_bypass_token';
+  static const String _devBypassSessionKey = 'dev_otp_bypass_session';
+  static const String phoneNumberKey = 'phoneNumber';
 
   static Future<String> getAccessToken() async {
     final secureToken = await _secureStorage.read(key: _accessTokenKey);
@@ -79,12 +83,72 @@ class AuthService {
   static Future<bool> hasActiveSession() async {
     final prefs = await SharedPreferences.getInstance();
     final isLogin = prefs.getBool('isLogin') ?? false;
+    if (!isLogin) return false;
+
     final token = await getAccessToken();
-    return isLogin && token.isNotEmpty;
+    if (token.isEmpty) return false;
+
+    if (_isDevBypassToken(token)) {
+      return await isDevBypassSessionActive();
+    }
+
+    return true;
   }
+
+  static Future<bool> isDevBypassSessionActive() async {
+    if (!OtpBypassConfig.enabled) return false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_devBypassSessionKey) ?? false;
+  }
+
+  static Future<void> saveDevBypassSession({
+    required String phone,
+    String name = '',
+  }) async {
+    final normalizedPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final phone10 = normalizedPhone.length > 10
+        ? normalizedPhone.substring(normalizedPhone.length - 10)
+        : normalizedPhone;
+
+    await _secureStorage.write(
+      key: _accessTokenKey,
+      value: devBypassToken,
+    );
+    await _secureStorage.delete(key: _refreshTokenKey);
+
+    final prefs = await SharedPreferences.getInstance();
+    final displayName = name.trim().isNotEmpty ? name.trim() : 'Dev User';
+
+    await prefs.setBool('isLogin', true);
+    await prefs.setBool('hasRegistered', true);
+    await prefs.setBool(_devBypassSessionKey, true);
+    await prefs.setString(phoneNumberKey, phone10);
+    await prefs.remove(_legacyTokenKey);
+    await prefs.remove(_webAccessTokenKey);
+    await prefs.remove(_webRefreshTokenKey);
+    await prefs.setString(
+      'userInfo',
+      json.encode({
+        'name': displayName,
+        'phone': phone10,
+        'email': '',
+        'policy_accept': 1,
+        'isSubscribed': false,
+      }),
+    );
+    await prefs.setBool('isSubscribe', false);
+
+    if (kIsWeb) {
+      await prefs.setString(_webAccessTokenKey, devBypassToken);
+    }
+  }
+
+  static bool _isDevBypassToken(String token) => token == devBypassToken;
 
   static Future<bool> restoreSession() async {
     if (!await hasActiveSession()) return false;
+
+    if (await isDevBypassSessionActive()) return true;
 
     if (!await isAccessTokenExpired()) return true;
 
@@ -146,6 +210,8 @@ class AuthService {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLogin', false);
+    await prefs.setBool(_devBypassSessionKey, false);
+    await prefs.remove(phoneNumberKey);
     await prefs.remove(_legacyTokenKey);
     await prefs.remove(_webAccessTokenKey);
     await prefs.remove(_webRefreshTokenKey);
@@ -157,7 +223,7 @@ class AuthService {
 
   static Future<void> logoutRemote() async {
     final token = await getAccessToken();
-    if (token.isEmpty) return;
+    if (token.isEmpty || _isDevBypassToken(token)) return;
 
     try {
       await http.post(
@@ -168,6 +234,9 @@ class AuthService {
   }
 
   static Future<bool> refreshAccessToken() async {
+    final currentToken = await getAccessToken();
+    if (_isDevBypassToken(currentToken)) return true;
+
     final refreshToken = await getRefreshToken();
     if (refreshToken.isEmpty) return false;
 
@@ -217,6 +286,7 @@ class AuthService {
   static Future<bool> isAccessTokenExpired() async {
     final token = await getAccessToken();
     if (token.isEmpty) return true;
+    if (_isDevBypassToken(token)) return false;
 
     final parts = token.split('.');
     if (parts.length != 3) return false;
