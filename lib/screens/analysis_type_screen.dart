@@ -221,26 +221,29 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                             },
                           ),
 
-                          const SizedBox(height: 22),
+                          // Hidden from UI — keep code for future use
+                          if (false) ...[
+                            const SizedBox(height: 22),
 
-                          /// HAIR CARD
-                          _AnalysisCard(
-                            isPrimary: false,
-                            icon: Icons.content_cut,
-                            title: "Hair Health Overview",
-                            statusText: "Coming Soon",
-                            subtitle: "Density • Thinning • Scalp",
-                            description: "Scalp and hair density screening.",
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Hair Health Overview is coming soon.'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                          ),
+                            /// HAIR CARD
+                            _AnalysisCard(
+                              isPrimary: false,
+                              icon: Icons.content_cut,
+                              title: "Hair Health Overview",
+                              statusText: "Coming Soon",
+                              subtitle: "Density • Thinning • Scalp",
+                              description: "Scalp and hair density screening.",
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Hair Health Overview is coming soon.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
 
                           SizedBox(height: H * 0.08),
                         ],

@@ -3,7 +3,7 @@ class ApiConfig {
   ApiConfig._();
 
   /// Dashboard origin, e.g. https://narayana.youv.ai/dashboard
-  static const String dashboardOrigin = 'https://demo.youv.ai/dashboard';
+  static const String dashboardOrigin = 'https://akumentis.youv.ai/dashboard';
 
   /// REST API base, e.g. https://narayana.youv.ai/dashboard/api
   static const String apiBaseUrl = '$dashboardOrigin/api';
