@@ -1,14 +1,16 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:skin_analysis_app/config/api_config.dart';
+
 class AuthService {
   AuthService._();
 
-  static const String authBaseUrl =
-      'https://akumentis.youv.ai/dashboard/api/auth';
+  static const String authBaseUrl = ApiConfig.authBaseUrl;
 
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -18,6 +20,8 @@ class AuthService {
   static const String _accessTokenKey = 'auth_access_token';
   static const String _refreshTokenKey = 'auth_refresh_token';
   static const String _legacyTokenKey = '_token';
+  static const String _webAccessTokenKey = 'auth_access_token_web';
+  static const String _webRefreshTokenKey = 'auth_refresh_token_web';
 
   static Future<String> getAccessToken() async {
     final secureToken = await _secureStorage.read(key: _accessTokenKey);
@@ -27,6 +31,14 @@ class AuthService {
     }
 
     final prefs = await SharedPreferences.getInstance();
+
+    if (kIsWeb) {
+      final webToken = prefs.getString(_webAccessTokenKey) ?? '';
+      if (webToken.trim().isNotEmpty) {
+        return webToken.trim();
+      }
+    }
+
     final legacyToken = prefs.getString(_legacyTokenKey) ?? '';
     if (legacyToken.trim().isNotEmpty) {
       await _secureStorage.write(
@@ -49,7 +61,19 @@ class AuthService {
 
   static Future<String> getRefreshToken() async {
     final token = await _secureStorage.read(key: _refreshTokenKey);
-    return token?.trim() ?? '';
+    if (token != null && token.trim().isNotEmpty) {
+      return token.trim();
+    }
+
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      final webRefresh = prefs.getString(_webRefreshTokenKey) ?? '';
+      if (webRefresh.trim().isNotEmpty) {
+        return webRefresh.trim();
+      }
+    }
+
+    return '';
   }
 
   static Future<bool> hasActiveSession() async {
@@ -60,20 +84,19 @@ class AuthService {
   }
 
   static Future<bool> restoreSession() async {
-    final hasSession = await hasActiveSession();
-    if (!hasSession) return false;
+    if (!await hasActiveSession()) return false;
 
-    if (await isAccessTokenExpired()) {
-      final refreshed = await refreshAccessToken();
-      if (!refreshed) {
-        await clearSession();
-      }
-      return refreshed;
-    }
+    if (!await isAccessTokenExpired()) return true;
 
-    return true;
+    final refreshed = await refreshAccessToken();
+    if (refreshed) return true;
+
+    // Keep the session if a token is still stored — transient refresh
+    // failures (network) should not force re-login on page refresh.
+    return (await getAccessToken()).isNotEmpty;
   }
-static Future<void> saveSession(Map<String, dynamic> data) async {
+
+  static Future<void> saveSession(Map<String, dynamic> data) async {
   final accessToken = _extractAccessToken(data);
   final refreshToken = _extractRefreshToken(data);
 
@@ -108,7 +131,15 @@ static Future<void> saveSession(Map<String, dynamic> data) async {
     'isSubscribe',
     data['isSubscribed'] == true,
   );
+
+  if (kIsWeb) {
+    await prefs.setString(_webAccessTokenKey, accessToken);
+    if (refreshToken.isNotEmpty) {
+      await prefs.setString(_webRefreshTokenKey, refreshToken);
+    }
+  }
 }
+
   static Future<void> clearSession({bool keepRegistration = true}) async {
     await _secureStorage.delete(key: _accessTokenKey);
     await _secureStorage.delete(key: _refreshTokenKey);
@@ -116,6 +147,8 @@ static Future<void> saveSession(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLogin', false);
     await prefs.remove(_legacyTokenKey);
+    await prefs.remove(_webAccessTokenKey);
+    await prefs.remove(_webRefreshTokenKey);
     if (!keepRegistration) {
       await prefs.setBool('hasRegistered', false);
     }
@@ -166,6 +199,15 @@ static Future<void> saveSession(Map<String, dynamic> data) async {
           value: nextRefreshToken,
         );
       }
+
+      if (kIsWeb) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_webAccessTokenKey, accessToken);
+        if (nextRefreshToken.isNotEmpty) {
+          await prefs.setString(_webRefreshTokenKey, nextRefreshToken);
+        }
+      }
+
       return true;
     } catch (_) {
       return false;

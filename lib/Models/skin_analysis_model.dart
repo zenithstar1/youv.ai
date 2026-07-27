@@ -1,4 +1,7 @@
+import 'package:skin_analysis_app/utils/analysis_score_parser.dart';
+
 class SkinAnalysisModel {
+  final double skinHealthIndex;
   final double acneScore;
   final double hydrationScore;
   final double pigmentationScore;
@@ -15,6 +18,7 @@ class SkinAnalysisModel {
   final WrinklesFactors wrinklesFactors;
 
   SkinAnalysisModel({
+    required this.skinHealthIndex,
     required this.acneScore,
     required this.hydrationScore,
     required this.pigmentationScore,
@@ -38,17 +42,21 @@ class SkinAnalysisModel {
     // Get analysis_id from root level of JSON
     final analysisId = json['analysis_id']?.toString();
 
-    final scores = analysis['scores'] ?? {};
     // Try both 'raw_factors' and 'raw_data' keys
     final rawFactors = analysis['raw_factors'] ?? analysis['raw_data'] ?? {};
     final ageAnalysis = analysis['age_analysis'] ?? {};
 
     return SkinAnalysisModel(
-      acneScore: (scores['acne'] as num?)?.toDouble() ?? 0.0,
-      hydrationScore: (scores['hydration'] as num?)?.toDouble() ?? 0.0,
-      pigmentationScore: (scores['pigmentation'] as num?)?.toDouble() ?? 0.0,
-      poresScore: (scores['pores'] as num?)?.toDouble() ?? 0.0,
-      wrinklesScore: (scores['wrinkles'] as num?)?.toDouble() ?? 0.0,
+      skinHealthIndex:
+          AnalysisScoreParser.skinHealthIndex(json) ??
+          AnalysisScoreParser.skinHealthIndex(analysis) ??
+          0.0,
+      acneScore: AnalysisScoreParser.categoryScore(analysis, 'acne'),
+      hydrationScore: AnalysisScoreParser.categoryScore(analysis, 'hydration'),
+      pigmentationScore:
+          AnalysisScoreParser.categoryScore(analysis, 'pigmentation'),
+      poresScore: AnalysisScoreParser.categoryScore(analysis, 'pores'),
+      wrinklesScore: AnalysisScoreParser.categoryScore(analysis, 'wrinkles'),
       skinAge: (ageAnalysis['skin_age'] as num?)?.toInt() ?? 0,
       eyeAge: (ageAnalysis['eye_age'] as num?)?.toInt() ?? 0,
       fitzpatrickType: (ageAnalysis['fitzpatrick_type'] as num?)?.toInt() ?? 1,
@@ -88,6 +96,7 @@ class SkinAnalysisModel {
     return {
       'analysis_id': analysisId, // Add this
       'scores': {
+        'skin_health_index': skinHealthIndex,
         'acne': acneScore,
         'hydration': hydrationScore,
         'pigmentation': pigmentationScore,

@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:skin_analysis_app/utils/location_utils.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/screens/already_login_screen.dart';
+import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
+import 'package:skin_analysis_app/services/clinic_location_service.dart';
 import '../Bloc/auth_bloc.dart';
 import '../Bloc/auth_state.dart';
 import '../Bloc/auth_event.dart';
 import 'settings_screen.dart';
+import '../services/app_config_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -159,8 +162,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController(text: '+91');
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
   bool _consent = false;
   bool _isSendingOtp = false;
+  List<ClinicLocation> _clinics = [];
+  ClinicLocation? _selectedClinic;
+  String? _portalLabel;
+  bool _isLoadingLocation = true;
+  bool _locationLoadFailed = false;
+  int? _clinicId;
+
+  // NEW
+  final AppConfigService _configService = AppConfigService();
+  bool _showLocationField = true;
+  bool _configLoaded = false;
+
   late final AuthBloc _authBloc;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -182,6 +200,264 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+    _loadAppConfig();
+  }
+
+  Future<void> _loadLocations() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationLoadFailed = false;
+    });
+
+    final scannerUrl = kIsWeb ? Uri.base.toString() : '';
+    final result = await ClinicLocationService.fetch(scannerUrl: scannerUrl);
+    if (!mounted) return;
+
+    if (result == null) {
+      setState(() {
+        _clinics = [];
+        _portalLabel = null;
+        _selectedClinic = null;
+        _clinicId = null;
+        _isLoadingLocation = false;
+        _locationLoadFailed = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _clinics = result.clinics;
+      _portalLabel = result.portalLabel;
+      _selectedClinic = _resolveDefaultClinic(result);
+      _clinicId = _selectedClinic?.id;
+      _isLoadingLocation = false;
+      _locationLoadFailed = false;
+    });
+  }
+
+  /// Auto-selects only when the backend returns exactly one clinic.
+  ClinicLocation? _resolveDefaultClinic(ClinicLocationsResult result) {
+    if (result.clinics.length == 1) return result.clinics.first;
+    return null;
+  }
+
+  TextStyle _locationValueStyle(double compactScale) => TextStyle(
+        fontSize: (14 * compactScale).clamp(12.5, 15.0).toDouble(),
+        color: Colors.black87,
+        fontWeight: FontWeight.w500,
+        height: 1.25,
+      );
+
+
+  Future<void> _loadAppConfig() async {
+    try {
+      final config = await _configService.getConfig();
+      if (!mounted) return;
+
+      setState(() {
+        _showLocationField = !config.hideLocation;
+        _configLoaded = true;
+      });
+
+      if (_showLocationField) {
+        await _loadLocations();
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingLocation = false;
+            _locationLoadFailed = false;
+            _clinics = [];
+            _selectedClinic = null;
+            _portalLabel = null;
+            _clinicId = null;
+          });
+        }
+      }
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _showLocationField = true;
+        _configLoaded = true;
+      });
+      await _loadLocations();
+    }
+  }
+
+
+    bool get _locationReady {
+    if (!_showLocationField) {
+        return true;
+    }
+    if (_isLoadingLocation) return false;
+    if (_locationLoadFailed) return false;
+    if (_clinics.isEmpty) {
+        return _clinicId != null || _portalLabel != null;
+    }
+    return _selectedClinic != null;
+  }
+
+  Widget _buildClinicLocationField(double compactScale, double fieldSpacing) {
+    final labelStyle = TextStyle(
+      fontSize: (14.5 * compactScale).clamp(12.5, 16.0).toDouble(),
+      color: Colors.black87,
+      fontWeight: FontWeight.w500,
+    );
+    final valueStyle = _locationValueStyle(compactScale);
+
+    return Container(
+      margin: EdgeInsets.only(bottom: fieldSpacing),
+      padding: EdgeInsets.all(8 * compactScale),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Location', style: labelStyle),
+          SizedBox(height: (6 * compactScale).clamp(4.0, 8.0).toDouble()),
+          if (_isLoadingLocation)
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: (14 * compactScale).clamp(12.0, 16.0).toDouble(),
+                  height: (14 * compactScale).clamp(12.0, 16.0).toDouble(),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFFE8B4BA),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Loading locations...',
+                  style: TextStyle(
+                    fontSize: (12 * compactScale).clamp(10.5, 13.0).toDouble(),
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            )
+          else if (_locationLoadFailed)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Could not load locations. Please check your connection and try again.',
+                  style: TextStyle(
+                    fontSize: (12 * compactScale).clamp(10.5, 13.0).toDouble(),
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                SizedBox(height: (8 * compactScale).clamp(6.0, 10.0).toDouble()),
+                TextButton.icon(
+                  onPressed: _loadLocations,
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Retry'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8B4BA),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            )
+          else if (_clinics.isNotEmpty)
+            DropdownButtonFormField<int>(
+              value: _selectedClinic?.id,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 22),
+              decoration: InputDecoration(
+                hintText: 'Select location',
+                prefixIcon: const Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 40,
+                ),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: (13 * compactScale).clamp(11.0, 14.0).toDouble(),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE6E2DD)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE8B4BA), width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              style: valueStyle,
+              selectedItemBuilder: (context) => _clinics
+                  .map(
+                    (clinic) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        clinic.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: valueStyle,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              items: _clinics
+                  .map(
+                    (clinic) => DropdownMenuItem<int>(
+                      value: clinic.id,
+                      child: Text(
+                        clinic.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: valueStyle,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (clinicId) {
+                if (clinicId == null) return;
+                setState(() {
+                  _selectedClinic = _clinics.firstWhere(
+                    (clinic) => clinic.id == clinicId,
+                  );
+                  _clinicId = clinicId;
+                });
+              },
+            )
+          else
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _portalLabel ?? 'No locations available',
+                    style: valueStyle,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -190,6 +466,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _animController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _ageController.dispose();
+    _heightController.dispose();
+    _weightController.dispose();
     super.dispose();
   }
 
@@ -202,6 +481,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   void _requestOtpForSignup() {
+    if (!_configLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please wait… loading configuration')),
+      );
+      return;
+    }
     final phone = _normalizedPhone();
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -209,6 +494,28 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       );
       return;
     }
+
+  if (_showLocationField) {
+
+  if (_locationLoadFailed) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please load a location before continuing'),
+      ),
+    );
+    return;
+  }
+
+  if (_clinics.isNotEmpty && _selectedClinic == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select a location'),
+      ),
+    );
+    return;
+  }
+
+ }
 
     _authBloc.add(
       SendOtpRequested(phone: phone, flow: 'signup'),
@@ -249,9 +556,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             }
           }
 
-          if (state is AuthAuthenticated) {
-            Navigator.of(context).pop(true);
-          } else if (state is AuthMessage) {
+          if (state is AuthMessage) {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => BlocProvider.value(
@@ -259,7 +564,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   child: OTPVerificationScreen(
                     phone: _normalizedPhone(),
                     name: _nameController.text.trim(),
-                    clinicId: null,
+                    clinicId: _showLocationField 
+                    ? _clinicId
+                    : null,
+                    age: _ageController.text.trim(),
+                    height: _heightController.text.trim(),
+                    weight: _weightController.text.trim(),
                   ),
                 ),
               ),
@@ -450,35 +760,160 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ],
                                 ),
                               ),
-Container(
-  margin: EdgeInsets.only(bottom: fieldSpacing),
-  padding: EdgeInsets.all(8 * compactScale),
-  decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(14),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black12,
-        blurRadius: 4,
-        offset: const Offset(0, 1),
-      ),
-    ],
-  ),
-  child: Row(
-    children: [
-      const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-      const SizedBox(width: 6),
-      Text(
-        'India',
-        style: TextStyle(
-          fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
-          color: Colors.black87,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ],
-  ),
-),         SizedBox(height: consentSpacing),
+                              Container(
+                                margin: EdgeInsets.only(bottom: fieldSpacing),
+                                padding: EdgeInsets.all(8 * compactScale),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Health Profile',
+                                      style: TextStyle(
+                                        fontSize: (14.5 * compactScale)
+                                            .clamp(12.5, 16.0)
+                                            .toDouble(),
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: labelInputGap),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _ageController,
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter.digitsOnly,
+                                            ],
+                                            style: TextStyle(
+                                              fontSize: (15 * compactScale)
+                                                  .clamp(13.0, 16.0)
+                                                  .toDouble(),
+                                            ),
+                                            decoration: InputDecoration(
+                                              hintText: 'Age',
+                                              isDense: true,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: (10 * compactScale)
+                                                    .clamp(8.0, 12.0)
+                                                    .toDouble(),
+                                              ),
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                borderSide: const BorderSide(
+                                                  color: Color(0xFFE6E2DD),
+                                                ),
+                                              ),
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 8 * compactScale),
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _heightController,
+                                            keyboardType:
+                                                const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter.allow(
+                                                RegExp(r'^\d*\.?\d*'),
+                                              ),
+                                            ],
+                                            style: TextStyle(
+                                              fontSize: (15 * compactScale)
+                                                  .clamp(13.0, 16.0)
+                                                  .toDouble(),
+                                            ),
+                                            decoration: InputDecoration(
+                                              hintText: 'Height',
+                                              isDense: true,
+                                              suffixText: 'ft',
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: (10 * compactScale)
+                                                    .clamp(8.0, 12.0)
+                                                    .toDouble(),
+                                              ),
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                borderSide: const BorderSide(
+                                                  color: Color(0xFFE6E2DD),
+                                                ),
+                                              ),
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 8 * compactScale),
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _weightController,
+                                            keyboardType:
+                                                const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter.allow(
+                                                RegExp(r'^\d*\.?\d*'),
+                                              ),
+                                            ],
+                                            style: TextStyle(
+                                              fontSize: (15 * compactScale)
+                                                  .clamp(13.0, 16.0)
+                                                  .toDouble(),
+                                            ),
+                                            decoration: InputDecoration(
+                                              hintText: 'Weight',
+                                              isDense: true,
+                                              suffixText: 'kg',
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: (10 * compactScale)
+                                                    .clamp(8.0, 12.0)
+                                                    .toDouble(),
+                                              ),
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                borderSide: const BorderSide(
+                                                  color: Color(0xFFE6E2DD),
+                                                ),
+                                              ),
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_configLoaded && _showLocationField)
+                                _buildClinicLocationField(compactScale, fieldSpacing),
+         SizedBox(height: consentSpacing),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -561,6 +996,11 @@ Container(
 final allFilled =
     _nameController.text.trim().isNotEmpty &&
     _phoneController.text.trim().isNotEmpty &&
+    _ageController.text.trim().isNotEmpty &&
+    _heightController.text.trim().isNotEmpty &&
+    _weightController.text.trim().isNotEmpty &&
+    _configLoaded &&
+    _locationReady &&
     _consent;
                                   final anyFilled = _nameController.text.trim().isNotEmpty ||
                                       _phoneController.text.trim().isNotEmpty;
@@ -976,12 +1416,18 @@ class OTPVerificationScreen extends StatefulWidget {
   final String phone;
   final String name;
   final int? clinicId;
+  final String age;
+  final String height;
+  final String weight;
 
   const OTPVerificationScreen({
     super.key,
     required this.phone,
     required this.name,
     required this.clinicId,
+    this.age = '',
+    this.height = '',
+    this.weight = '',
   });
 
   @override
@@ -1017,7 +1463,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     }
 
     setState(() { _loading = true; });
-    final (lat, lng) = await fetchLocationCoords();
     if (!mounted) return;
     context.read<AuthBloc>().add(
       RegisterRequested(
@@ -1027,8 +1472,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         otp: otp,
         clinicId: widget.clinicId,
         scannerUrl: kIsWeb ? Uri.base.toString() : '',
-        latitude: lat,
-        longitude: lng,
+        age: widget.age,
+        height: widget.height,
+        weight: widget.weight,
       ),
     );
   }
@@ -1053,7 +1499,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           });
         } else if (state is AuthAuthenticated) {
           setState(() => _loading = false);
-          Navigator.of(context).pop();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
+            (_) => false,
+          );
         } else if (state is AuthMessage) {
           setState(() => _loading = false);
           ScaffoldMessenger.of(context).showSnackBar(

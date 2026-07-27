@@ -6,6 +6,9 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Skin Analysis Application">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -141,6 +144,7 @@
 
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="preload" href="js/app_update.js" as="script">
 
   <style>
     html, body {
@@ -218,38 +222,10 @@
 
   <div id="flutter_host"></div>
 
-  <!-- <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-          registration.unregister();
-        }
-      });
-    }
-
-    if (window.caches) {
-      caches.keys().then(function(names) {
-        for (let name of names) {
-          caches.delete(name);
-        }
-      });
-    }
-
-    // localStorage.clear();
-    // sessionStorage.clear();
-  </script> -->
-
-  <script>
-  // No-op
-</script>
-
   <!-- MediaPipe Face Mesh -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-  <!-- face_detector.js (uses requestAnimationFrame, no Camera util needed) -->
-  <script src="face_detector.js"></script>
-
-  <!-- Flutter LAST -->
-<script src="flutter_bootstrap.js"></script>
+  <!-- Deployment update guard + Flutter bootstrap (see web/js/app_update.js) -->
+  <script src="js/app_update.js"></script>
   <script>
     function openRazorpayCheckout(orderId, key, amount, name, email, number) {
       console.log('Opening Razorpay Checkout...');

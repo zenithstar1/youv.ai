@@ -96,17 +96,23 @@ class _AuthGateState extends State<AuthGate> {
 
     if (!mounted) return;
 
+    // Logged-in users skip the intro and land directly in the app.
+    if (isLogin && restoredSession) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
+      );
+      return;
+    }
+
     // Determine where to land AFTER the intro screen.
     Widget destination;
-    if (isLogin && restoredSession) {
-      destination = const AnalysisTypeScreen();
-    } else if (hasRegistered) {
+    if (hasRegistered) {
       destination = const AlreadyLoginScreen();
     } else {
       destination = const OnboardingFlow();
     }
 
-    // Always show the intro/splash screen first, then navigate to destination.
+    // Show intro for new or returning-but-logged-out users only.
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => OnboardingScreen(destination: destination),

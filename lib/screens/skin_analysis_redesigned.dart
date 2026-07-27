@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,8 +10,10 @@ import 'package:skin_analysis_app/utils/responsive.dart';
 import 'package:skin_analysis_app/widgets/FaceRatioPainter.dart';
 import '../models/skin_analysis_model.dart';
 import '../services/profile_service.dart';
+import '../services/app_config_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'profile_screen.dart';
+import 'standard_camera_screen.dart';
 
 // ─────────────────────────────────────
 //  Design System (from PM's React spec)
@@ -789,6 +792,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   bool _disclaimerExpanded = false;
   String _initials = '';
   bool _canSendReport = false;
+  final AppConfigService _configService = AppConfigService();
 
   // Facial structure swipe
   late PageController _structurePageController;
@@ -819,15 +823,26 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
         (widget.analysisData?.fitzpatrickType ?? 1).clamp(1, 5) - 1;
     _structurePageController = PageController(viewportFraction: 0.85);
     _loadInitials();
+    _loadReportConfig();
+  }
+
+  Future<void> _loadReportConfig() async {
+    try {
+      final config = await _configService.getConfig();
+      if (!mounted) return;
+      setState(() => _canSendReport = config.canSendReport);
+    } catch (_) {
+      // Config unavailable — default to Retake (same as missing flag).
+      if (!mounted) return;
+      setState(() => _canSendReport = false);
+    }
   }
 
   Future<void> _loadInitials() async {
     // Apply cached profile immediately — zero network cost, prevents flicker.
     _applyProfileSnapshot(await ProfileService.getCachedProfile());
 
-    // Fetch fresh profile from /user/profile (single source of truth for
-    // can_send_report). ProfileService writes the result back to cache so
-    // every subsequent read is always up-to-date.
+    // Fetch fresh profile for display name / initials only.
     try {
       _applyProfileSnapshot(await ProfileService.getProfile());
     } on ProfileException catch (_) {
@@ -840,9 +855,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   void _applyProfileSnapshot(Map<String, dynamic>? info) {
     if (info == null || !mounted) return;
     final name = (info['name'] ?? '').toString().trim();
-    final canSendReport = (info['can_send_report'] as bool?) ?? false;
     setState(() {
-      _canSendReport = canSendReport;
       if (name.isNotEmpty) {
         final parts = name.split(RegExp(r'\s+'));
         _initials = parts.length >= 2
@@ -981,92 +994,6 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
     ];
   }
 
-  // ─── SCORING (same exact logic as original) ───
-  double _calculateSkinHealthScore() {
-    if (widget.analysisData == null) return 0;
-    final d = widget.analysisData!;
-
-    // Use the detail scores with the weighted formula
-    final acne = _calcAcneDetail();
-    final hydration = _calcHydrationDetail();
-    final pigmentation = _calcPigmentationDetail();
-    final pores = _calcPoresDetail();
-    final wrinkles = _calcWrinklesDetail();
-    final aging = _calcAging((d.skinAge + d.eyeAge) / 2);
-
-    return ((acne * 0.25) +
-            (hydration * 0.20) +
-            (pigmentation * 0.20) +
-            (pores * 0.15) +
-            (wrinkles * 0.15) +
-            (aging * 0.05))
-        .clamp(0, 100);
-  }
-
-  double _calcAcneDetail() {
-    final f = widget.analysisData!.acneFactors;
-    return (1 - f.activeAcne) * 100 * 0.25 +
-        (1 - f.comedones) * 100 * 0.10 +
-        (1 - f.congestion) * 100 * 0.10 +
-        (1 - f.cysticAcne) * 100 * 0.20 +
-        (1 - f.inflammation) * 100 * 0.15 +
-        (1 - f.oiliness) * 100 * 0.05 +
-        (1 - f.scarring) * 100 * 0.15;
-  }
-
-  double _calcHydrationDetail() {
-    final f = widget.analysisData!.hydrationFactors;
-    return (1 - f.fineLines) * 100 * 0.20 +
-        (1 - f.flakiness) * 100 * 0.10 +
-        (1 - f.oilBalance) * 100 * 0.15 +
-        (1 - f.radiance) * 100 * 0.30 +
-        (1 - f.texture) * 100 * 0.25;
-  }
-
-  double _calcPigmentationDetail() {
-    final f = widget.analysisData!.pigmentationFactors;
-    return (1 - f.darkSpots) * 100 * 0.15 +
-        (1 - f.hyperpigmentation) * 100 * 0.20 +
-        (1 - f.melaninUnevenness) * 100 * 0.15 +
-        (1 - f.overallEvenness) * 100 * 0.25 +
-        (1 - f.redness) * 100 * 0.05 +
-        (1 - f.underEyePigmentation) * 100 * 0.10 +
-        (1 - f.uvDamage) * 100 * 0.10;
-  }
-
-  double _calcPoresDetail() {
-    final f = widget.analysisData!.poresFactors;
-    return (1 - f.visibility) * 100 * 0.25 +
-        (1 - f.size) * 100 * 0.20 +
-        (1 - f.enlargedPores) * 100 * 0.20 +
-        (1 - f.cloggedPores) * 100 * 0.15 +
-        (1 - f.tZoneProminence) * 100 * 0.05 +
-        (1 - f.cheekProminence) * 100 * 0.05 +
-        (1 - f.textureRoughness) * 100 * 0.10;
-  }
-
-  double _calcWrinklesDetail() {
-    final f = widget.analysisData!.wrinklesFactors;
-    return (1 - f.overallSeverity) * 100 * 0.20 +
-        (1 - f.depth) * 100 * 0.15 +
-        (1 - f.foreheadLines) * 100 * 0.10 +
-        (1 - f.crowsFeet) * 100 * 0.10 +
-        (1 - f.frownLines) * 100 * 0.08 +
-        (1 - f.nasolabialFolds) * 100 * 0.12 +
-        (1 - f.underEyeWrinkles) * 100 * 0.08 +
-        (1 - f.lipLines) * 100 * 0.05 +
-        (1 - f.marionelleLines) * 100 * 0.04 +
-        (1 - f.neckLines) * 100 * 0.02 +
-        (1 - f.staticWrinkles) * 100 * 0.04 +
-        (1 - f.dynamicWrinkles) * 100 * 0.02;
-  }
-
-  double _calcAging(double avgAge) {
-    if (avgAge >= 20 && avgAge <= 25) return 100;
-    if (avgAge > 25) return (100 - (avgAge - 25) * 2).clamp(0, 100);
-    return (100 - (20 - avgAge) * 1).clamp(0, 100);
-  }
-
   // ─── SYMMETRY (same logic) ───
   double _safeDiv(double a, double b) => b == 0 ? 0 : a / b;
 
@@ -1166,6 +1093,18 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
         .clamp(3.0, 9.5);
   }
 
+  void _retakeAnalysis() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const StandardCameraScreen(
+          lensDirection: CameraLensDirection.front,
+          isHair: false,
+        ),
+      ),
+    );
+  }
+
   // ─── REPORT SENDING (same logic as original) ───
   Future<void> _sendDetailedReport() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1250,7 +1189,7 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   // ═══════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    final skinHealth = _calculateSkinHealthScore();
+    final skinHealth = widget.analysisData?.skinHealthIndex ?? 0;
     final symmetry = _calcSymmetryScore();
     final metrics = _buildMetrics();
 
@@ -2956,6 +2895,10 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
   //  STAGE 7: REPORT CTA
   // ═══════════════════════════════════════════
   Widget _buildReportCTA() {
+    return _canSendReport ? _buildSaveReportCTA() : _buildRetakeAnalysisCTA();
+  }
+
+  Widget _buildReportCardShell({required Widget child}) {
     final r = Responsive(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(r.w(20), 0, r.w(20), 0),
@@ -2981,143 +2924,230 @@ class _SkinAnalysisRedesignedState extends State<SkinAnalysisRedesigned> {
             ),
           ],
         ),
-        child: Column(
-          children: [
-            // Icon
-            Container(
-              width: r.w(56),
-              height: r.w(56),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildRetakeAnalysisCTA() {
+    final r = Responsive(context);
+    return _buildReportCardShell(
+      child: Column(
+        children: [
+          Container(
+            width: r.w(56),
+            height: r.w(56),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.10),
+                  blurRadius: 12,
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.camera_alt_outlined,
+              color: Colors.white,
+              size: r.w(28),
+            ),
+          ),
+          SizedBox(height: r.h(14)),
+          Text(
+            'Take Another Scan',
+            style: TextStyle(
+              fontSize: r.sp(22),
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(8)),
+          Text(
+            'Retake your scan.',
+            style: TextStyle(
+              fontSize: r.sp(13),
+              fontWeight: FontWeight.w300,
+              color: Colors.white.withOpacity(0.82),
+              height: 1.65,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(18)),
+          GestureDetector(
+            onTap: _retakeAnalysis,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: r.h(16)),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(50),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.10),
+                    color: Colors.black.withOpacity(0.12),
                     blurRadius: 12,
-                    spreadRadius: -2,
+                    offset: const Offset(0, 4),
                   ),
                 ],
-              ),
-              child: Icon(
-                Icons.description_outlined,
-                color: Colors.white,
-                size: r.w(28),
-              ),
-            ),
-            SizedBox(height: r.h(14)),
-            Text(
-              'Save Your Full Skin Analysis',
-              style: TextStyle(
-                fontSize: r.sp(22),
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: r.h(8)),
-            Text(
-              'Includes detailed breakdowns, insights, and future scan comparisons.',
-              style: TextStyle(
-                fontSize: r.sp(13),
-                fontWeight: FontWeight.w300,
-                color: Colors.white.withOpacity(0.82),
-                height: 1.65,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: r.h(18)),
-
-            // Primary CTA
-            GestureDetector(
-              onTap: _sendingReport ? null : _sendDetailedReport,
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: r.h(16)),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.96),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_sendingReport)
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _DS.blushDark,
-                        ),
-                      )
-                    else
-                      Icon(Icons.save_outlined, size: 16, color: _DS.blush),
-                    const SizedBox(width: 10),
-                    Text(
-                      _reportSent
-                          ? 'Report Sent ✓'
-                          : (_sendingReport
-                                ? 'Sending...'
-                                : 'Save My Analysis'),
-                      style: TextStyle(
-                        fontSize: r.sp(16),
-                        fontWeight: FontWeight.w700,
-                        color: _DS.blushDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Track changes over time with future scans.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-
-            // Secondary
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(50),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 13,
-                    color: Colors.white.withOpacity(0.65),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'The account you created will track your progress over time.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withOpacity(0.72),
-                      ),
-                      textAlign: TextAlign.center,
+                  Icon(Icons.refresh, size: 16, color: _DS.blush),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Retake Analysis',
+                    style: TextStyle(
+                      fontSize: r.sp(16),
+                      fontWeight: FontWeight.w700,
+                      color: _DS.blushDark,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveReportCTA() {
+    final r = Responsive(context);
+    return _buildReportCardShell(
+      child: Column(
+        children: [
+          Container(
+            width: r.w(56),
+            height: r.w(56),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.10),
+                  blurRadius: 12,
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.description_outlined,
+              color: Colors.white,
+              size: r.w(28),
+            ),
+          ),
+          SizedBox(height: r.h(14)),
+          Text(
+            'Save Your Full Skin Analysis',
+            style: TextStyle(
+              fontSize: r.sp(22),
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(8)),
+          Text(
+            'Includes detailed breakdowns, insights, and future scan comparisons.',
+            style: TextStyle(
+              fontSize: r.sp(13),
+              fontWeight: FontWeight.w300,
+              color: Colors.white.withOpacity(0.82),
+              height: 1.65,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: r.h(18)),
+          GestureDetector(
+            onTap: _sendingReport ? null : _sendDetailedReport,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: r.h(16)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(50),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_sendingReport)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _DS.blushDark,
+                      ),
+                    )
+                  else
+                    Icon(Icons.save_outlined, size: 16, color: _DS.blush),
+                  const SizedBox(width: 10),
+                  Text(
+                    _reportSent
+                        ? 'Report Sent ✓'
+                        : (_sendingReport
+                              ? 'Sending...'
+                              : 'Save My Analysis'),
+                    style: TextStyle(
+                      fontSize: r.sp(16),
+                      fontWeight: FontWeight.w700,
+                      color: _DS.blushDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Track changes over time with future scans.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.6),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 13,
+                  color: Colors.white.withOpacity(0.65),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'The account you created will track your progress over time.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.72),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
