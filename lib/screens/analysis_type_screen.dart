@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 import 'image_capture_screen.dart';
 import 'profile_screen.dart';
+import 'package:skin_analysis_app/features/hair/screens/hair_hub_screen.dart';
 
 class AnalysisTypeScreen extends StatefulWidget {
   const AnalysisTypeScreen({super.key});
@@ -221,29 +222,24 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                             },
                           ),
 
-                          // Hidden from UI — keep code for future use
-                          if (false) ...[
-                            const SizedBox(height: 22),
+                          const SizedBox(height: 22),
 
-                            /// HAIR CARD
-                            _AnalysisCard(
-                              isPrimary: false,
-                              icon: Icons.content_cut,
-                              title: "Hair Health Overview",
-                              statusText: "Coming Soon",
-                              subtitle: "Density • Thinning • Scalp",
-                              description: "Scalp and hair density screening.",
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'Hair Health Overview is coming soon.'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                          /// HAIR CARD
+                          _AnalysisCard(
+                            isPrimary: false,
+                            icon: Icons.content_cut,
+                            title: "Hair Health Overview",
+                            subtitle: "Density • Thinning • Scalp",
+                            description: "Scalp and hair density screening.",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const HairHubScreen(),
+                                ),
+                              );
+                            },
+                          ),
 
                           SizedBox(height: H * 0.08),
                         ],

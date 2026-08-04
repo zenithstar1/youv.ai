@@ -14,7 +14,6 @@ import '../Models/hair_analysis_model.dart' as hair;
 import 'hair_api_service.dart';
 import 'hair_result_screen.dart';
 import 'package:skin_analysis_app/models/skin_analysis_model.dart';
-import 'enhanced_camera_screen.dart';
 import 'standard_camera_screen.dart';
 
 class ImagePreviewScreen extends StatefulWidget {
@@ -184,18 +183,18 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
   }
 
   void _retakePhoto() {
+    if (widget.isHair) {
+      // Return to upload screen (no camera for hair).
+      Navigator.pop(context);
+      return;
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => widget.isHair
-            ? EnhancedCameraScreen(
-                isHair: widget.isHair,
-                onImageCaptured: (_, __) {},
-              )
-            : const StandardCameraScreen(
-                lensDirection: CameraLensDirection.front,
-                isHair: false,
-              ),
+        builder: (_) => const StandardCameraScreen(
+          lensDirection: CameraLensDirection.front,
+          isHair: false,
+        ),
       ),
     );
   }
