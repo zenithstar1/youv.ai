@@ -18,7 +18,7 @@
   const HOLD_MS = 500;
   const COUNTDOWN_TICK_MS = 450;
   const TARGET_PITCH = 45;
-  const PITCH_MIN = 30;
+  const PITCH_MIN = 15;
   const PITCH_MAX = 60;
   const YAW_MAX = 18;
   const ROLL_MAX = 16;
@@ -148,7 +148,7 @@
       width: '100%',
       height: '100%',
       objectFit: 'cover',
-      transform: 'scaleX(-1)',
+      transform: 'scale(-1.25, 1.25)', // Zoom in 1.25x and flip horizontally
     });
     parent.appendChild(video);
 
@@ -180,7 +180,7 @@
   }
 
   /**
-   * Premium minimalist mask — just a subtle face outline.
+   * Tilting wireframe mask + large text overlay.
    */
   function drawMask(checks, now) {
     if (!maskCtx || !host) return;
@@ -197,6 +197,14 @@
 
     maskPulse = 0.6 + 0.4 * Math.sin(now / 480);
 
+    const targetTilt =
+      phase === 'face' || phase === 'face_hold' ? 0 : MASK_TILT_MAX;
+    if (maskAngle < targetTilt) {
+      maskAngle = Math.min(targetTilt, maskAngle + MASK_TILT_SPEED);
+    } else if (maskAngle > targetTilt) {
+      maskAngle = Math.max(targetTilt, maskAngle - MASK_TILT_SPEED);
+    }
+
     const cx = w * 0.5;
     const cy = h * 0.42;
     const s = Math.min(w, h) * 0.38;
@@ -204,26 +212,73 @@
     const alpha = matched ? 0.88 : 0.5 + maskPulse * 0.35;
     const color = matched
       ? 'rgba(150, 205, 175,' + alpha + ')'
-      : 'rgba(255, 250, 246,' + alpha + ')'
+      : 'rgba(255, 250, 246,' + alpha + ')';
 
     ctx.save();
-    ctx.translate(cx, cy);
+    // Move the mask slightly down to simulate nodding forward
+    ctx.translate(cx, cy + maskAngle * s * 0.35);
+    // Squish the mask vertically to simulate 3D pitch perspective
+    ctx.scale(1, 1 - maskAngle * 0.15);
 
     ctx.strokeStyle = color;
     ctx.lineWidth = matched ? 2.4 : 1.5; // Thinner for a more subtle look
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Minimalist Oval Face Outline
+    // Minimalist Oval Face Outline with Wireframe cross-sections
     ctx.beginPath();
-    // Using a subtle ellipse rather than a complex path
     ctx.ellipse(0, 0, s * 0.68, s * 0.95, 0, 0, 2 * Math.PI);
+
+    // Vertical center line
+    ctx.moveTo(0, -s * 0.95);
+    ctx.lineTo(0, s * 0.95);
+
+    // Horizontal eye line
+    ctx.moveTo(-s * 0.64, -s * 0.1);
+    ctx.quadraticCurveTo(0, s * 0.1, s * 0.64, -s * 0.1);
+
+    // Horizontal nose line
+    ctx.moveTo(-s * 0.54, s * 0.3);
+    ctx.quadraticCurveTo(0, s * 0.45, s * 0.54, s * 0.3);
+
+    // Horizontal chin/mouth line
+    ctx.moveTo(-s * 0.4, s * 0.65);
+    ctx.quadraticCurveTo(0, s * 0.75, s * 0.4, s * 0.65);
+
     ctx.stroke();
+
+    // Clean pink downward arrow on the head during tilt phase
+    if (phase === 'tilt' && !checks.pose) {
+      drawTiltArrow(ctx, 0, -s * 0.95 - 20, now);
+    }
+
     ctx.restore();
 
-    // Clean downward arrow above the face during tilt phase
-    if (phase === 'tilt' && !checks.pose) {
-      drawTiltArrow(ctx, cx, cy - s * 1.15, now);
+    // Draw large text overlay centered on the face
+    let caption = '';
+    if (phase === 'face' || phase === 'face_hold') {
+      caption = 'Look Straight';
+    } else if (phase === 'tilt' || phase === 'tilt_hold') {
+      caption = 'Tilt head down 45°';
+    } else if (phase === 'countdown') {
+      caption = 'Hold Still...';
+    }
+
+    if (caption) {
+      ctx.save();
+      ctx.resetTransform();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      ctx.scale(dpr, dpr);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 34px "Inter", "Roboto", "Helvetica Neue", sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+      ctx.shadowBlur = 16;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText(caption, w * 0.5, h * 0.45);
+      ctx.restore();
     }
   }
 
@@ -232,9 +287,9 @@
     const ay = cy + bob;
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(215, 144, 150, 0.9)';
-    ctx.fillStyle = 'rgba(215, 144, 150, 0.9)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(240, 20, 90, 0.9)'; // Vivid pink
+    ctx.fillStyle = 'rgba(240, 20, 90, 0.9)';
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -246,8 +301,9 @@
 
     ctx.beginPath();
     ctx.moveTo(cx - 10, ay - 4);
-    ctx.lineTo(cx, ay + 8);
+    ctx.lineTo(cx, ay + 12);
     ctx.lineTo(cx + 10, ay - 4);
+    ctx.fill();
     ctx.stroke();
 
     ctx.restore();
@@ -401,7 +457,7 @@
     if (p === 'tilt' || p === 'tilt_hold') {
       return 'Step 2: Lower Head';
     }
-    return 'Step 1: Align Face';
+    return 'Step 1: Look Straight';
   }
 
   function instructionFor(checks, p, countdown) {
@@ -409,11 +465,11 @@
     if (p === 'countdown') return 'Photo will be taken...';
     if (p === 'tilt_hold') return 'Hold still...';
     if (p === 'tilt') {
-      if (!checks.pose) return 'Lower your head at a 45 angle.';
+      if (!checks.pose) return 'Tilt head down 45°.';
       return 'Hold still...';
     }
     if (p === 'face_hold') return 'Hold still...';
-    if (!checks.face) return 'Align your face forward.';
+    if (!checks.face) return 'Look straight into the camera.';
     if (!checks.lighting) return 'Ensure proper lighting.';
     if (!checks.size || !checks.centered) {
       return 'Center your face in the outline.';
@@ -450,13 +506,26 @@
     if (!video) throw new Error('No video');
     const w = video.videoWidth || 720;
     const h = video.videoHeight || 960;
+
+    // Calculate the crop to match the 1.25x CSS zoom
+    const zoom = 1.25;
+    const cropW = w / zoom;
+    const cropH = h / zoom;
+    const cropX = (w - cropW) / 2;
+    const cropY = (h - cropH) / 2;
+
     const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = cropW;
+    canvas.height = cropH;
     const ctx = canvas.getContext('2d');
-    ctx.translate(w, 0);
+
+    // Flip horizontally to match mirror preview
+    ctx.translate(cropW, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, w, h);
+
+    // Draw the cropped center portion
+    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const imageBase64 = dataUrl.split(',')[1] || '';
     return { imageBase64, mimeType: 'image/jpeg', dataUrl };
@@ -632,26 +701,19 @@
         }
       }
     } else if (phase === 'countdown') {
-      // Once the countdown starts, only abort if we completely lose the face
-      // or they straighten up completely, to avoid frustrating resets.
-      if (!checks.face || pose.pitch < 15) {
-        phase = 'tilt';
-        holdStart = 0;
-        countdownStart = 0;
-        progress = 0;
-      } else {
-        progress = 1;
-        const elapsed = now - countdownStart;
-        if (elapsed < COUNTDOWN_TICK_MS) countdown = 3;
-        else if (elapsed < COUNTDOWN_TICK_MS * 2) countdown = 2;
-        else if (elapsed < COUNTDOWN_TICK_MS * 3) countdown = 1;
-        else {
-          phase = 'capture';
-          countdown = null;
-          drawMask(checks, now);
-          void finishCapture(pose, checks, iq);
-          return;
-        }
+      // Once the countdown starts on mobile, commit to it fully. 
+      // Do not abort if face flickers, as mobile frame drops easily cause frustrating resets.
+      progress = 1;
+      const elapsed = now - countdownStart;
+      if (elapsed < COUNTDOWN_TICK_MS) countdown = 3;
+      else if (elapsed < COUNTDOWN_TICK_MS * 2) countdown = 2;
+      else if (elapsed < COUNTDOWN_TICK_MS * 3) countdown = 1;
+      else {
+        phase = 'capture';
+        countdown = null;
+        drawMask(checks, now);
+        void finishCapture(pose, checks, iq);
+        return;
       }
     }
 

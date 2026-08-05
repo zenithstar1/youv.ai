@@ -3,7 +3,7 @@ class HairApiConfig {
   HairApiConfig._();
 
   /// Live hair/scalp analysis backend.
-  static const String baseUrl = 'http://147.93.18.158:8001';
+  static const String baseUrl = 'https://corsproxy.io/?http://147.93.18.158:8001';
 
   static const Duration requestTimeout = Duration(seconds: 120);
 
