@@ -8,7 +8,7 @@ import '../utils/hair_image_picker.dart';
 import '../widgets/hair_oval_guide.dart';
 import '../widgets/hair_result_widgets.dart';
 import '../widgets/hair_theme.dart';
-import 'hair_camera_screen.dart';
+import 'hair_quick_guided_flow_screen.dart';
 import 'hair_results_screen.dart';
 
 class HairQuickScanScreen extends StatefulWidget {
@@ -32,13 +32,16 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
       _softTip = null;
     });
     final navigator = Navigator.of(context);
-    final picked = camera
-        ? await navigator.push<HairPickedImage>(
-            MaterialPageRoute(
-              builder: (_) => const HairCameraScreen(title: 'Hair photo'),
-            ),
-          )
-        : await HairImagePickerHelper.fromGallery();
+    if (camera) {
+      // Guided premium capture → analyze → results (Quick Scan only).
+      await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => const HairQuickGuidedFlowScreen(),
+        ),
+      );
+      return;
+    }
+    final picked = await HairImagePickerHelper.fromGallery();
     if (picked == null || !mounted) return;
 
     final validation = HairImagePickerHelper.validate(picked.bytes);
