@@ -60,9 +60,9 @@ class HairDensityBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('Dense', density.densePct, const Color(0xFF5F8F5A)),
-      ('Medium', density.mediumPct, const Color(0xFFD4A017)),
-      ('Thin', density.thinPct, const Color(0xFFC96B6B)),
+      ('High visible density', density.densePct, const Color(0xFF5F8F5A)),
+      ('Medium visible density', density.mediumPct, const Color(0xFFD4A017)),
+      ('Low visible density', density.thinPct, const Color(0xFFC96B6B)),
     ];
 
     return Column(
@@ -101,41 +101,44 @@ class _BarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = ((pct ?? 0).clamp(0, 100)) / 100.0;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 64,
-          child: Text(
-            label,
-            style: GoogleFonts.lora(
-              fontSize: 13,
-              color: HairTheme.textHigh,
-            ),
+        Text(
+          label,
+          style: GoogleFonts.lora(
+            fontSize: 13,
+            color: HairTheme.textHigh,
           ),
         ),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: value,
-              minHeight: 11,
-              backgroundColor: const Color(0xFFEDE4E0),
-              color: color,
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: value,
+                  minHeight: 11,
+                  backgroundColor: const Color(0xFFEDE4E0),
+                  color: color,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 48,
-          child: Text(
-            pct == null ? '—' : '${pct!.toStringAsFixed(1)}%',
-            textAlign: TextAlign.right,
-            style: GoogleFonts.montserrat(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: HairTheme.textHigh,
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 48,
+              child: Text(
+                pct == null ? '—' : '${pct!.toStringAsFixed(1)}%',
+                textAlign: TextAlign.right,
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: HairTheme.textHigh,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );
