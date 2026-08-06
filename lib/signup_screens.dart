@@ -233,35 +233,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               onTap: _isLoading
                                   ? null
                                   : () async {
+                                      final errors = <String>[];
+
                                       if (!agreeTerms.value) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              "Please agree to the Terms & Conditions",
-                                              style: GoogleFonts.lora(),
-                                            ),
-                                          ),
+                                        errors.add(
+                                          'Please agree to the Terms & Conditions',
                                         );
-                                        return;
                                       }
-
                                       if (nameController.text.trim().isEmpty) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              "Please enter your name",
-                                              style: GoogleFonts.lora(),
-                                            ),
-                                          ),
+                                        errors.add('Please enter your name');
+                                      }
+                                      if (phoneController.text.length != 10) {
+                                        errors.add(
+                                          'Please enter a valid 10-digit phone number',
                                         );
-                                        return;
                                       }
 
-                                      if (phoneController.text.length != 10) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                      if (errors.isNotEmpty) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              "Please enter a valid 10-digit phone number",
+                                              errors.join('\n'),
                                               style: GoogleFonts.lora(),
                                             ),
                                           ),

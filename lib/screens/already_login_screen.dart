@@ -18,8 +18,7 @@ class AlreadyLoginScreen extends StatefulWidget {
 }
 
 class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
-  final TextEditingController _mobileController =
-      TextEditingController(text: "+91 ");
+  final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
 
   bool _otpSent = false;
@@ -73,7 +72,11 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
     _startTimer();
 
     _authBloc.add(
-      SendOtpRequested(phone: phone, flow: 'login'),
+      SendOtpRequested(
+        phone: phone,
+        flow: 'login',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 
@@ -91,7 +94,11 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
     setState(() => _timer = 30);
     _startTimer();
     _authBloc.add(
-      SendOtpRequested(phone: _normalizedPhone(), flow: 'login'),
+      SendOtpRequested(
+        phone: _normalizedPhone(),
+        flow: 'login',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 
@@ -263,9 +270,11 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
                         keyboardType: TextInputType.number,
                         enabled: !_otpSent,
                         inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
                         ],
                         decoration: InputDecoration(
+                          prefixText: '+91 ',
                           hintText: 'Enter your mobile number',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(18),

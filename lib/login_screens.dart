@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -181,6 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SendOtpRequested(
                             phone: loginPhoneController.text.trim(),
                             flow: 'login',
+                            scannerUrl: kIsWeb ? Uri.base.toString() : '',
                           ),
                         );
                       },

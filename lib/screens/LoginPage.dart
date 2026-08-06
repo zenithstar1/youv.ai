@@ -161,7 +161,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       );
     }
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController(text: '+91');
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
@@ -188,6 +188,22 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   
   Color? get headlineText => null;
 
+  void _onFormChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// All required fields valid — order of filling does not matter.
+  bool get _isFormValid {
+    return _nameController.text.trim().isNotEmpty &&
+        _normalizedPhone().length == 10 &&
+        _ageController.text.trim().isNotEmpty &&
+        _heightController.text.trim().isNotEmpty &&
+        _weightController.text.trim().isNotEmpty &&
+        _configLoaded &&
+        _locationReady &&
+        _consent;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -200,6 +216,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+    for (final c in [
+      _nameController,
+      _phoneController,
+      _ageController,
+      _heightController,
+      _weightController,
+    ]) {
+      c.addListener(_onFormChanged);
+    }
     _loadAppConfig();
   }
 
@@ -462,6 +487,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
+    for (final c in [
+      _nameController,
+      _phoneController,
+      _ageController,
+      _heightController,
+      _weightController,
+    ]) {
+      c.removeListener(_onFormChanged);
+    }
     _authBloc.close();
     _animController.dispose();
     _nameController.dispose();
@@ -518,7 +552,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
  }
 
     _authBloc.add(
-      SendOtpRequested(phone: phone, flow: 'signup'),
+      SendOtpRequested(
+        phone: phone,
+        flow: 'signup',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 
@@ -693,6 +731,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     SizedBox(height: labelInputGap),
                                     TextField(
                                       controller: _nameController,
+                                      onChanged: (_) => _onFormChanged(),
                                       style: TextStyle(
                                         fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
                                       ),
@@ -737,10 +776,16 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     TextField(
                                       controller: _phoneController,
                                       keyboardType: TextInputType.phone,
+                                      onChanged: (_) => _onFormChanged(),
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(10),
+                                      ],
                                       style: TextStyle(
                                         fontSize: (15 * compactScale).clamp(13.0, 16.0).toDouble(),
                                       ),
                                       decoration: InputDecoration(
+                                        prefixText: '+91 ',
                                         hintText: 'Enter your mobile number',
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(
@@ -794,6 +839,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                           child: TextField(
                                             controller: _ageController,
                                             keyboardType: TextInputType.number,
+                                            onChanged: (_) => _onFormChanged(),
                                             inputFormatters: [
                                               FilteringTextInputFormatter.digitsOnly,
                                             ],
@@ -832,6 +878,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                                 const TextInputType.numberWithOptions(
                                               decimal: true,
                                             ),
+                                            onChanged: (_) => _onFormChanged(),
                                             inputFormatters: [
                                               FilteringTextInputFormatter.allow(
                                                 RegExp(r'^\d*\.?\d*'),
@@ -871,8 +918,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                             controller: _weightController,
                                             keyboardType:
                                                 const TextInputType.numberWithOptions(
-                                              decimal: true,
-                                            ),
+                                                  decimal: true,
+                                                ),
+                                            onChanged: (_) => _onFormChanged(),
                                             inputFormatters: [
                                               FilteringTextInputFormatter.allow(
                                                 RegExp(r'^\d*\.?\d*'),
@@ -993,17 +1041,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               // Verify & Start Scan Button
                               Builder(
                                 builder: (context) {
-final allFilled =
-    _nameController.text.trim().isNotEmpty &&
-    _phoneController.text.trim().isNotEmpty &&
-    _ageController.text.trim().isNotEmpty &&
-    _heightController.text.trim().isNotEmpty &&
-    _weightController.text.trim().isNotEmpty &&
-    _configLoaded &&
-    _locationReady &&
-    _consent;
-                                  final anyFilled = _nameController.text.trim().isNotEmpty ||
-                                      _phoneController.text.trim().isNotEmpty;
+                                  final allFilled = _isFormValid;
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
@@ -1483,7 +1521,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     setState(() { _timer = 30; });
     _startTimer();
     context.read<AuthBloc>().add(
-      SendOtpRequested(phone: widget.phone, flow: 'signup'),
+      SendOtpRequested(
+        phone: widget.phone,
+        flow: 'signup',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 
