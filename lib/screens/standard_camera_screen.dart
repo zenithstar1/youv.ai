@@ -222,9 +222,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         if (!_cameraWarmedUp) return;
 
         final wasDetected = _faceDetected;
-        if (wasDetected != detected) {
-          debugPrint('[FaceDetection] web event: $detected');
-        }
 
         final validation = _ValidationStatus(
           faceDetected: detected,
@@ -341,14 +338,11 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       _warmupTimer = Timer(const Duration(milliseconds: _kCameraWarmupMs), () {
         if (!mounted || _isDisposed) return;
         _cameraWarmedUp = true;
-        debugPrint('[Confidence] camera warmed up -- detection active');
       });
 
       _startFaceDetectionWithRetry();
       await _startNativeFaceDetection(controller, cam);
-    } catch (e) {
-      debugPrint("Camera init error: $e");
-    }
+    } catch (_) {}
 
     _initializing = false;
   }
@@ -672,7 +666,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     }
 
     if (progress >= 1.0 && !_capturing && !_holdSteady) {
-      debugPrint('[Confidence] ${_kStabilityHoldMs}ms stable -> capture');
       _triggerAutoCapture();
     }
   }
@@ -696,7 +689,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         _resetStability();
         return;
       }
-      debugPrint('[Confidence] hold steady -> capture');
       _capture();
     });
   }
@@ -748,13 +740,9 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
         try {
           final started = await web_face.startFaceDetection();
           if (started) {
-            debugPrint("Face detection started (attempt $attempt)");
             return;
           }
-        } catch (e) {
-          debugPrint("Face detection start error: $e");
-        }
-        debugPrint("No video element found (attempt $attempt), retrying...");
+        } catch (_) {}
         _startFaceDetectionWithRetry(attempt + 1);
       });
     });
@@ -764,7 +752,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
   /// CANCEL COUNTDOWN / HOLD STEADY
   /// =================================================
   void _cancelCountdown() {
-    debugPrint('[CaptureFlow] countdown cancelled');
     _countdownTimer?.cancel();
     _countdownTimer = null;
     _autoCaptureTimer?.cancel();
@@ -829,8 +816,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       await controller.startImageStream((CameraImage image) {
         service.processCameraFrame(image);
       });
-    } catch (e) {
-      debugPrint('[SkinAuto] startImageStream error: $e');
+    } catch (_) {
     } finally {
       _isStartingNativeImageStream = false;
     }
@@ -845,9 +831,7 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
     }
     try {
       await controller.stopImageStream();
-    } catch (e) {
-      debugPrint('[SkinAuto] stopImageStream error: $e');
-    }
+    } catch (_) {}
   }
 
   /// =================================================
@@ -864,12 +848,10 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
       return;
     }
     if (!widget.isHair && !_faceDetected) {
-      debugPrint('[CaptureFlow] capture blocked: no face detected');
       return;
     }
     try {
       if (!mounted || _isDisposed || _hasNavigated) return;
-      debugPrint('[CaptureFlow] capture started');
       setState(() => _capturing = true);
       _autoCaptureTimer?.cancel();
       _autoRingController?.stop();
@@ -884,7 +866,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
       if (kIsWeb && !widget.isHair) {
         if (!_faceDetected) {
-          debugPrint('[WEB] capture rejected: face lost before capture');
           await _rejectInvalidCapture(controller);
           return;
         }
@@ -892,11 +873,9 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
 
       _capturedBytes = bytes;
       _capturedFileName = pic.name;
-      debugPrint('[CaptureFlow] capture success: ${bytes.lengthInBytes} bytes');
 
       _startScanningAnimation();
-    } catch (e) {
-      debugPrint("Capture error: $e");
+    } catch (_) {
       if (mounted && !_isDisposed) {
         setState(() => _capturing = false);
       }
@@ -1105,13 +1084,6 @@ class _StandardCameraScreenState extends State<StandardCameraScreen>
               (portraitScreen && streamIsLandscape) ? sz.height : sz.width;
           final displayH =
               (portraitScreen && streamIsLandscape) ? sz.width  : sz.height;
-
-          debugPrint(
-            '[CameraPreview:web] stream=${sz.width.toInt()}x${sz.height.toInt()}'
-            ' display=${displayW.toInt()}x${displayH.toInt()}'
-            ' screen=${screen.width.toInt()}x${screen.height.toInt()}'
-            ' dpr=${MediaQuery.of(context).devicePixelRatio}',
-          );
 
           return ClipRect(
             child: OverflowBox(

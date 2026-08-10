@@ -135,7 +135,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
 
         _uploadImageToFirebase(widget.imageBytes, 'latest_scan')
             .then((url) => _saveBeforeAfterImage(url))
-            .catchError((e) => print('Background upload failed: $e'));
+            .catchError((_) {});
 
         _messageTimer?.cancel();
         if (!mounted) return;
@@ -160,7 +160,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
 
       _uploadImageToFirebase(widget.imageBytes, 'latest_scan')
           .then((url) => _saveBeforeAfterImage(url))
-          .catchError((e) => print('Background upload failed: $e'));
+          .catchError((_) {});
 
       _messageTimer?.cancel();
 
@@ -201,7 +201,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
   }
 
   void _startMessageCycling() {
-    _messageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _messageTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
       if (mounted) {
         setState(() {
           _currentMessageIndex =

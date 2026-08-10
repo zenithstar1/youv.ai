@@ -4,6 +4,7 @@ import 'package:skin_analysis_app/screens/LoginPage.dart';
 import 'package:skin_analysis_app/screens/already_login_screen.dart';
 import 'package:skin_analysis_app/screens/analysis_type_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_analysis_app/services/auth_service.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 
 class OnboardingFlow extends StatelessWidget {
@@ -47,22 +48,16 @@ class _PostIntroExplanationScreenState extends State<_PostIntroExplanationScreen
 
     final isLoggedIn = prefs.getBool('isLogin') ?? false;
     final hasRegistered = prefs.getBool('hasRegistered') ?? false;
-    final token = prefs.getString('_token') ?? '';
+    final restoredSession = await AuthService.restoreSession();
 
-    debugPrint('[OnboardingFlow] READ isLogin=$isLoggedIn  hasRegistered=$hasRegistered  token=${token.isEmpty ? "(empty)" : "(set)"}');
-
-    if (isLoggedIn && token.isNotEmpty) {
-      debugPrint('[OnboardingFlow] → AnalysisTypeScreen (active session)');
-
+    if (isLoggedIn && restoredSession) {
       _goToHome();
     } else if (hasRegistered) {
-      debugPrint('[OnboardingFlow] → AlreadyLoginScreen (returning user)');
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const AlreadyLoginScreen()),
       );
     } else {
-      debugPrint('[OnboardingFlow] → LoginPage (new user)');
       final result = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),

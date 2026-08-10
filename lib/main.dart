@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import 'onboarding_flow.dart';
 import 'screens/analysis_type_screen.dart';
 import 'screens/already_login_screen.dart';
+import 'services/auth_service.dart';
 import 'services/camera_setup_noop.dart'
     if (dart.library.io) 'services/camera_setup_mobile.dart';
 
@@ -17,12 +18,10 @@ Future<void> main() async {
   // Catch Flutter framework errors (widget build/layout/paint errors).
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    debugPrint('[FlutterError] ${details.exception}');
   };
 
   // Catch all uncaught async errors so the app doesn't crash.
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('[UncaughtError] $error\n$stack');
     return true; // handled — don't crash
   };
 
@@ -93,26 +92,27 @@ class _AuthGateState extends State<AuthGate> {
     final prefs = await SharedPreferences.getInstance();
     final isLogin = prefs.getBool('isLogin') ?? false;
     final hasRegistered = prefs.getBool('hasRegistered') ?? false;
-    final token = prefs.getString('_token') ?? '';
-
-    debugPrint('[AuthGate] READ isLogin=$isLogin  hasRegistered=$hasRegistered  token=${token.isEmpty ? "(empty)" : "(set)"}');
+    final restoredSession = await AuthService.restoreSession();
 
     if (!mounted) return;
 
+    // Logged-in users skip the intro and land directly in the app.
+    if (isLogin && restoredSession) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const AnalysisTypeScreen()),
+      );
+      return;
+    }
+
     // Determine where to land AFTER the intro screen.
     Widget destination;
-    if (isLogin && token.isNotEmpty) {
-      debugPrint('[AuthGate] resolved destination → AnalysisTypeScreen');
-      destination = const AnalysisTypeScreen();
-    } else if (hasRegistered) {
-      debugPrint('[AuthGate] resolved destination → AlreadyLoginScreen');
+    if (hasRegistered) {
       destination = const AlreadyLoginScreen();
     } else {
-      debugPrint('[AuthGate] resolved destination → OnboardingFlow (new user)');
       destination = const OnboardingFlow();
     }
 
-    // Always show the intro/splash screen first, then navigate to destination.
+    // Show intro for new or returning-but-logged-out users only.
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => OnboardingScreen(destination: destination),

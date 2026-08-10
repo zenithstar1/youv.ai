@@ -3,19 +3,14 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
+import 'package:skin_analysis_app/services/auth_service.dart';
 
 class ProfileService {
   static const Duration _timeout = Duration(seconds: 15);
 
   static Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('_token');
+    return AuthService.getAccessToken();
   }
-
-  static Map<String, String> _authHeaders(String token) => {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
 
   /// Fetches profile from API. Caches result in SharedPreferences on success.
   /// Falls back to cached data if the API fails.
@@ -29,7 +24,10 @@ class ProfileService {
       final response = await http
           .get(
             Uri.parse('${ApiService.dashboardBaseUrl}/user/profile'),
-            headers: _authHeaders(token),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
           )
           .timeout(_timeout);
 

@@ -1,0 +1,8 @@
+# Flutter Web — prevent stale shell files after deployments (Apache)
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|flutter_bootstrap\.js|flutter_service_worker\.js|build_id\.json|version\.json|main\.dart\.js|face_detector\.js)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>

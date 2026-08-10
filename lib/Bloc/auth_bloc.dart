@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_analysis_app/Api/Apiservice.dart';
+import 'package:skin_analysis_app/config/api_config.dart';
+import 'package:skin_analysis_app/services/auth_service.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 import 'package:http/http.dart' as http;
@@ -10,9 +11,8 @@ import 'dart:convert';
 // Switch between local and production backend:
 // Local (Android emulator)  → 'http://10.0.2.2:8000/api/auth'
 // Local (physical device)   → 'http://<YOUR_PC_IP>:8000/api/auth'
-// Production                → 'https://aestheticai.globalspace.in/dev/clinic-suite/demo_youv_backend/public/api/auth'
-const String _authBaseUrl =
-    'https://akumentis.youv.ai/dashboard/api/auth';
+// Production                → ApiConfig.authBaseUrl
+const String _authBaseUrl = ApiConfig.authBaseUrl;
   //'http://127.0.0.1:8000/api/auth';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -21,7 +21,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegisterRequested);
     on<GoogleLoginRequested>(_googleLogin);
     on<SendOtpRequested>(sendOtp);
-    on<VerifyLoginMobile>(mobileLogin);
+    on<VerifyLoginMobile>(mobileLogin); 
     on<LogoutRequested>(logout);
     on<UpdateProfileRequested>(_updateProfile);
     on<AcceptPolicyRequested>(_acceptPolicy);
@@ -33,29 +33,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      print("login");
       final response = await http.post(
         Uri.parse(
           '$_authBaseUrl/login',
         ),
         body: {'email': event.email, 'password': event.password},
       ).timeout(Duration(seconds: 10));
-      print(response.body);
-      print(response.statusCode);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('isLogin', true);
-          await prefs.setBool('hasRegistered', true);
-          await prefs.setString('userInfo', json.encode(responseData['data']));
-          await prefs.setString('_token', responseData['data']['token'] ?? '');
-          await prefs.setBool(
-            'isSubscribe',
-            responseData['data']['isSubscribed'] ?? false,
+          await AuthService.saveSession(
+            Map<String, dynamic>.from(responseData['data'] as Map),
           );
-          debugPrint('[AuthBloc/login] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
           emit(AuthAuthenticated("Login successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -66,22 +56,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
     } catch (e) {
-      print("Login error: $e");
       emit(AuthError('Login failed: $e'));
       return;
     }
-    print(
-      "Login requested with email: ${event.email} and password: ${event.password}",
-    );
   }
 
   Future<void> _onRegisterRequested(
     RegisterRequested event,
     Emitter<AuthState> emit,
   ) async {
-    print(
-      "Register requested with name: ${event.name}, email: ${event.email}, dateOfBirth: ${event.dateOfBirth}, gender: ${event.gender}, phone: ${event.phone}",
-    );
     var isvalidate = validateRegistrationFields(
       name: event.name,
       // email: event.email,
@@ -92,7 +75,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // gender: event.gender,
       // address: event.address,
     );
-    print("isvalidate: $isvalidate");
     if (!isvalidate['isValid']) {
       emit(AuthError(isvalidate['message']));
       return;
@@ -114,24 +96,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'phone': event.phone ?? '',
           if (event.otp != null) 'otp': event.otp!,
           if (event.clinicId != null) 'clinic_id': event.clinicId!.toString(),
+          'scanner_url': event.scannerUrl,
+          'latitude': event.latitude,
+          'longitude': event.longitude,
+          if (event.age != null && event.age!.isNotEmpty) 'age': event.age!,
+          if (event.height != null && event.height!.isNotEmpty)
+            'height': event.height!,
+          if (event.weight != null && event.weight!.isNotEmpty)
+            'weight': event.weight!,
         },
       ).timeout(Duration(seconds: 10));
-      print(response.body);
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
 
-        if (responseData is Map && responseData.containsKey('data')) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('isLogin', true);
-          await prefs.setBool('hasRegistered', true);
-          await prefs.setString('userInfo', json.encode(responseData['data']));
-          await prefs.setString('_token', responseData['data']['token'] ?? '');
-          await prefs.setBool(
-            'isSubscribe',
-            responseData['data']['isSubscribed'] ?? false,
-          );
-          debugPrint('[AuthBloc/register] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
+        if (responseData is Map) {
+          final data = (responseData['data'] is Map)
+              ? Map<String, dynamic>.from(responseData['data'] as Map)
+              : Map<String, dynamic>.from(responseData.cast<String, dynamic>());
+
+          await AuthService.saveSession(data);
           emit(AuthAuthenticated("Registration successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -186,8 +170,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'type': event.flow,
         },
       ).timeout(Duration(seconds: 10));
-      print('sendOtp flow=${event.flow} status=${response.statusCode}');
-      print(response.body);
 
       Map<String, dynamic>? responseData;
       String backendMessage = '';
@@ -272,27 +254,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'phone': event.phone,
           'otp': event.otp,
           'mobile': event.phone,
-          'name': event.name,
-          'email': event.email,
+          if (event.name.isNotEmpty) 'name': event.name,
+          if (event.email.isNotEmpty) 'email': event.email,
           if (event.city != null) 'city': event.city!,
           if (event.clinicId != null) 'clinic_id': event.clinicId!.toString(),
+          'scanner_url': event.scannerUrl,
+          'latitude': event.latitude,
+          'longitude': event.longitude,
         },
       ).timeout(Duration(seconds: 10));
-      print(response.body);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('isLogin', true);
-          await prefs.setBool('hasRegistered', true);
-          await prefs.setString('userInfo', json.encode(responseData['data']));
-          await prefs.setString('_token', responseData['data']['token'] ?? '');
-          await prefs.setBool(
-            'isSubscribe',
-            responseData['data']['isSubscribed'] ?? false,
+          await AuthService.saveSession(
+            Map<String, dynamic>.from(responseData['data'] as Map),
           );
-          debugPrint('[AuthBloc/mobileLogin] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
           emit(AuthAuthenticated("Mobile verification successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -331,21 +308,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'phone': googleLoginRequested.phoneNumber,
         },
       ).timeout(Duration(seconds: 10));
-      print(response.body);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('isLogin', true);
-          await prefs.setBool('hasRegistered', true);
-          await prefs.setString('userInfo', json.encode(responseData['data']));
-          await prefs.setString('_token', responseData['data']['token'] ?? '');
-          await prefs.setBool(
-            'isSubscribe',
-            responseData['data']['isSubscribed'] ?? false,
+          await AuthService.saveSession(
+            Map<String, dynamic>.from(responseData['data'] as Map),
           );
-          debugPrint('[AuthBloc/google] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=${(prefs.getString('_token') ?? '').isEmpty ? "(empty)" : "(set)"}');
           emit(AuthAuthenticated("Google login successful!"));
         } else {
           emit(AuthError('Invalid response format'));
@@ -389,21 +358,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> logout(LogoutRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      print("Logging out...");
-      await http.post(
-        Uri.parse(
-          '$_authBaseUrl/logout',
-        ),
-        headers: {
-          'Authorization':
-              'Bearer ${((await SharedPreferences.getInstance()).getString('_token') ?? '')}',
-        },
-      ).timeout(Duration(seconds: 10));
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLogin', false);
-      await prefs.remove('_token');
-      // hasRegistered intentionally kept — returning user must reach AlreadyLoginScreen
-      debugPrint('[AuthBloc/logout] SAVED isLogin=${prefs.getBool('isLogin')}  hasRegistered=${prefs.getBool('hasRegistered')}  token=(removed)');
+      await AuthService.logoutRemote();
+      await AuthService.clearSession();
       emit(AuthLogout());
     } catch (e) {
       
@@ -417,8 +373,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoadingProfile());
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('_token') ?? '';
+      final token = await AuthService.getAccessToken();
 
       final response = await http.post(
         Uri.parse(
@@ -431,12 +386,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         body: json.encode({
           'gender': event.gender,
           'date_of_birth': event.dateOfBirth?.toIso8601String(),
+          if (event.age != null && event.age!.isNotEmpty) 'age': event.age!,
+          if (event.height != null && event.height!.isNotEmpty)
+            'height': event.height!,
+          if (event.weight != null && event.weight!.isNotEmpty)
+            'weight': event.weight!,
         }),
       ).timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
         final responseData = json.decode(response.body);
-        print('Profile update response: $responseData');
 
         // Check if the response has a success field
         if (responseData is Map) {
@@ -457,14 +417,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             updatedUserData['gender'] = event.gender;
             updatedUserData['date_of_birth'] = event.dateOfBirth
                 ?.toIso8601String();
+            if (event.age != null && event.age!.isNotEmpty) {
+              updatedUserData['age'] = event.age;
+            }
+            if (event.height != null && event.height!.isNotEmpty) {
+              updatedUserData['height'] = event.height;
+            }
+            if (event.weight != null && event.weight!.isNotEmpty) {
+              updatedUserData['weight'] = event.weight;
+            }
 
             // Save updated user data
             prefs.setString('userInfo', json.encode(updatedUserData));
 
-            print('Emitting AuthMessage: Profile updated successfully!');
             emit(AuthMessage('Profile updated successfully!'));
           } else {
-            print('Emitting AuthError: Profile update failed');
             emit(
               AuthError(
                 'Profile update failed: ${responseData['message'] ?? 'Unknown error'}',

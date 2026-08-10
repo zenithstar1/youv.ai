@@ -291,10 +291,6 @@ class AutoCaptureController {
     double imageWidth = 1.0,
     double imageHeight = 1.0,
   }) {
-    if (kDebugMode)
-      print(
-        '[AUTO] updateFaceDetection: hasFace=$hasFace, fill=$faceWidthRatio/$faceHeightRatio, offsetX=$faceCenterOffsetX, offsetY=$faceCenterOffsetY, centerY=$faceCenterYRatio',
-      );
     // Capture previous state BEFORE mutating angles.
     final wasCaptureReady = _isCaptureReady;
     bool shouldStopTimerImmediately = false;
@@ -643,7 +639,6 @@ class AutoCaptureController {
 
   /// Triggers the capture and provides haptic feedback
   void _triggerCapture() async {
-    debugPrint('[AUTO_CAPTURE] Timer completed — triggering capture');
     // Haptic feedback
     await HapticFeedback.mediumImpact();
     _onCapture?.call();
@@ -1182,7 +1177,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         detected,
       ) {
         if (!mounted || _isDisposed || _hasNavigated) return;
-        debugPrint("WEB ALIGN: $detected");
 
         final wasAligned = _webEyesAligned;
         if (wasAligned != detected) {
@@ -1234,7 +1228,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             return;
           }
           if (_webEyesAligned) {
-            debugPrint('[WEB] Auto capture triggered');
             _handleAutoCapture();
           } else {
             _webAutoCaptureLocked = false;
@@ -1254,22 +1247,10 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         try {
           final started = await web_face.startFaceDetection();
           if (started) {
-            if (kDebugMode) {
-              debugPrint(
-                '[WEB_FACE] Face detection started (attempt $attempt)',
-              );
-            }
             return;
           }
-        } catch (e) {
-          if (kDebugMode) debugPrint('[WEB_FACE] startFaceDetection error: $e');
-        }
+        } catch (_) {}
 
-        if (kDebugMode) {
-          debugPrint(
-            '[WEB_FACE] No video element found (attempt $attempt), retrying...',
-          );
-        }
         _startWebFaceDetectionWithRetry(attempt + 1);
       });
     });
@@ -1408,9 +1389,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
   /// Handles auto-capture trigger
   void _handleAutoCapture() {
-    debugPrint(
-      '[AUTO_CAPTURE] _handleAutoCapture: mounted=$mounted disposed=$_isDisposed navigated=$_hasNavigated capturing=$_isCapturing',
-    );
     if (!mounted || _isDisposed || _hasNavigated) return;
     _takePicture();
   }
@@ -1446,10 +1424,8 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
         return;
       }
 
-      debugPrint('[CAPTURE] Taking picture...');
       // Take picture
       final XFile picture = await _cameraController!.takePicture();
-      debugPrint('[CAPTURE] Picture taken: ${picture.path}');
       final imageBytes = await picture.readAsBytes();
 
       shouldRestartStream = false;
@@ -1539,7 +1515,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
     try {
       _lastImageStreamStartAt = DateTime.now();
       _lastAnalysisFrameAt = null;
-      if (kDebugMode) print('[STREAM] Starting image stream');
       await controller.startImageStream((CameraImage image) {
         _lastAnalysisFrameAt = DateTime.now();
         final service = _faceDetectionService;
@@ -1547,9 +1522,7 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
           service.processCameraFrame(image);
         }
       });
-      if (kDebugMode) print('[STREAM] Image stream started');
-    } catch (e) {
-      if (kDebugMode) print('startImageStream error: $e');
+    } catch (_) {
     } finally {
       _isStartingImageStream = false;
     }
@@ -1601,12 +1574,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
 
       // Restart the stream if it stopped or frames have gone stale.
       if (!controller.value.isStreamingImages || isStale) {
-        if (kDebugMode) {
-          print(
-            '[WATCHDOG] Restarting image stream: isStreaming=${controller.value.isStreamingImages}, '
-            'lastFrameMs=${lastFrameAt == null ? -1 : now.difference(lastFrameAt).inMilliseconds}',
-          );
-        }
         _analysisRestartWindowStart ??= now;
         if (now.difference(_analysisRestartWindowStart!).inSeconds >= 5) {
           _analysisRestartWindowStart = now;
@@ -1623,10 +1590,6 @@ class _EnhancedCameraScreenState extends State<EnhancedCameraScreen> {
             (_lastCameraReinitAt == null ||
                 now.difference(_lastCameraReinitAt!).inSeconds >= 10);
         if (shouldReinit) {
-          if (kDebugMode)
-            print(
-              '[WATCHDOG] Reinitializing camera after repeated stream restarts',
-            );
           _lastCameraReinitAt = now;
           await _initializeHairAnalysisCamera();
         }

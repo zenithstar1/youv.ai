@@ -1,0 +1,13 @@
+class AppConfigResponse {
+  final bool hideLocation;
+
+  AppConfigResponse({
+    required this.hideLocation,
+  });
+
+  factory AppConfigResponse.fromJson(Map<String, dynamic> json) {
+    return AppConfigResponse(
+      hideLocation: json['hide_location'] == true,
+    );
+  }
+}

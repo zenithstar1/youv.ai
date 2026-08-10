@@ -24,7 +24,11 @@
       "PowerShell(\\(Get-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Raw\\) -replace '\\\\.withOpacity\\\\\\(', '.withValues\\(alpha: ' | Set-Content \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\\\\lib\\\\screens\\\\standard_camera_screen.dart\" -Encoding utf8)",
       "Bash(flutter analyze *)",
       "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/face_detector.js lib/screens/standard_camera_screen.dart)",
-      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/index.html web/face_detector.js)"
+      "Bash(git -C \"c:\\\\Users\\\\amnsa\\\\OneDrive\\\\Desktop\\\\youv.ai\" add web/index.html web/face_detector.js)",
+      "Bash(sed -i \"s|.*'https://akumentis.youv.ai/dashboard/api/analysis/55/send-whatsapp-report';|              '\\\\$liveReportBaseUrl/analysis/\\\\$analysisId/send-whatsapp-report';|\" \"c:/Users/amnsa/OneDrive/Desktop/youv.ai/lib/Api/Apiservice.dart\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\amnsa\\OneDrive\\Desktop\\youv.ai\\lib\\Api"
     ]
   }
 }

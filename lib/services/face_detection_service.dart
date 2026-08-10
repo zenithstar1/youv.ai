@@ -77,8 +77,6 @@ class FaceDetectionService {
   bool get isInitialized => _isInitialized;
   bool _isProcessing = false;
   int _sensorRotation = 0;
-  static const bool _debugLogs = false;
-
   /// Frame throttling: skip frames so MediaPipe has headroom on slow chipsets.
   int _frameCounter = 0;
   static const int _processEveryNthFrame = 2;
@@ -113,23 +111,13 @@ class FaceDetectionService {
             .timeout(const Duration(seconds: 15), onTimeout: () => null);
         _isInitialized = result == true;
         if (_isInitialized) {
-          if (_debugLogs) {
-            debugPrint(
-              '[MediaPipe] FaceLandmarker initialized (attempt $attempt)',
-            );
-          }
           return;
         }
-      } catch (e) {
-        debugPrint('[MediaPipe] Init attempt $attempt failed: $e');
-      }
+      } catch (_) {}
       if (attempt < _maxInitRetries) {
         await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
     }
-    debugPrint(
-      '[MediaPipe] All init attempts failed — face detection disabled',
-    );
   }
 
   /// Process camera frame and extract face landmarks via MediaPipe.
@@ -194,8 +182,7 @@ class FaceDetectionService {
           _landmarksStream.add(const FaceDetectionFrame.noFace());
         }
       }
-    } catch (e) {
-      if (_debugLogs) debugPrint('[MediaPipe] Frame error: $e');
+    } catch (_) {
       if (!_landmarksStream.isClosed) {
         _landmarksStream.add(const FaceDetectionFrame.noFace());
       }
@@ -238,9 +225,6 @@ class FaceDetectionService {
   /// light safety net — not a strict gate.
   Future<bool> validateCapturedImage(String imagePath) async {
     if (!_isInitialized) {
-      debugPrint(
-        '[MediaPipe] validateCapturedImage: not initialized, accepting',
-      );
       return true; // Accept — can't validate without service
     }
 
@@ -252,18 +236,13 @@ class FaceDetectionService {
           .timeout(const Duration(seconds: 3), onTimeout: () => null);
 
       if (result == null) {
-        debugPrint('[MediaPipe] validateCapturedImage: timeout, accepting');
         return true; // Accept on timeout — user already passed live checks
       }
       if (result['hasFace'] != true) {
-        debugPrint(
-          '[MediaPipe] validateCapturedImage: no face detected in still image',
-        );
         return false;
       }
       return _isAcceptableSkinCaptureFace(result);
-    } catch (e) {
-      debugPrint('[MediaPipe] Image validation error: $e');
+    } catch (_) {
       return true; // Accept on error — don't block user after successful live detection
     }
   }
@@ -299,9 +278,6 @@ class FaceDetectionService {
     // Landmarks check (10-point mapped format)
     final landmarksList = result['landmarks'] as List?;
     if (landmarksList == null || landmarksList.length < 7) {
-      debugPrint(
-        '[MediaPipe] Validation FAIL: insufficient landmarks (${landmarksList?.length})',
-      );
       return false;
     }
 
@@ -327,13 +303,6 @@ class FaceDetectionService {
 
     final yaw = ((result['eulerAngleY'] as num?) ?? 0).toDouble().abs();
     final roll = ((result['eulerAngleZ'] as num?) ?? 0).toDouble().abs();
-
-    debugPrint(
-      '[MediaPipe] Validation: faceW=$faceWidthRatio faceH=$faceHeightRatio '
-      'area=$faceAreaRatio aspect=$aspectRatio offX=$offsetX offY=$offsetY '
-      'eyesLevel=$eyesLevel noseCentered=$noseCenteredToEyes mouth=$mouthWidth eyeDx=$eyeDx '
-      'yaw=$yaw roll=$roll',
-    );
 
     // Relaxed thresholds — user already passed live auto-capture checks.
     // Only reject truly bad captures.

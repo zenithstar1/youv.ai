@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +9,7 @@ import 'package:skin_analysis_app/utils/responsive.dart';
 import 'terms_and_conditions.dart';
 import 'package:flutter/gestures.dart';
 import 'screens/analysis_type_screen.dart';
+
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -230,7 +232,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: GestureDetector(
                               onTap: _isLoading
                                   ? null
-                                  : () {
+                                  : () async {
                                       if (!agreeTerms.value) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
@@ -268,12 +270,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       }
 
                                       final phone = phoneController.text.trim();
+                                      if (!context.mounted) return;
                                       context.read<AuthBloc>().add(
                                         RegisterRequested(
                                           name: nameController.text.trim(),
                                           // phone used as password so backend requirement is met
                                           password: phone,
                                           phone: phone,
+                                          scannerUrl: kIsWeb ? Uri.base.toString() : '',
                                         ),
                                       );
                                     },
