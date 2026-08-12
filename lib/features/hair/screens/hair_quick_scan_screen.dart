@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../api/hair_analysis_client.dart';
 import '../utils/hair_image_picker.dart';
 import '../widgets/hair_oval_guide.dart';
+import '../widgets/hair_pose_coach.dart';
 import '../widgets/hair_result_widgets.dart';
 import '../widgets/hair_theme.dart';
 import 'hair_camera_screen.dart';
@@ -35,7 +36,10 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
     final picked = camera
         ? await navigator.push<HairPickedImage>(
             MaterialPageRoute(
-              builder: (_) => const HairCameraScreen(title: 'Hair photo'),
+              builder: (_) => const HairCameraScreen(
+                title: 'Hair photo',
+                pose: HairCapturePose.top,
+              ),
             ),
           )
         : await HairImagePickerHelper.fromGallery();
@@ -70,7 +74,7 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
       final result = await _client.analyzeSingle(
         bytes: bytes,
         fileName: _fileName,
-        includeImages: false,
+        viewType: 'Front View',
       );
       if (!mounted) return;
       setState(() => _loading = false);
@@ -101,23 +105,11 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
       backgroundColor: HairTheme.pageBg,
       body: Stack(
         children: [
-          Positioned(
-            top: -100,
-            left: -40,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: HairTheme.blush.withValues(alpha: 0.28),
-              ),
-            ),
-          ),
           SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
                   child: Row(
                     children: [
                       IconButton(
@@ -141,111 +133,118 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
                   ),
                 ),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 8, 22, 28),
-                    children: [
-                      Text(
-                        'Add one clear head or scalp photo',
-                        textAlign: TextAlign.center,
-                        style: HairTheme.headline(22),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Nothing appears until you choose Camera or Gallery — then Analyze unlocks.',
-                        textAlign: TextAlign.center,
-                        style: HairTheme.body(13.5),
-                      ),
-                      const SizedBox(height: 18),
-                      AspectRatio(
-                        aspectRatio: 0.82,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          decoration: HairTheme.softCard(radius: 26),
-                          clipBehavior: Clip.antiAlias,
-                          child: hasPhoto
-                              ? Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.memory(_bytes!, fit: BoxFit.cover),
-                                    HairOvalGuide(
-                                      hint: 'Looks good? Continue below',
-                                    ),
-                                    Positioned(
-                                      top: 12,
-                                      right: 12,
-                                      child: _PillButton(
-                                        icon: Icons.refresh_rounded,
-                                        label: 'Change',
-                                        onTap: () => _pick(false),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Add one clear head or scalp photo',
+                          textAlign: TextAlign.center,
+                          style: HairTheme.headline(20),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Nothing appears until you choose Camera or Gallery — then Analyze unlocks.',
+                          textAlign: TextAlign.center,
+                          style: HairTheme.body(13),
+                        ),
+                        const SizedBox(height: 14),
+                        Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOut,
+                            width: double.infinity,
+                            decoration: HairTheme.softCard(radius: 24),
+                            clipBehavior: Clip.antiAlias,
+                            child: hasPhoto
+                                ? Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.memory(
+                                        _bytes!,
+                                        fit: BoxFit.cover,
                                       ),
-                                    ),
-                                  ],
-                                )
-                              : _EmptyPhotoState(
-                                  onGallery: () => _pick(false),
-                                  onCamera: () => _pick(true),
-                                ),
+                                      const HairOvalGuide(
+                                        hint: 'Looks good? Continue below',
+                                        hintBottomFraction: 0.08,
+                                      ),
+                                      Positioned(
+                                        top: 12,
+                                        right: 12,
+                                        child: _PillButton(
+                                          icon: Icons.refresh_rounded,
+                                          label: 'Change',
+                                          onTap: () => _pick(false),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const _EmptyPhotoState(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.center,
-                        children: const [
-                          _TipChip(icon: Icons.wb_sunny_outlined, label: 'Even light'),
-                          _TipChip(icon: Icons.water_drop_outlined, label: 'Dry hair'),
-                          _TipChip(icon: Icons.crop_free, label: 'Fill the oval'),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (_softTip != null)
-                        HairBanner(
-                          text: _softTip!,
-                          color: HairTheme.warn,
-                          icon: Icons.wb_sunny_outlined,
-                        ),
-                      if (_error != null)
-                        HairBanner(
-                          text: _error!,
-                          color: Colors.redAccent,
-                          icon: Icons.error_outline,
-                        ),
-                      if (hasPhoto) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 14),
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _loading ? null : () => _pick(true),
-                                icon: const Icon(Icons.photo_camera_outlined),
-                                label: const Text('Retake'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: HairTheme.accentDark,
-                                  side: const BorderSide(
-                                    color: HairTheme.accent,
+                              child: SizedBox(
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed:
+                                      _loading ? null : () => _pick(false),
+                                  icon: const Icon(
+                                    Icons.photo_library_outlined,
+                                    size: 20,
                                   ),
-                                  minimumSize: const Size.fromHeight(50),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                  label: Text(
+                                    'Upload from gallery',
+                                    style: GoogleFonts.lora(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: HairTheme.accent,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _loading ? null : () => _pick(false),
-                                icon: const Icon(Icons.photo_library_outlined),
-                                label: const Text('Gallery'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: HairTheme.accentDark,
-                                  side: const BorderSide(
-                                    color: HairTheme.accent,
+                              child: SizedBox(
+                                height: 48,
+                                child: OutlinedButton.icon(
+                                  onPressed:
+                                      _loading ? null : () => _pick(true),
+                                  icon: const Icon(
+                                    Icons.photo_camera_outlined,
+                                    size: 20,
                                   ),
-                                  minimumSize: const Size.fromHeight(50),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                  label: Text(
+                                    'Use camera',
+                                    style: GoogleFonts.lora(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: HairTheme.accentDark,
+                                    side: const BorderSide(
+                                      color: HairTheme.accent,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -253,60 +252,103 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                      ],
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: hasPhoto && !_loading
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFFE4B3B8),
-                                      Color(0xFFD79096),
-                                    ],
-                                  )
-                                : null,
-                            color: hasPhoto && !_loading
-                                ? null
-                                : const Color(0xFFE8DDD9),
-                            boxShadow: hasPhoto && !_loading
-                                ? [
-                                    BoxShadow(
-                                      color: HairTheme.accent
-                                          .withValues(alpha: 0.35),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: ElevatedButton(
-                            onPressed:
-                                _loading || !hasPhoto ? null : _analyze,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              disabledBackgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              disabledForegroundColor: HairTheme.textSoft,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                        const Row(
+                          children: [
+                            Expanded(
+                              child: _TipChip(
+                                icon: Icons.wb_sunny_outlined,
+                                label: 'Even light',
                               ),
                             ),
-                            child: Text(
-                              hasPhoto ? 'Analyze photo' : 'Add a photo to analyze',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: _TipChip(
+                                icon: Icons.water_drop_outlined,
+                                label: 'Dry hair',
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: _TipChip(
+                                icon: Icons.crop_free,
+                                label: 'Fill the oval',
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_softTip != null) ...[
+                          const SizedBox(height: 12),
+                          HairBanner(
+                            text: _softTip!,
+                            color: HairTheme.warn,
+                            icon: Icons.wb_sunny_outlined,
+                          ),
+                        ],
+                        if (_error != null) ...[
+                          const SizedBox(height: 12),
+                          HairBanner(
+                            text: _error!,
+                            color: HairTheme.error,
+                            icon: Icons.error_outline,
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 180),
+                          opacity: hasPhoto && !_loading ? 1 : 0.5,
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(26),
+                                gradient: hasPhoto && !_loading
+                                    ? const LinearGradient(
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: HairTheme.ctaGradient,
+                                      )
+                                    : null,
+                                color: hasPhoto && !_loading
+                                    ? null
+                                    : HairTheme.disabledFill,
+                                boxShadow: hasPhoto && !_loading
+                                    ? [
+                                        BoxShadow(
+                                          color: HairTheme.accent
+                                              .withValues(alpha: 0.35),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: ElevatedButton(
+                                onPressed:
+                                    _loading || !hasPhoto ? null : _analyze,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  disabledBackgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  disabledForegroundColor: HairTheme.textSoft,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(26),
+                                  ),
+                                ),
+                                child: Text(
+                                  hasPhoto
+                                      ? 'Analyze photo'
+                                      : 'Add a photo to analyze',
+                                  style: HairTheme.cta(15),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -324,13 +366,7 @@ class _HairQuickScanScreenState extends State<HairQuickScanScreen> {
 }
 
 class _EmptyPhotoState extends StatelessWidget {
-  final VoidCallback onGallery;
-  final VoidCallback onCamera;
-
-  const _EmptyPhotoState({
-    required this.onGallery,
-    required this.onCamera,
-  });
+  const _EmptyPhotoState();
 
   @override
   Widget build(BuildContext context) {
@@ -339,104 +375,56 @@ class _EmptyPhotoState extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFF8F6), Color(0xFFF3DCE0)],
+          colors: [Color(0xFFFFFCF9), Color(0xFFF6E4E6)],
         ),
       ),
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          CustomPaint(
-            size: Size.infinite,
-            painter: _DashedOvalPainter(),
+          const Positioned.fill(
+            child: CustomPaint(painter: _DashedOvalPainter()),
           ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.85),
-                      boxShadow: [
-                        BoxShadow(
-                          color: HairTheme.accent.withValues(alpha: 0.25),
-                          blurRadius: 18,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.content_cut_rounded,
-                      color: HairTheme.accentDark,
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No photo yet',
-                    style: GoogleFonts.lora(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: HairTheme.textHigh,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Fit your head in the oval after you add a photo.',
-                    textAlign: TextAlign.center,
-                    style: HairTheme.body(13),
-                  ),
-                  const SizedBox(height: 22),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: onGallery,
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: Text(
-                        'Upload from gallery',
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13.5,
-                        ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: HairTheme.iconTile,
+                    boxShadow: [
+                      BoxShadow(
+                        color: HairTheme.accent.withValues(alpha: 0.25),
+                        blurRadius: 18,
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: HairTheme.accentDark,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: OutlinedButton.icon(
-                      onPressed: onCamera,
-                      icon: const Icon(Icons.photo_camera_outlined),
-                      label: Text(
-                        'Use camera',
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13.5,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: HairTheme.accentDark,
-                        side: const BorderSide(color: HairTheme.accentDark),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
+                  child: const Icon(
+                    Icons.content_cut_rounded,
+                    color: HairTheme.accent,
+                    size: 28,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'No photo yet',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lora(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: HairTheme.textHigh,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Fit your head in the oval after you add a photo.',
+                  textAlign: TextAlign.center,
+                  style: HairTheme.body(12.5),
+                ),
+              ],
             ),
           ),
         ],
@@ -446,12 +434,14 @@ class _EmptyPhotoState extends StatelessWidget {
 }
 
 class _DashedOvalPainter extends CustomPainter {
+  const _DashedOvalPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromCenter(
-      center: Offset(size.width / 2, size.height * 0.42),
-      width: size.width * 0.58,
-      height: size.height * 0.48,
+      center: Offset(size.width / 2, size.height * 0.48),
+      width: size.width * 0.62,
+      height: size.height * 0.58,
     );
     final paint = Paint()
       ..color = HairTheme.accent.withValues(alpha: 0.55)
@@ -487,23 +477,29 @@ class _TipChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 9),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: HairTheme.blush.withValues(alpha: 0.6)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: HairTheme.accentDark),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.lora(
-              fontSize: 12,
-              color: HairTheme.textHigh,
-              fontWeight: FontWeight.w600,
+          Icon(icon, size: 14, color: HairTheme.accentDark),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.lora(
+                fontSize: 11,
+                color: HairTheme.textHigh,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -540,11 +536,7 @@ class _PillButton extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: GoogleFonts.montserrat(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: HairTheme.accentDark,
-                ),
+                style: HairTheme.label(12, color: HairTheme.accentDark),
               ),
             ],
           ),

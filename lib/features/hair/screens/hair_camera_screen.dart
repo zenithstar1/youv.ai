@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../utils/hair_image_picker.dart';
 import '../widgets/hair_oval_guide.dart';
+import '../widgets/hair_pose_coach.dart';
 import '../widgets/hair_theme.dart';
 
 /// Live camera capture for the hair feature.
@@ -13,10 +16,15 @@ class HairCameraScreen extends StatefulWidget {
   final String title;
   final CameraLensDirection preferredLens;
 
+  /// Head position asked for. Drives the coach animation, the guide shape and
+  /// whether capture runs on a countdown.
+  final HairCapturePose pose;
+
   const HairCameraScreen({
     super.key,
     this.title = 'Take photo',
     this.preferredLens = CameraLensDirection.front,
+    this.pose = HairCapturePose.front,
   });
 
   @override
@@ -32,6 +40,11 @@ class _HairCameraScreenState extends State<HairCameraScreen>
   bool _capturing = false;
   String? _error;
 
+  /// Coach overlay is shown once per capture for poses that need one.
+  late bool _showCoach = widget.pose.needsCoach;
+  int? _countdown;
+  Timer? _countdownTimer;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +55,7 @@ class _HairCameraScreenState extends State<HairCameraScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _countdownTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -123,6 +137,32 @@ class _HairCameraScreenState extends State<HairCameraScreen>
     await _startController((_activeIndex + 1) % _cameras.length);
   }
 
+  /// Poses where the user cannot watch the screen get a countdown so they can
+  /// settle into position before the shutter fires.
+  void _requestCapture() {
+    if (_capturing || _countdown != null) return;
+    if (!widget.pose.needsCoach) {
+      _capture();
+      return;
+    }
+
+    setState(() => _countdown = 3);
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final next = (_countdown ?? 1) - 1;
+      if (next <= 0) {
+        timer.cancel();
+        setState(() => _countdown = null);
+        _capture();
+      } else {
+        setState(() => _countdown = next);
+      }
+    });
+  }
+
   Future<void> _capture() async {
     final controller = _controller;
     if (controller == null ||
@@ -152,83 +192,87 @@ class _HairCameraScreenState extends State<HairCameraScreen>
     }
   }
 
+  Future<void> _pickGallery() async {
+    final picked = await HairImagePickerHelper.fromGallery();
+    if (!mounted) return;
+    Navigator.pop(context, picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
     final ready = controller != null && controller.value.isInitialized;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final crownFraming = widget.pose == HairCapturePose.top;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: ready
-                  ? HairOvalGuide(
-                      hint: 'Fit your head in the oval, then tap capture',
-                      child: FittedBox(
-                        fit: BoxFit.cover,
-                        child: SizedBox(
-                          width: controller.value.previewSize?.height ?? 720,
-                          height: controller.value.previewSize?.width ?? 1280,
-                          child: CameraPreview(controller),
-                        ),
-                      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Preview
+          if (ready)
+            HairOvalGuide(
+              hint: widget.pose.hint,
+              hintBottomFraction: 0.22,
+              ovalCenterFraction: crownFraming ? 0.40 : 0.42,
+              ovalWidthFraction: crownFraming ? 0.74 : 0.68,
+              ovalHeightFraction: crownFraming ? 0.42 : 0.48,
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: controller.value.previewSize?.height ?? 720,
+                  height: controller.value.previewSize?.width ?? 1280,
+                  child: CameraPreview(controller),
+                ),
+              ),
+            )
+          else
+            Center(
+              child: _initializing
+                  ? const CircularProgressIndicator(
+                      color: HairTheme.accent,
                     )
-                  : Center(
-                      child: _initializing
-                          ? const CircularProgressIndicator(
-                              color: HairTheme.accent,
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.all(28),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.videocam_off_outlined,
-                                    color: Colors.white70,
-                                    size: 48,
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    _error ?? 'Camera unavailable.',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.lora(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final picked =
-                                          await HairImagePickerHelper
-                                              .fromGallery();
-                                      if (!context.mounted) return;
-                                      Navigator.pop(context, picked);
-                                    },
-                                    icon: const Icon(
-                                      Icons.photo_library_outlined,
-                                    ),
-                                    label: const Text('Use gallery instead'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      side: const BorderSide(
-                                        color: Colors.white54,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.videocam_off_outlined,
+                            color: Colors.white70,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            _error ?? 'Camera unavailable.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.lora(
+                              color: Colors.white,
+                              fontSize: 15,
+                              height: 1.4,
                             ),
+                          ),
+                          const SizedBox(height: 20),
+                          OutlinedButton.icon(
+                            onPressed: _pickGallery,
+                            icon: const Icon(Icons.photo_library_outlined),
+                            label: const Text('Use gallery instead'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
             ),
-            Positioned(
-              top: 8,
-              left: 4,
-              right: 4,
+
+          // Top bar
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
               child: Row(
                 children: [
                   IconButton(
@@ -255,18 +299,59 @@ class _HairCameraScreenState extends State<HairCameraScreen>
                 ],
               ),
             ),
-            if (ready)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 26,
+          ),
+
+          // Bottom controls
+          if (ready)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + bottomInset),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.55),
+                    ],
+                  ),
+                ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (widget.pose.needsCoach) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          HairPoseHint(pose: widget.pose, size: 72),
+                          const SizedBox(width: 14),
+                          Flexible(
+                            child: Text(
+                              widget.pose.instruction,
+                              style: GoogleFonts.lora(
+                                color: Colors.white,
+                                fontSize: 13,
+                                height: 1.35,
+                                shadows: const [
+                                  Shadow(blurRadius: 8, color: Colors.black87),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     GestureDetector(
-                      onTap: _capturing ? null : _capture,
+                      onTap: (_capturing || _countdown != null)
+                          ? null
+                          : _requestCapture,
                       child: Container(
-                        width: 78,
-                        height: 78,
+                        width: 76,
+                        height: 76,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.18),
@@ -282,9 +367,18 @@ class _HairCameraScreenState extends State<HairCameraScreen>
                                     color: Colors.white,
                                   ),
                                 )
+                              : _countdown != null
+                              ? Text(
+                                  '$_countdown',
+                                  style: GoogleFonts.lora(
+                                    color: Colors.white,
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
                               : Container(
-                                  width: 58,
-                                  height: 58,
+                                  width: 56,
+                                  height: 56,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: HairTheme.accent,
@@ -293,14 +387,9 @@ class _HairCameraScreenState extends State<HairCameraScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     TextButton.icon(
-                      onPressed: () async {
-                        final picked =
-                            await HairImagePickerHelper.fromGallery();
-                        if (!context.mounted) return;
-                        Navigator.pop(context, picked);
-                      },
+                      onPressed: _pickGallery,
                       icon: const Icon(
                         Icons.photo_library_outlined,
                         size: 18,
@@ -313,8 +402,15 @@ class _HairCameraScreenState extends State<HairCameraScreen>
                   ],
                 ),
               ),
-          ],
-        ),
+            ),
+
+          // Pose walkthrough, shown once before the user starts framing.
+          if (_showCoach)
+            HairPoseCoach(
+              pose: widget.pose,
+              onDismiss: () => setState(() => _showCoach = false),
+            ),
+        ],
       ),
     );
   }

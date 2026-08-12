@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-/// Parsed response from POST /analyze?include_images=true
+/// Parsed response from POST /api/analyze-hair
 class HairSingleResult {
   final bool success;
   final String reportType;

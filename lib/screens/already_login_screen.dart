@@ -73,7 +73,11 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
     _startTimer();
 
     _authBloc.add(
-      SendOtpRequested(phone: phone, flow: 'login'),
+      SendOtpRequested(
+        phone: phone,
+        flow: 'login',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 
@@ -91,7 +95,11 @@ class _AlreadyLoginScreenState extends State<AlreadyLoginScreen> {
     setState(() => _timer = 30);
     _startTimer();
     _authBloc.add(
-      SendOtpRequested(phone: _normalizedPhone(), flow: 'login'),
+      SendOtpRequested(
+        phone: _normalizedPhone(),
+        flow: 'login',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 

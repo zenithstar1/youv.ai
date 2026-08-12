@@ -5,23 +5,54 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../api/hair_analysis_client.dart';
+import '../models/hair_multi_result.dart';
 import '../models/hair_single_result.dart';
 import '../utils/hair_image_picker.dart';
+import '../widgets/hair_pose_coach.dart';
 import '../widgets/hair_result_widgets.dart';
 import '../widgets/hair_theme.dart';
 import 'hair_camera_screen.dart';
 import 'hair_results_screen.dart';
 
 enum HairScanSlot {
-  front('Front', 'Face visible for hairline', Icons.face_retouching_natural),
-  left('Left side', 'Left profile / parting', Icons.rotate_90_degrees_ccw),
-  right('Right side', 'Right profile / parting', Icons.rotate_90_degrees_cw),
-  top('Top / crown', 'Crown or top of head', Icons.keyboard_arrow_up_rounded);
+  front(
+    'Front',
+    'Face visible for hairline',
+    Icons.face_retouching_natural,
+    'Front View',
+  ),
+  left(
+    'Left side',
+    'Left profile / parting',
+    Icons.rotate_90_degrees_ccw,
+    'Left View',
+  ),
+  right(
+    'Right side',
+    'Right profile / parting',
+    Icons.rotate_90_degrees_cw,
+    'Right View',
+  ),
+  top(
+    'Top / crown',
+    'Crown or top of head',
+    Icons.keyboard_arrow_up_rounded,
+    'Top View',
+  );
 
-  const HairScanSlot(this.title, this.hint, this.icon);
+  const HairScanSlot(this.title, this.hint, this.icon, this.apiViewType);
   final String title;
   final String hint;
   final IconData icon;
+  final String apiViewType;
+
+  /// Head position the camera coaches the user into for this slot.
+  HairCapturePose get pose => switch (this) {
+        HairScanSlot.front => HairCapturePose.front,
+        HairScanSlot.left => HairCapturePose.left,
+        HairScanSlot.right => HairCapturePose.right,
+        HairScanSlot.top => HairCapturePose.top,
+      };
 }
 
 class _SlotImage {
@@ -61,6 +92,7 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
             MaterialPageRoute(
               builder: (_) => HairCameraScreen(
                 title: slot.title,
+                pose: slot.pose,
                 preferredLens: slot == HairScanSlot.front
                     ? CameraLensDirection.front
                     : CameraLensDirection.back,
@@ -105,17 +137,6 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
     });
 
     try {
-      final files = _slots.entries
-          .map(
-            (e) => (
-              bytes: e.value.bytes,
-              fileName: e.value.fileName,
-            ),
-          )
-          .toList();
-
-      final multi = await _client.analyzeMulti(files: files);
-
       final perSlot = <HairScanSlot, HairSingleResult>{};
       final ordered = _slots.entries.toList();
       for (var i = 0; i < ordered.length; i++) {
@@ -125,15 +146,19 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
           _loadingMsg =
               'Analyzing photo ${i + 1}/${ordered.length}…\nPlease keep this screen open.';
         });
-        try {
-          final single = await _client.analyzeSingle(
-            bytes: entry.value.bytes,
-            fileName: entry.value.fileName,
-            includeImages: false,
-          );
-          perSlot[entry.key] = single;
-        } catch (_) {}
+        final single = await _client.analyzeSingle(
+          bytes: entry.value.bytes,
+          fileName: entry.value.fileName,
+          viewType: entry.key.apiViewType,
+        );
+        perSlot[entry.key] = single;
       }
+
+      if (perSlot.isEmpty) {
+        throw const HairAnalysisException('No photos could be analyzed.');
+      }
+
+      final multi = HairMultiResult.fromSingles(perSlot.values.toList());
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -167,18 +192,6 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
       backgroundColor: HairTheme.pageBg,
       body: Stack(
         children: [
-          Positioned(
-            top: -80,
-            right: -50,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: HairTheme.blush.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
           SafeArea(
             child: Column(
               children: [
@@ -237,7 +250,7 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
                                   value: _filledCount /
                                       HairScanSlot.values.length,
                                   minHeight: 8,
-                                  backgroundColor: const Color(0xFFEDE4E0),
+                                  backgroundColor: HairTheme.track,
                                   color: HairTheme.accent,
                                 ),
                               ),
@@ -245,9 +258,9 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
                             const SizedBox(width: 12),
                             Text(
                               '$_filledCount / ${HairScanSlot.values.length}',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                              style: HairTheme.label(
+                                13,
+                                weight: FontWeight.w700,
                                 color: HairTheme.accentDark,
                               ),
                             ),
@@ -258,7 +271,7 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
                       if (_error != null)
                         HairBanner(
                           text: _error!,
-                          color: Colors.redAccent,
+                          color: HairTheme.error,
                           icon: Icons.error_outline,
                         ),
                       for (final slot in HairScanSlot.values) ...[
@@ -272,42 +285,52 @@ class _HairFullScanScreenState extends State<HairFullScanScreen> {
                         const SizedBox(height: 12),
                       ],
                       const SizedBox(height: 8),
-                      SizedBox(
-                        height: 54,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: ready && !_loading
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFFD4B5A0),
-                                      Color(0xFFB8897A),
-                                    ],
-                                  )
-                                : null,
-                            color: ready && !_loading
-                                ? null
-                                : const Color(0xFFE8DDD9),
-                          ),
-                          child: ElevatedButton(
-                            onPressed: _loading || !ready ? null : _analyze,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              disabledBackgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              disabledForegroundColor: HairTheme.textSoft,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 180),
+                        opacity: ready && !_loading ? 1 : 0.5,
+                        child: SizedBox(
+                          height: 54,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(27),
+                              gradient: ready && !_loading
+                                  ? const LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: HairTheme.ctaGradient,
+                                    )
+                                  : null,
+                              color: ready && !_loading
+                                  ? null
+                                  : HairTheme.disabledFill,
+                              boxShadow: ready && !_loading
+                                  ? [
+                                      BoxShadow(
+                                        color: HairTheme.accent
+                                            .withValues(alpha: 0.35),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                            child: Text(
-                              ready
-                                  ? 'Analyze Full Scan'
-                                  : 'Add ${_filledCount >= 2 ? 0 : 2 - _filledCount} more photo${_filledCount == 1 ? '' : 's'}',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                            child: ElevatedButton(
+                              onPressed: _loading || !ready ? null : _analyze,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                disabledForegroundColor: HairTheme.textSoft,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(27),
+                                ),
+                              ),
+                              child: Text(
+                                ready
+                                    ? 'Analyze Full Scan'
+                                    : 'Add ${_filledCount >= 2 ? 0 : 2 - _filledCount} more photo${_filledCount == 1 ? '' : 's'}',
+                                style: HairTheme.cta(15),
                               ),
                             ),
                           ),
@@ -352,12 +375,12 @@ class _SlotCard extends StatelessWidget {
         border: Border.all(
           color: filled
               ? HairTheme.accent.withValues(alpha: 0.75)
-              : const Color(0xFFE8DDD8),
+              : HairTheme.iconTileMuted,
           width: filled ? 1.4 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: filled ? 0.06 : 0.03),
+            color: Colors.black.withValues(alpha: filled ? 0.08 : 0.05),
             blurRadius: filled ? 14 : 8,
             offset: const Offset(0, 5),
           ),
@@ -372,14 +395,12 @@ class _SlotCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: filled
-                      ? HairTheme.accent.withValues(alpha: 0.2)
-                      : HairTheme.pageBgDeep,
+                  color: filled ? HairTheme.iconTile : HairTheme.iconTileMuted,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   filled ? Icons.check_rounded : slot.icon,
-                  color: HairTheme.accentDark,
+                  color: filled ? HairTheme.accent : const Color(0xFF9C8F87),
                   size: 22,
                 ),
               ),
@@ -415,12 +436,10 @@ class _SlotCard extends StatelessWidget {
               else
                 Text(
                   'Optional',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.6,
+                  style: HairTheme.label(
+                    10,
                     color: HairTheme.textSoft,
-                  ),
+                  ).copyWith(letterSpacing: 0.6),
                 ),
             ],
           ),
@@ -467,7 +486,7 @@ class _SlotCard extends StatelessWidget {
                     icon: const Icon(Icons.photo_library_outlined, size: 18),
                     label: const Text('Gallery'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: HairTheme.accentDark,
+                      backgroundColor: HairTheme.accent,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(

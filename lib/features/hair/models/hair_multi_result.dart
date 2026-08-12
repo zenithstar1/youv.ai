@@ -23,6 +23,38 @@ class HairMultiResult {
     required this.raw,
   });
 
+  /// Builds a multi summary from sequential single-image analyses.
+  factory HairMultiResult.fromSingles(List<HairSingleResult> singles) {
+    final perImage = singles
+        .map(
+          (s) => HairPerImageSummary(
+            imageName: s.imageName,
+            viewType: s.viewType,
+            qualityScore: s.qualityScore,
+            densityAssessment: s.densityAssessment,
+            density: s.density,
+            raw: s.raw,
+          ),
+        )
+        .toList();
+
+    final primary = singles.isNotEmpty ? singles.first : null;
+    return HairMultiResult(
+      success: singles.every((s) => s.success),
+      reportType: 'multi_view_hair_analysis',
+      densityAssessment: primary?.densityAssessment,
+      density: primary?.density,
+      features: primary?.features,
+      scalpCondition: primary?.scalpCondition,
+      perImage: perImage,
+      raw: {
+        'success': true,
+        'report_type': 'multi_view_hair_analysis',
+        'results': singles.map((s) => s.raw).toList(),
+      },
+    );
+  }
+
   factory HairMultiResult.fromJson(Map<String, dynamic> json) {
     final perImage = <HairPerImageSummary>[];
 

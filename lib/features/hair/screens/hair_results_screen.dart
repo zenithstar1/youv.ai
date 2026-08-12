@@ -56,51 +56,37 @@ class HairResultsScreen extends StatelessWidget {
     final isMulti = multi != null;
     return Scaffold(
       backgroundColor: HairTheme.pageBg,
-      body: Stack(
-        children: [
-          Positioned(
-            top: -90,
-            right: -40,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: HairTheme.blush.withValues(alpha: 0.28),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 20, 0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 20, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    color: HairTheme.textHigh,
+                  ),
+                  Expanded(
+                    child: Text(
+                      isMulti ? 'Full Scan Results' : 'Your hair insights',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.lora(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                         color: HairTheme.textHigh,
                       ),
-                      Expanded(
-                        child: Text(
-                          isMulti ? 'Full Scan Results' : 'Your hair insights',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lora(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: HairTheme.textHigh,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 48),
-                    ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 36),
-                    children: [
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 36),
+                children: [
                       Text(
                         'Informational insights only — not a medical diagnosis.',
                         textAlign: TextAlign.center,
@@ -118,8 +104,6 @@ class HairResultsScreen extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
     );
   }
 

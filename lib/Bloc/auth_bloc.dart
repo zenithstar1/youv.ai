@@ -168,6 +168,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'mobile': normalizedPhone,
           'flow': event.flow,
           'type': event.flow,
+          'scanner_url': event.scannerUrl,
         },
       ).timeout(Duration(seconds: 10));
 

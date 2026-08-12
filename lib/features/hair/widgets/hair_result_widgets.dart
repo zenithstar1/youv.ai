@@ -16,7 +16,7 @@ class HairLoadingOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF3A2A22).withValues(alpha: 0.45),
+      color: HairTheme.textHigh.withValues(alpha: 0.45),
       child: Center(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 28),
@@ -59,16 +59,22 @@ class HairDensityBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Semantic score colors aligned with skin results thresholds.
     final items = [
-      ('High visible density', density.densePct, const Color(0xFF5F8F5A)),
-      ('Medium visible density', density.mediumPct, const Color(0xFFD4A017)),
-      ('Low visible density', density.thinPct, const Color(0xFFC96B6B)),
+      ('High visible density', density.densePct, const Color(0xFF43A047)),
+      ('Medium visible density', density.mediumPct, const Color(0xFFFB8C00)),
+      ('Low visible density', density.thinPct, const Color(0xFFD32F2F)),
     ];
 
     return Column(
       children: [
-        for (final item in items) ...[
-          _BarRow(label: item.$1, pct: item.$2, color: item.$3),
+        for (var i = 0; i < items.length; i++) ...[
+          _BarRow(
+            label: items[i].$1,
+            pct: items[i].$2,
+            color: items[i].$3,
+            delayMs: i * 100,
+          ),
           const SizedBox(height: 12),
         ],
         if (density.confidence != null)
@@ -91,11 +97,13 @@ class _BarRow extends StatelessWidget {
   final String label;
   final double? pct;
   final Color color;
+  final int delayMs;
 
   const _BarRow({
     required this.label,
     required this.pct,
     required this.color,
+    this.delayMs = 0,
   });
 
   @override
@@ -115,13 +123,18 @@ class _BarRow extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: value,
-                  minHeight: 11,
-                  backgroundColor: const Color(0xFFEDE4E0),
-                  color: color,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: value),
+                duration: Duration(milliseconds: 850 + delayMs),
+                curve: Curves.easeOutQuad,
+                builder: (context, val, _) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: val,
+                    minHeight: 11,
+                    backgroundColor: HairTheme.track,
+                    color: color,
+                  ),
                 ),
               ),
             ),
@@ -131,11 +144,7 @@ class _BarRow extends StatelessWidget {
               child: Text(
                 pct == null ? '—' : '${pct!.toStringAsFixed(1)}%',
                 textAlign: TextAlign.right,
-                style: GoogleFonts.montserrat(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: HairTheme.textHigh,
-                ),
+                style: HairTheme.label(12, color: HairTheme.textHigh),
               ),
             ),
           ],
