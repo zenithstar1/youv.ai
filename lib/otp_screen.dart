@@ -258,6 +258,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         _authBloc.add(SendOtpRequested(
                                           phone: phone,
                                           flow: widget.flow,
+                                          scannerUrl: kIsWeb ? Uri.base.toString() : '',
                                         ));
                                       }
                                     : null,

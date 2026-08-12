@@ -518,7 +518,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
  }
 
     _authBloc.add(
-      SendOtpRequested(phone: phone, flow: 'signup'),
+      SendOtpRequested(
+        phone: phone,
+        flow: 'signup',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 
@@ -1483,7 +1487,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     setState(() { _timer = 30; });
     _startTimer();
     context.read<AuthBloc>().add(
-      SendOtpRequested(phone: widget.phone, flow: 'signup'),
+      SendOtpRequested(
+        phone: widget.phone,
+        flow: 'signup',
+        scannerUrl: kIsWeb ? Uri.base.toString() : '',
+      ),
     );
   }
 

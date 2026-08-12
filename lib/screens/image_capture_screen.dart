@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'image_preview_screen.dart';
-import 'enhanced_camera_screen.dart';
 import 'standard_camera_screen.dart';
 // ...existing code...
 
@@ -88,17 +87,10 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
   }
 
   Future<void> _proceedToCamera() async {
-    // Only use mobile camera screens, never web widget
+    // Hair uses upload only — no camera page.
     if (widget.isHair) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EnhancedCameraScreen(
-            isHair: widget.isHair,
-            onImageCaptured: (_, __) {}, // Camera screens handle navigation directly
-          ),
-        ),
-      );
+      setState(() => _navigated = false);
+      await _uploadFromDevice();
       return;
     }
     Navigator.pushReplacement(
@@ -110,8 +102,6 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         ),
       ),
     );
-    // No web widget usage
-    // ...existing code...
   }
 
   // ================= UPLOAD =================
@@ -186,10 +176,14 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         ),
         actions: [
           TextButton(
-           onPressed: () {
-  Navigator.pop(context);
-  _takePhoto();
-},
+            onPressed: () {
+              Navigator.pop(context);
+              if (widget.isHair) {
+                _uploadFromDevice();
+              } else {
+                _takePhoto();
+              }
+            },
             child: const Text(
               "Got it!",
               style: TextStyle(
@@ -230,7 +224,7 @@ Widget build(BuildContext context) {
 
           Text(
             widget.isHair
-                ? "Capture Hair Image"
+                ? "Upload Hair Image"
                 : "Capture Face Image",
             style: GoogleFonts.lora(
               fontSize: 24,
@@ -241,17 +235,18 @@ Widget build(BuildContext context) {
 
           const SizedBox(height: 40),
 
-          ElevatedButton.icon(
-            onPressed: _takePhoto,
-            icon: const Icon(Icons.camera_alt),
-            label: const Text("Take Photo"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6B3E3E),
-              minimumSize: const Size(double.infinity, 55),
+          if (!widget.isHair) ...[
+            ElevatedButton.icon(
+              onPressed: _takePhoto,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text("Take Photo"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6B3E3E),
+                minimumSize: const Size(double.infinity, 55),
+              ),
             ),
-          ),
-
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
           OutlinedButton.icon(
             onPressed: _uploadFromDevice,

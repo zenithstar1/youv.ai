@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_analysis_app/utils/responsive.dart';
 import 'image_capture_screen.dart';
 import 'profile_screen.dart';
+import 'package:skin_analysis_app/features/hair/screens/hair_hub_screen.dart';
 
 class AnalysisTypeScreen extends StatefulWidget {
   const AnalysisTypeScreen({super.key});
@@ -228,15 +229,13 @@ class _AnalysisTypeScreenState extends State<AnalysisTypeScreen> {
                             isPrimary: false,
                             icon: Icons.content_cut,
                             title: "Hair Health Overview",
-                            statusText: "Coming Soon",
                             subtitle: "Density • Thinning • Scalp",
                             description: "Scalp and hair density screening.",
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Hair Health Overview is coming soon.'),
-                                  duration: Duration(seconds: 2),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const HairHubScreen(),
                                 ),
                               );
                             },
